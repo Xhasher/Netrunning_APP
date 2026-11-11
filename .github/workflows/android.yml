@@ -1,0 +1,65 @@
+name: Build APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Installa dipendenze
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Build web
+        run: npm run build
+
+      - name: Crea progetto Android
+        run: |
+          npx cap add android
+          npx cap sync android
+
+      - name: Compila APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Rinomina APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk NightCity-Edgerunner.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NightCity-Edgerunner-apk
+          path: NightCity-Edgerunner.apk
+
+      - name: Pubblica come release "apk-latest"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk-latest --cleanup-tag --yes || true
+          gh release create apk-latest NightCity-Edgerunner.apk \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "APK di prova (ultima versione)" \
+            --notes "APK di debug generato automaticamente dal branch ${GITHUB_REF_NAME} (commit ${GITHUB_SHA::7}). Scaricalo dal telefono e installalo (serve consentire l'installazione da origini sconosciute)."
