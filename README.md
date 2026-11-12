@@ -4,7 +4,7 @@ Un gioco per Android che insegna **ethical hacking, penetration testing e cyber 
 
 Si gioca in un **terminale Linux simulato**: comandi, file, rete e bersagli sono tutti finti, quindi si può sperimentare senza rischi e senza connessione.
 
-## Contenuti attuali (v0.8)
+## Contenuti attuali (v0.9)
 
 | Capitolo | Missioni | Argomenti |
 |---|---|---|
@@ -19,14 +19,15 @@ Si gioca in un **terminale Linux simulato**: comandi, file, rete e bersagli sono
 | 09 · Reti avanzate | 4 | modello OSI e TCP/IP, incapsulamento, MAC e ARP, ARP spoofing, routing, CIDR e sottoreti con `ipcalc`, segmentazione e VLAN, `tcpdump`, flag TCP, protocolli in chiaro, scansioni SYN, chiavi SSH, known_hosts, tunnel e VPN |
 | 10 · Ricognizione e OSINT | 4 | OSINT e limiti etici/legali (GDPR), `whois`, `dig` (A, MX, TXT, NS), SPF/DKIM/DMARC, certificate transparency (`crtsh`), shadow IT, metadati con `exiftool`, effetto mosaico, CVE, CVSS, NVD e KEV, priorità delle correzioni |
 | 11 · Rinforzare i sistemi | 4 | cosa fa un attaccante dopo l'accesso (dal punto di vista di chi difende), `sudo -l` e regole pericolose, file SUID, credenziali nei file, `ss -tlnp`, `apt list --upgradable`, configurazione SSH sicura, CIS Benchmarks, riuso delle credenziali, difesa in profondità, EDR, backup 3-2-1, zero trust |
+| 12 · Windows e Active Directory | 3 | struttura di Windows, PowerShell (alias `Get-Content`, `Select-String`...), Active Directory, Domain Controller, gruppi privilegiati, tiering, Kerberos e NTLM, Event ID (4624, 4625, 4672, 4720, 4728, 7045, 1102), Sysmon, log centralizzati |
 
 Altre modalità:
-- **Operazioni**: simulatore in stile console. Ti colleghi con `ssh` ai server simulati dei clienti, indaghi con comandi reali e segnali i problemi con `report`. Sette contratti: audit di un server (OP-01), incident response su un'intrusione (OP-02), audit di un sito web (OP-03), threat hunting a partire da un bollettino di IOC (OP-04), analisi forense di rete (OP-05), impronta pubblica di un'azienda (OP-06), hardening di un server (OP-07).
+- **Operazioni**: simulatore in stile console. Ti colleghi con `ssh` ai server simulati dei clienti, indaghi con comandi reali e segnali i problemi con `report`. Otto contratti: audit di un server (OP-01), incident response su un'intrusione (OP-02), audit di un sito web (OP-03), threat hunting a partire da un bollettino di IOC (OP-04), analisi forense di rete (OP-05), impronta pubblica di un'azienda (OP-06), hardening di un server (OP-07), incidente in un dominio Windows (OP-08).
 - **Terminale libero**: il Linux simulato senza missioni, con esercizi liberi in `palestra/`.
 - **Giochi**: *Phishing o no?* (riconoscere email e SMS truffa), *Turno al SOC* (triage degli allarmi), *Allenamento* (quiz di ripasso).
 - **Codex** (glossario) e **Carriera** (laboratori legali gratuiti e certificazioni).
 
-I capitoli 12-13 (Windows e Active Directory, cloud e carriera) sono nella mappa come "in arrivo".
+Il capitolo 13 (cloud e carriera) è nella mappa come "in arrivo".
 
 ## Scaricare l'APK
 

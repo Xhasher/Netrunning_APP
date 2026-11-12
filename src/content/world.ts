@@ -380,6 +380,23 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
     mine,
   );
 
+  // Capitolo 12 — esportazioni da Active Directory e dal Registro eventi di Windows
+  fs.writeFile(
+    `${home}/windows/ad_gruppi.txt`,
+    [
+      '# esportazione dei gruppi privilegiati del dominio NEONOTTICA.LOCAL',
+      'Domain Admins: Administrator, s.neri.adm, m.ferri.adm',
+      'Enterprise Admins: Administrator',
+      'Backup Operators: svc_backup',
+      'Domain Users: s.neri, m.ferri, l.costa, a.bassi, stagista, svc_backup',
+      'Remote Desktop Users: l.costa, a.bassi',
+      '# modifiche recenti',
+      '2077-11-10 09:12 aggiunto "stagista" a Domain Admins (da m.ferri.adm)',
+    ].join('\n') + '\n',
+    mine,
+  );
+  fs.writeFile(`${home}/windows/security.csv`, buildWinEvents(), mine);
+
   // Capitolo 11 — il server di laboratorio per l'audit dei privilegi
   const shell = new Shell({ user, host: HOSTNAME, fs, net: createNetwork(), hint });
   addLab(shell);
@@ -597,5 +614,28 @@ function buildCapture(): string {
       `${ts()} IP 192.168.1.20.${port} > 192.168.1.66.61000: Flags [${[22, 23, 80].includes(port) ? 'S.' : 'R.'}], length 0`,
     );
   }
+  return L.join('\n') + '\n';
+}
+
+/** Eventi di sicurezza di Windows esportati in CSV: ora,EventID,computer,utente,dettaglio */
+function buildWinEvents(): string {
+  const L: string[] = ['# ora,EventID,computer,utente,dettaglio'];
+  let t = 22 * 60;
+  const ev = (id: number, host: string, user: string, det: string) => {
+    t += 1;
+    L.push(`2077-11-12 ${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')},${id},${host},${user},${det}`);
+  };
+  ev(4624, 'DC01', 's.neri', 'accesso riuscito tipo 2 (interattivo)');
+  ev(4624, 'PC-COSTA', 'l.costa', 'accesso riuscito tipo 10 (RDP)');
+  for (const u of ['s.neri', 'm.ferri', 'l.costa', 'a.bassi', 'stagista', 'Administrator', 'svc_backup'])
+    ev(4625, 'DC01', u, 'accesso non riuscito: password errata, da 10.0.5.66');
+  ev(4625, 'DC01', 'a.bassi', 'accesso non riuscito: password errata, da 10.0.5.66');
+  ev(4624, 'DC01', 'a.bassi', 'accesso riuscito tipo 3 (rete), da 10.0.5.66');
+  ev(4672, 'DC01', 'a.bassi', 'privilegi speciali assegnati al nuovo accesso');
+  ev(4720, 'DC01', 'a.bassi', 'creato account utente: helpdesk2');
+  ev(4728, 'DC01', 'a.bassi', 'aggiunto membro helpdesk2 al gruppo Domain Admins');
+  ev(4688, 'PC-BASSI', 'a.bassi', 'nuovo processo: powershell.exe -enc SQBFAFgA...');
+  ev(7045, 'PC-BASSI', 'SYSTEM', 'installato servizio "WinUpdater" C:\\Users\\Public\\upd.exe');
+  ev(1102, 'PC-BASSI', 'a.bassi', 'il registro di controllo è stato cancellato');
   return L.join('\n') + '\n';
 }

@@ -689,7 +689,8 @@ export class Shell {
       return code;
     }
 
-    const name = ALIASES[typed] ?? typed;
+    // PowerShell non distingue maiuscole e minuscole: i suoi alias si cercano in minuscolo
+    const name = ALIASES[typed] ?? (typed.includes('-') ? ALIASES[typed.toLowerCase()] : undefined) ?? typed;
     const cmd = COMMANDS[name];
     if (!cmd) {
       produced.push({ text: `bash: ${typed}: command not found`, cls: 'err', stream: 'err' });

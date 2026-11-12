@@ -914,7 +914,142 @@ Nessuno di questi è un attacco sofisticato: sono **errori di configurazione**, 
   },
 };
 
-export const OPERATIONS: Operation[] = [OP01, OP02, OP03, OP04, OP05, OP06, OP07];
+// ---------------------------------------------------------------- OP-08
+
+const OP08: Operation = {
+  id: 'op08',
+  code: 'OP-08',
+  title: 'Lo studio legale',
+  client: 'Studio legale Okafor & Lindqvist',
+  kind: 'incident',
+  requires: 'ch12-m3',
+  xp: 550,
+  brief: `@rook: Uno studio legale del centro. Stamattina il loro amministratore ha trovato un account che nessuno ha creato, tra gli amministratori del dominio. Panico. Ti hanno dato accesso al server che raccoglie i log di Windows.
+
+@nyx: Incident response in un **dominio Windows**. I log sono esportati in CSV in \`/var/log/windows\`: eventi di sicurezza del domain controller, eventi di sistema e **Sysmon** della postazione WS-12. Collegati con:
+
+\`\`\`
+ssh analista@siem.lan
+\`\`\`
+
+Ricostruisci la catena dall'inizio alla fine: ci sono **5 elementi** da segnalare con \`report\`.
+
+?? Gli eventi Sysmon che ti servono: **1** = processo creato (con il processo "genitore"), **3** = connessione di rete. Usa \`grep\` per Event ID e per nome.`,
+  scope: ['siem.lan (10.20.0.80), accesso SSH come "analista"', 'Solo analisi dei log esportati'],
+  findings: [
+    {
+      id: 'origin',
+      title: 'La postazione da cui è partito tutto',
+      answers: ['ws-12', 'ws12'],
+      hints: [
+        'Cerca un programma d\'ufficio che avvia un terminale: Word non dovrebbe mai lanciare PowerShell.',
+        'grep WINWORD /var/log/windows/sysmon_ws12.csv',
+        'report WS-12',
+      ],
+      explain: `Su **WS-12**, \`WINWORD.EXE\` (Word) ha avviato \`powershell.exe\` con un comando codificato: il classico segno di un **documento malevolo** aperto da un'email di phishing. Un programma d'ufficio che lancia un terminale è uno degli allarmi più affidabili.`,
+    },
+    {
+      id: 'c2',
+      title: 'Il dominio del server di comando e controllo',
+      answers: ['docs-share.top'],
+      hints: ['Dopo il PowerShell, il PC si è collegato all\'esterno: evento Sysmon 3.', 'grep ",3," /var/log/windows/sysmon_ws12.csv', 'report docs-share.top'],
+      explain: `\`powershell.exe\` si è collegato a **docs-share.top** sulla 443: è il canale di **comando e controllo**. Va bloccato sul DNS e sul firewall, e cercato su tutti gli altri PC (threat hunting!).`,
+    },
+    {
+      id: 'service',
+      title: 'Il servizio installato per sopravvivere ai riavvii',
+      answers: ['printspoolerhelper', 'c:\\programdata\\psh.exe', 'psh.exe'],
+      hints: ['Un nuovo servizio genera l\'evento 7045 nel registro di sistema.', 'grep 7045 /var/log/windows/system_ws12.csv', 'report PrintSpoolerHelper'],
+      explain: `Il servizio **PrintSpoolerHelper** avvia \`C:\\ProgramData\\psh.exe\`: un nome che imita il vero servizio di stampa di Windows. **Persistenza** tramite servizio (T1543.003).`,
+    },
+    {
+      id: 'account',
+      title: 'L\'account creato e reso amministratore del dominio',
+      answers: ['backup_adm'],
+      hints: ['Eventi 4720 e 4728 sul domain controller.', 'grep ",4720," /var/log/windows/security_dc01.csv', 'report backup_adm'],
+      explain: `**backup_adm**, creato con le credenziali di un amministratore rubate da WS-12 e aggiunto ai **Domain Admins**: l'account che l'amministratore dello studio aveva notato. Un nome "di servizio" credibile, per confondersi con gli account veri.`,
+    },
+    {
+      id: 'wipe',
+      title: 'Il sistema su cui l\'attaccante ha cancellato le tracce',
+      answers: ['dc01'],
+      hints: ['Quale Event ID indica la cancellazione del registro?', 'grep ",1102," /var/log/windows/security_dc01.csv', 'report DC01'],
+      explain: `L'evento **1102** su **DC01**: l'attaccante ha cancellato il registro di sicurezza del **domain controller**. Se lo stai leggendo è solo perché gli eventi erano già stati inoltrati al server dei log. Senza log centralizzati, questa indagine sarebbe stata impossibile.`,
+    },
+  ],
+  debrief: `@nyx: Un attacco completo a un dominio Windows, ricostruito solo dai log. La catena:
+
+\`\`\`
+09:02  WS-12   Word apre un allegato → PowerShell codificato   (Initial Access)
+09:03  WS-12   connessione a docs-share.top:443                (Command & Control)
+09:05  WS-12   servizio PrintSpoolerHelper → psh.exe           (Persistence)
+09:40  DC01    accesso amministrativo con credenziali rubate   (Lateral Movement)
+09:41  DC01    creato backup_adm, aggiunto a Domain Admins     (Persistence)
+09:44  DC01    registro di sicurezza cancellato                (Defense Evasion)
+\`\`\`
+
+Raccomandazioni allo studio:
+- isolare WS-12 e DC01, conservare le prove, disattivare backup_adm
+- bloccare docs-share.top e cercarlo su tutti i PC
+- **reimpostare** le password degli amministratori, in particolare di quello usato su WS-12
+- regole sul SIEM per: Office che avvia PowerShell, 7045 sospetti, 4728/4732, 1102
+- **tiering**: mai usare un account amministrativo su una postazione di lavoro normale
+
+Questo è esattamente il lavoro di un analista SOC e di un incident responder in un'azienda vera.`,
+  setup(sh) {
+    const fs = baseFs(
+      'siem',
+      ['root:x:0:0:root:/root:/bin/bash', 'analista:x:1001:1001:SOC esterno:/home/analista:/bin/bash'],
+      ['root:x:0:', 'adm:x:4:analista', 'analista:x:1001:'],
+    );
+    fs.mkdirp('/home/analista', { owner: 'analista' });
+    const d = '/var/log/windows';
+    fs.writeFile(
+      `${d}/sysmon_ws12.csv`,
+      [
+        '# ora,EventID,computer,processo,dettaglio',
+        '09:01:10,1,WS-12,OUTLOOK.EXE,avviato da explorer.exe',
+        '09:02:31,1,WS-12,WINWORD.EXE,avviato da OUTLOOK.EXE file=Parcella_novembre.docm',
+        '09:02:44,1,WS-12,powershell.exe,avviato da WINWORD.EXE comando=-nop -w hidden -enc SQBFAFgAIAAo...',
+        '09:03:02,3,WS-12,powershell.exe,connessione a docs-share.top (192.0.2.150):443',
+        '09:04:50,1,WS-12,psh.exe,avviato da services.exe',
+        '09:10:00,3,WS-12,chrome.exe,connessione a www.tribunale.nc:443',
+      ].join('\n') + '\n',
+      { group: 'adm', perms: 'rw-r-----' },
+    );
+    fs.writeFile(
+      `${d}/system_ws12.csv`,
+      [
+        '# ora,EventID,computer,utente,dettaglio',
+        '08:55:00,7036,WS-12,SYSTEM,servizio Windows Update in esecuzione',
+        '09:05:12,7045,WS-12,SYSTEM,installato servizio "PrintSpoolerHelper" C:\\ProgramData\\psh.exe',
+      ].join('\n') + '\n',
+      { group: 'adm', perms: 'rw-r-----' },
+    );
+    fs.writeFile(
+      `${d}/security_dc01.csv`,
+      [
+        '# ora,EventID,computer,utente,dettaglio',
+        '08:30:00,4624,DC01,o.okafor,accesso riuscito tipo 2',
+        '09:40:05,4624,DC01,l.lindqvist.adm,accesso riuscito tipo 3 da WS-12',
+        '09:40:05,4672,DC01,l.lindqvist.adm,privilegi speciali assegnati',
+        '09:41:20,4720,DC01,l.lindqvist.adm,creato account utente: backup_adm',
+        '09:41:33,4728,DC01,l.lindqvist.adm,aggiunto backup_adm al gruppo Domain Admins',
+        '09:44:59,1102,DC01,l.lindqvist.adm,il registro di controllo è stato cancellato',
+      ].join('\n') + '\n',
+      { group: 'adm', perms: 'rw-r-----' },
+    );
+    sh.net.hosts.push(host('10.20.0.80', ['siem.lan', 'siem'], [[22, 'ssh', 'OpenSSH 9.6p1'], [443, 'https', 'nginx']]));
+    sh.remotes.set('10.20.0.80', {
+      hostname: 'siem',
+      fs,
+      users: ['analista'],
+      banner: ['Welcome to Ubuntu 24.04 LTS (GNU/Linux)', '', ' * Raccolta log · Studio legale Okafor & Lindqvist'],
+    });
+  },
+};
+
+export const OPERATIONS: Operation[] = [OP01, OP02, OP03, OP04, OP05, OP06, OP07, OP08];
 
 export function normalizeReport(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, ' ').replace(/\/+$/, '');

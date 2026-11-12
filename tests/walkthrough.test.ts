@@ -129,6 +129,13 @@ const SOLUTIONS: Record<string, string[][]> = {
     ['@nano sshd_config.proposta|Port 22\nPermitRootLogin no\nPasswordAuthentication no\nX11Forwarding no\n'],
   ],
   'ch11-m4': [['ssh studente@lab.lan', 'grep Labirinto /opt/app/config.ini /opt/report/report.ini', 'flag /opt/report/report.ini']],
+  'ch12-m1': [['Get-Content windows/ad_gruppi.txt']],
+  'ch12-m2': [['Get-Content windows/ad_gruppi.txt', 'flag stagista']],
+  'ch12-m3': [
+    ['grep -c ",4625," windows/security.csv', 'flag 8'],
+    ['grep ",4624," windows/security.csv', 'flag a.bassi'],
+    ['Select-String a.bassi windows/security.csv', 'flag helpdesk2'],
+  ],
 };
 
 describe('ogni missione è completabile', () => {

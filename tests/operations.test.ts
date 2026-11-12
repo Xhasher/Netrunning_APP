@@ -59,6 +59,17 @@ const PLAY: Record<string, { cmds: string[]; reports: string[] }> = {
     cmds: ['ssh auditor@cassa-nuova.lan', 'sudo -l', 'find / -perm -4000 2>/dev/null', 'ls -l /etc/pos', 'cat /etc/pos/db.conf', 'ss -tlnp', 'apt list --upgradable | grep security'],
     reports: ['less', '/opt/pos/pos-update', '/etc/pos/db.conf', 'ftp', 'openssl'],
   },
+  op08: {
+    cmds: [
+      'ssh analista@siem.lan',
+      'grep WINWORD /var/log/windows/sysmon_ws12.csv',
+      'grep ",3," /var/log/windows/sysmon_ws12.csv',
+      'grep 7045 /var/log/windows/system_ws12.csv',
+      'grep ",4720," /var/log/windows/security_dc01.csv',
+      'grep ",1102," /var/log/windows/security_dc01.csv',
+    ],
+    reports: ['WS-12', 'docs-share.top', 'PrintSpoolerHelper', 'backup_adm', 'DC01'],
+  },
   op03: {
     cmds: ['curl -I http://radio.lan/', 'curl http://radio.lan/robots.txt', 'curl http://radio.lan/.env', 'curl http://radio.lan/staff/ | grep "<!--"'],
     reports: ['nginx/1.14.0', '/.env', '/staff/'],
