@@ -1,4 +1,5 @@
 import { CAREER, CHAPTERS, PLANNED, allMissions, findMission } from '../content';
+import { GAMES } from '../content/games';
 import { OPERATIONS, matchFinding, type Operation } from '../content/operations';
 import { buildWorld } from '../content/world';
 import type { Shell } from '../engine/shell';
@@ -74,6 +75,10 @@ export class App {
       case 'operation':
       case 'op-done':
         this.showOps();
+        return true;
+      case 'train':
+      case 'game':
+        this.showGames();
         return true;
       default:
         this.showMap();
@@ -192,7 +197,7 @@ export class App {
         <nav class="mapnav">
           <button data-act="ops">Operazioni</button>
           <button data-act="sandbox">Terminale</button>
-          <button data-act="train">Allenamento</button>
+          <button data-act="games">Giochi</button>
           <button data-act="codex">Codex</button>
           <button data-act="career">Carriera</button>
           <button data-act="settings">Opzioni</button>
@@ -273,6 +278,7 @@ export class App {
       else if (t.dataset.act === 'train') this.showTraining();
       else if (t.dataset.act === 'sandbox') this.showSandbox();
       else if (t.dataset.act === 'ops') this.showOps();
+      else if (t.dataset.act === 'games') this.showGames();
       else if (t.dataset.act === 'career') this.showCareer();
       else if (t.dataset.act === 'settings') this.showSettings();
       else if (t.dataset.act === 'title') this.showTitle();
@@ -796,6 +802,114 @@ export class App {
     return node;
   }
 
+  // ------------------------------------------------------------- giochi
+
+  private showGames(): void {
+    const best = (id: string, total: number) =>
+      this.save.best[id] !== undefined ? `<span class="op-xp">record: ${this.save.best[id]}/${total}</span>` : '';
+    const cards = html`
+      <button class="opcard" data-g="train">
+        <span class="op-top"><span class="op-code">RIPASSO</span></span>
+        <span class="op-title">Allenamento</span>
+        <span class="op-client">10 domande a caso dalle missioni che hai completato.</span>
+      </button>
+      ${GAMES.map(
+        (g) => html`
+          <button class="opcard" data-g="${g.id}">
+            <span class="op-top"><span class="op-code">GIOCO</span>${best(g.id, g.cards.length)}</span>
+            <span class="op-title">${g.title}</span>
+            <span class="op-client">${inline(g.tagline)}</span>
+          </button>`,
+      ).join('')}`;
+    const node = this.page('games', 'Giochi', '// allenarsi giocando', `<div class="oplist">${cards}</div>`);
+    node.addEventListener('click', (e) => {
+      const id = (e.target as HTMLElement).closest<HTMLElement>('[data-g]')?.dataset.g;
+      if (id === 'train') this.showTraining();
+      else if (id) this.showGame(id);
+    });
+  }
+
+  private showGame(id: string): void {
+    const game = GAMES.find((g) => g.id === id);
+    if (!game) return;
+    const deck = [...game.cards].sort(() => Math.random() - 0.5);
+    let idx = -1; // -1 = introduzione
+    let score = 0;
+    let answered = false;
+    const node = this.page('game', game.title, '// gioco', '<div class="train game"></div>');
+    const box = node.querySelector<HTMLElement>('.game')!;
+    const render = () => {
+      if (idx < 0) {
+        box.innerHTML = html`
+          <div class="prose">${renderMarkup(game.intro)}</div>
+          <div class="step-actions"><button class="next" data-t="next">Inizia ▸</button></div>`;
+        return;
+      }
+      if (idx >= deck.length) {
+        const prev = this.save.best[game.id];
+        const record = prev === undefined || score > prev;
+        if (record) {
+          this.save.best[game.id] = score;
+          this.persist();
+        }
+        box.innerHTML = html`
+          <div class="train-end">
+            <div class="xp-gain">${score}/${deck.length}</div>
+            <p>${record ? 'Nuovo record personale!' : `Il tuo record è ${prev}/${deck.length}.`}</p>
+            <div class="step-actions">
+              <button class="ghost" data-t="back">Giochi</button>
+              <button class="next" data-t="again">Rigioca ▸</button>
+            </div>
+          </div>`;
+        return;
+      }
+      const c = deck[idx];
+      answered = false;
+      box.innerHTML = html`
+        <div class="train-head"><span>${idx + 1}/${deck.length}</span><span>Punti: ${score}</span></div>
+        <div class="gcard">
+          <div class="gcard-type">${c.title}</div>
+          <dl class="gmeta">${c.meta.map(([k, v]) => `<div><dt>${k}</dt><dd>${inline(v)}</dd></div>`).join('')}</dl>
+          <div class="gbody"></div>
+        </div>
+        <div class="gchoices">
+          <button class="opt" data-c="0">${game.choices[0]}</button>
+          <button class="opt" data-c="1">${game.choices[1]}</button>
+        </div>
+        <div class="train-explain"></div>`;
+      box.querySelector('.gbody')!.textContent = c.body;
+    };
+    box.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      const act = t.closest<HTMLElement>('[data-t]')?.dataset.t;
+      if (act === 'back') return this.showGames();
+      if (act === 'again') return this.showGame(id);
+      if (act === 'next') {
+        idx++;
+        render();
+        this.root.scrollTop = 0;
+        return;
+      }
+      const btn = t.closest<HTMLElement>('[data-c]');
+      if (!btn || answered || idx < 0 || idx >= deck.length) return;
+      answered = true;
+      const c = deck[idx];
+      const chosen = Number(btn.dataset.c);
+      const right = chosen === c.answer;
+      if (right) score++;
+      box.querySelectorAll<HTMLButtonElement>('[data-c]').forEach((b) => {
+        const v = Number(b.dataset.c);
+        if (v === c.answer) b.classList.add('right');
+        else if (v === chosen) b.classList.add('wrong');
+        b.disabled = true;
+      });
+      box.querySelector('.train-explain')!.innerHTML = html`
+        <div class="${right ? 'success' : 'feedback wrong'}">${right ? '' : '<p>Sbagliato.</p>'}${renderMarkup(c.explain)}</div>
+        <div class="step-actions"><button class="next" data-t="next">${idx + 1 < deck.length ? 'Prossimo ▸' : 'Risultato ▸'}</button></div>`;
+    });
+    render();
+  }
+
   // ------------------------------------------------------------- allenamento
 
   private showTraining(): void {
@@ -833,7 +947,7 @@ export class App {
             <div class="xp-gain">${score}/${rounds.length}</div>
             <p>${msg}</p>
             <div class="step-actions">
-              <button class="ghost" data-t="map">Mappa</button>
+              <button class="ghost" data-t="map">Giochi</button>
               <button class="next" data-t="again">Ancora ▸</button>
             </div>
           </div>`;
@@ -855,7 +969,7 @@ export class App {
     box.addEventListener('click', (e) => {
       const t = e.target as HTMLElement;
       const act = t.closest<HTMLElement>('[data-t]')?.dataset.t;
-      if (act === 'map') return this.showMap();
+      if (act === 'map') return this.showGames();
       if (act === 'again') return this.showTraining();
       if (act === 'next') {
         idx++;
@@ -941,7 +1055,7 @@ export class App {
       </section>
       <section class="setting">
         <h3>Informazioni</h3>
-        <p class="small">Night City Netrunning v0.3 · corso di ethical hacking in italiano. Tutti i sistemi, le reti e i personaggi del gioco sono simulati o inventati. Le conoscenze di sicurezza vanno usate solo su sistemi propri o con autorizzazione scritta.</p>
+        <p class="small">Night City Netrunning v0.4 · corso di ethical hacking in italiano. Tutti i sistemi, le reti e i personaggi del gioco sono simulati o inventati. Le conoscenze di sicurezza vanno usate solo su sistemi propri o con autorizzazione scritta.</p>
       </section>`;
     const node = this.page('settings', 'Opzioni', '// impostazioni', content);
     node.addEventListener('click', (e) => {

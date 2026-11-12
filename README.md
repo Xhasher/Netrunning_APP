@@ -4,7 +4,7 @@ Un gioco per Android che insegna **ethical hacking, penetration testing e cyber 
 
 Si gioca in un **terminale Linux simulato**: comandi, file, rete e bersagli sono tutti finti, quindi si può sperimentare senza rischi e senza connessione.
 
-## Contenuti attuali (v0.3)
+## Contenuti attuali (v0.4)
 
 | Capitolo | Missioni | Argomenti |
 |---|---|---|
@@ -16,7 +16,11 @@ Si gioca in un **terminale Linux simulato**: comandi, file, rete e bersagli sono
 | 06 · Crittografia e password | 3 | codifica vs cifratura vs hash, `base64`, cifratura simmetrica e asimmetrica, TLS/HTTPS, SHA-256, `sha256sum -c`, supply chain attack, sale e hash lenti, password manager, MFA |
 | 07 · Web security | 3 | URL e HTTP, codici di stato, header, `curl`, information disclosure, robots.txt, security through obscurity, `access.log`, scanner, SQL injection, XSS, path traversal e relative difese |
 
-Altre funzioni: **Allenamento** (quiz di ripasso a caso sulle missioni completate), **Codex** (glossario di tutto ciò che hai imparato), **Carriera** (laboratori legali gratuiti e certificazioni).
+Altre modalità:
+- **Operazioni**: simulatore in stile console. Ti colleghi con `ssh` ai server simulati dei clienti, indaghi con comandi reali e segnali i problemi con `report`. Tre contratti: audit di un server (OP-01), incident response su un'intrusione (OP-02), audit di un sito web (OP-03).
+- **Terminale libero**: il Linux simulato senza missioni, con esercizi liberi in `palestra/`.
+- **Giochi**: *Phishing o no?* (riconoscere email e SMS truffa), *Turno al SOC* (triage degli allarmi), *Allenamento* (quiz di ripasso).
+- **Codex** (glossario) e **Carriera** (laboratori legali gratuiti e certificazioni).
 
 I capitoli 08-13 (reti avanzate, OSINT, hardening, Windows e Active Directory, Blue Team avanzato, cloud) sono nella mappa come "in arrivo".
 

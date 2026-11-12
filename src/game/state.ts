@@ -11,10 +11,12 @@ export interface SaveData {
   fontScale: number;
   /** operazioni completate */
   ops: string[];
+  /** miglior punteggio nei mini giochi */
+  best: Record<string, number>;
 }
 
 export function defaultSave(): SaveData {
-  return { handle: null, xp: 0, completed: [], progress: {}, fontScale: 1, ops: [] };
+  return { handle: null, xp: 0, completed: [], progress: {}, fontScale: 1, ops: [], best: {} };
 }
 
 export function loadSave(): SaveData {

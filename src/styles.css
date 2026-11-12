@@ -1451,3 +1451,62 @@ pre.code {
 .operation .complete .step-body pre.code {
   font-size: 0.75rem;
 }
+
+/* ------------------------------------------------------------------ mini giochi */
+
+.gcard {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--pink);
+  padding: 0.8rem 0.9rem;
+  margin: 0.6rem 0 0.9rem;
+}
+
+.gcard-type {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--pink);
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+.gmeta {
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+}
+
+.gmeta > div {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: 0.5rem;
+  padding: 0.15rem 0;
+}
+
+.gmeta dt {
+  color: var(--muted);
+}
+
+.gmeta dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.gbody {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border-top: 1px solid var(--line);
+  padding-top: 0.6rem;
+}
+
+.gchoices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin-bottom: 0.9rem;
+}
+
+.gchoices .opt {
+  justify-content: center;
+  font-weight: 600;
+}
