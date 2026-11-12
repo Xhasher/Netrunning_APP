@@ -55,6 +55,10 @@ const PLAY: Record<string, { cmds: string[]; reports: string[] }> = {
     cmds: ['whois scantinato.nc', 'dig scantinato.nc TXT', 'crtsh scantinato.nc', 'cat scantinato/servizi.txt', 'cve roundcube 1.4.1', 'exiftool scantinato/menu_autunno.pdf'],
     reports: ['spf', 'old.scantinato.nc', 'CVE-2077-0901', 'menu_autunno.pdf'],
   },
+  op07: {
+    cmds: ['ssh auditor@cassa-nuova.lan', 'sudo -l', 'find / -perm -4000 2>/dev/null', 'ls -l /etc/pos', 'cat /etc/pos/db.conf', 'ss -tlnp', 'apt list --upgradable | grep security'],
+    reports: ['less', '/opt/pos/pos-update', '/etc/pos/db.conf', 'ftp', 'openssl'],
+  },
   op03: {
     cmds: ['curl -I http://radio.lan/', 'curl http://radio.lan/robots.txt', 'curl http://radio.lan/.env', 'curl http://radio.lan/staff/ | grep "<!--"'],
     reports: ['nginx/1.14.0', '/.env', '/staff/'],

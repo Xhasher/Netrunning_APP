@@ -116,6 +116,19 @@ const SOLUTIONS: Record<string, string[][]> = {
     ['cat osint/servizi.txt', 'cve apache 2.4.57', 'cve roundcube 1.6.2', 'cve fortivpn 7.0.1', 'cve wordpress 5.2.4'],
     ['flag dev-old.neonottica.nc'],
   ],
+  'ch11-m1': [],
+  'ch11-m2': [
+    ['ssh studente@lab.lan', 'cat LEGGIMI.txt'],
+    ['sudo -l', 'flag find'],
+    ['find / -perm -4000 2>/dev/null', 'flag /usr/local/bin/backup-tool'],
+    ['find /opt -name "*.ini"', 'cat /opt/app/config.ini', 'flag Labirinto!42'],
+  ],
+  'ch11-m3': [
+    ['ssh studente@lab.lan', 'ss -tlnp', 'flag telnet'],
+    ['apt list --upgradable | grep -c security', 'flag 3'],
+    ['@nano sshd_config.proposta|Port 22\nPermitRootLogin no\nPasswordAuthentication no\nX11Forwarding no\n'],
+  ],
+  'ch11-m4': [['ssh studente@lab.lan', 'grep Labirinto /opt/app/config.ini /opt/report/report.ini', 'flag /opt/report/report.ini']],
 };
 
 describe('ogni missione è completabile', () => {

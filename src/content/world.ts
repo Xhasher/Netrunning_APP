@@ -2,6 +2,7 @@
 
 import { createNetwork } from '../engine/network';
 import { Shell } from '../engine/shell';
+import type { Host } from '../engine/network';
 import { base64Encode, sha256 } from '../engine/sha256';
 import { Vfs } from '../engine/vfs';
 
@@ -379,7 +380,90 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
     mine,
   );
 
-  return new Shell({ user, host: HOSTNAME, fs, net: createNetwork(), hint });
+  // Capitolo 11 — il server di laboratorio per l'audit dei privilegi
+  const shell = new Shell({ user, host: HOSTNAME, fs, net: createNetwork(), hint });
+  addLab(shell);
+  return shell;
+}
+
+function addLab(sh: Shell): void {
+  const lab = new Vfs();
+  for (const d of ['/bin', '/tmp', '/var/log', '/root', '/home', '/etc/ssh', '/usr/local/bin'])
+    lab.mkdirp(d, d === '/root' ? { perms: 'rwx------', locked: true } : d === '/tmp' ? { perms: 'rwxrwxrwt' } : {});
+  lab.writeFile('/etc/hostname', 'lab\n');
+  lab.writeFile(
+    '/etc/passwd',
+    [
+      'root:x:0:0:root:/root:/bin/bash',
+      'www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin',
+      'mysql:x:110:115:MySQL Server:/nonexistent:/bin/false',
+      'studente:x:1001:1001:Studente:/home/studente:/bin/bash',
+    ].join('\n') + '\n',
+  );
+  lab.writeFile('/etc/shadow', '(hash delle password)\n', { perms: 'rw-r-----', locked: true });
+  for (const [f, mode] of [
+    ['/usr/bin/passwd', 'rwsr-xr-x'],
+    ['/usr/bin/sudo', 'rwsr-xr-x'],
+    ['/usr/bin/su', 'rwsr-xr-x'],
+    ['/usr/bin/mount', 'rwsr-xr-x'],
+    ['/usr/local/bin/backup-tool', 'rwsr-xr-x'],
+    ['/usr/bin/find', 'rwxr-xr-x'],
+    ['/usr/bin/ls', 'rwxr-xr-x'],
+  ])
+    lab.writeFile(f, '\u007fELF (programma binario)', { perms: mode });
+  lab.writeFile(
+    '/etc/ssh/sshd_config',
+    ['Port 22', 'PermitRootLogin yes', 'PasswordAuthentication yes', 'X11Forwarding yes'].join('\n') + '\n',
+  );
+  lab.mkdirp('/home/studente', { owner: 'studente', group: 'studente' });
+  lab.writeFile(
+    '/home/studente/LEGGIMI.txt',
+    'Server di laboratorio per l\'esercitazione sui privilegi.\nTutto qui è configurato male apposta.\n',
+    { owner: 'studente' },
+  );
+  lab.writeFile(
+    '/home/studente/sshd_config.proposta',
+    ['# proposta di configurazione SSH per il server (da far applicare all\'amministratore)', 'Port 22', 'PermitRootLogin yes', 'PasswordAuthentication yes', 'X11Forwarding yes'].join('\n') + '\n',
+    { owner: 'studente' },
+  );
+  lab.writeFile('/opt/app/config.ini', '[database]\nhost=127.0.0.1\nuser=app\npassword=Labirinto!42\n', { perms: 'rw-r--r--' });
+  lab.writeFile('/opt/report/report.ini', '[db]\nuser=report\npassword=Labirinto!42\n', { perms: 'rw-r--r--' });
+  lab.writeFile('/opt/app/README', 'Applicazione gestionale del laboratorio.\n');
+  const labHost: Host = {
+    ip: '10.20.0.60',
+    names: ['lab.lan', 'lab'],
+    mac: '',
+    pingable: true,
+    latency: 1.8,
+    ttl: 64,
+    ports: [
+      { port: 22, service: 'ssh', version: 'OpenSSH 8.2p1' },
+      { port: 23, service: 'telnet', version: 'Linux telnetd' },
+      { port: 80, service: 'http', version: 'nginx 1.18.0' },
+      { port: 3306, service: 'mysql', version: 'MySQL 8.0.36' },
+    ],
+    inScope: true,
+  };
+  sh.net.hosts.push(labHost);
+  sh.remotes.set('10.20.0.60', {
+    hostname: 'lab',
+    fs: lab,
+    users: ['studente'],
+    banner: ['Welcome to Ubuntu 20.04.6 LTS (GNU/Linux)', '', ' * Server di LABORATORIO: configurato male apposta.'],
+    sudo: { studente: ['(root) NOPASSWD: /usr/bin/find', '(root) /usr/bin/systemctl restart nginx'] },
+    listening: [
+      [22, 'sshd'],
+      [23, 'in.telnetd'],
+      [80, 'nginx'],
+      [3306, 'mysqld'],
+    ],
+    upgradable: [
+      'openssh-server/focal-security 1:8.2p1-4ubuntu0.11 amd64 [upgradable from: 1:8.2p1-4ubuntu0.5]',
+      'linux-image-generic/focal-security 5.4.0.200.196 amd64 [upgradable from: 5.4.0.150.148]',
+      'sudo/focal-security 1.8.31-1ubuntu1.5 amd64 [upgradable from: 1.8.31-1ubuntu1.2]',
+      'nano/focal-updates 4.8-1ubuntu1.1 amd64 [upgradable from: 4.8-1ubuntu1]',
+    ],
+  });
 }
 
 /** Registro degli accessi SSH del server del bar, con un attacco "brute force" nascosto dentro. */

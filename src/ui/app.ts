@@ -1055,7 +1055,7 @@ export class App {
       </section>
       <section class="setting">
         <h3>Informazioni</h3>
-        <p class="small">Night City Netrunning v0.7 · corso di ethical hacking in italiano. Tutti i sistemi, le reti e i personaggi del gioco sono simulati o inventati. Le conoscenze di sicurezza vanno usate solo su sistemi propri o con autorizzazione scritta.</p>
+        <p class="small">Night City Netrunning v0.8 · corso di ethical hacking in italiano. Tutti i sistemi, le reti e i personaggi del gioco sono simulati o inventati. Le conoscenze di sicurezza vanno usate solo su sistemi propri o con autorizzazione scritta.</p>
       </section>`;
     const node = this.page('settings', 'Opzioni', '// impostazioni', content);
     node.addEventListener('click', (e) => {

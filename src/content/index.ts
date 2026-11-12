@@ -9,17 +9,12 @@ import { CH07 } from './ch07-web';
 import { CH08 } from './ch08-blue';
 import { CH09 } from './ch09-reti';
 import { CH10 } from './ch10-osint';
+import { CH11 } from './ch11-hardening';
 
-export const CHAPTERS: Chapter[] = [CH01, CH02, CH03, CH04, CH05, CH06, CH07, CH08, CH09, CH10];
+export const CHAPTERS: Chapter[] = [CH01, CH02, CH03, CH04, CH05, CH06, CH07, CH08, CH09, CH10, CH11];
 
 /** Il resto del corso: capitoli pianificati, mostrati nella mappa come "in arrivo". */
 export const PLANNED: PlannedChapter[] = [
-  {
-    code: '11',
-    title: 'Dall\'accesso al controllo',
-    subtitle: 'Come avanza un attaccante, e come fermarlo',
-    topics: ['la kill chain e MITRE ATT&CK', 'privilege escalation: le cause comuni', 'movimento laterale', 'hardening di Linux'],
-  },
   {
     code: '12',
     title: 'Windows e Active Directory',

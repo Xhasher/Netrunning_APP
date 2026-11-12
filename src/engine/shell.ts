@@ -37,6 +37,12 @@ export interface RemoteSystem {
   /** utenti con cui il consulente può collegarsi (accesso concesso dal cliente) */
   users: string[];
   banner?: string[];
+  /** regole sudo per utente, come le mostrerebbe "sudo -l" */
+  sudo?: Record<string, string[]>;
+  /** servizi in ascolto: [porta, processo] */
+  listening?: [number, string][];
+  /** aggiornamenti disponibili */
+  upgradable?: string[];
 }
 
 export interface ShellOptions {
@@ -395,14 +401,17 @@ export class Shell {
   /** server remoti raggiungibili con ssh, per indirizzo IP */
   remotes = new Map<string, RemoteSystem>();
   /** sessioni aperte: la shell locale resta "sotto" quelle remote */
-  private sessions: { fs: Vfs; user: string; host: string; home: string; cwd: string; oldPwd: string }[] = [];
+  private sessions: { fs: Vfs; user: string; host: string; home: string; cwd: string; oldPwd: string; system: RemoteSystem | null }[] = [];
+  /** il server remoto attuale (null = il tuo deck) */
+  system: RemoteSystem | null = null;
 
   get remoteDepth(): number {
     return this.sessions.length;
   }
 
   connect(r: RemoteSystem, user: string): void {
-    this.sessions.push({ fs: this.fs, user: this.user, host: this.host, home: this.home, cwd: this.cwd, oldPwd: this.oldPwd });
+    this.sessions.push({ fs: this.fs, user: this.user, host: this.host, home: this.home, cwd: this.cwd, oldPwd: this.oldPwd, system: this.system });
+    this.system = r;
     this.fs = r.fs;
     this.user = user;
     this.host = r.hostname;
@@ -667,9 +676,9 @@ export class Shell {
         produced.push({ text: `bash: ${typed}: Is a directory`, cls: 'err', stream: 'err' });
         return 126;
       }
-      if (node.locked || node.perms[2] !== 'x' || node.owner !== this.user) {
+      if (node.locked || !/[xs]/.test(node.perms[2]) || node.owner !== this.user) {
         produced.push({ text: `bash: ${typed}: Permission denied`, cls: 'err', stream: 'err' });
-        if (node.perms[2] !== 'x')
+        if (!/[xs]/.test(node.perms[2]))
           produced.push({ text: `💡 Il file non è eseguibile. Rendilo eseguibile con: chmod +x ${typed}`, cls: 'info', stream: 'err' });
         sink.events.push({ type: 'command', name: typed, args, ok: false });
         return 126;
@@ -1022,20 +1031,30 @@ const COMMANDS: Record<string, Command> = {
       c.err('Usage: grep [OPTION]... PATTERNS [FILE]...');
       return 2;
     }
-    const text = readText(c, rest.slice(1), 'grep');
-    if (text === null) return 2;
+    const files = rest.slice(1);
     const ci = flags.has('i');
     const needle = ci ? pattern.toLowerCase() : pattern;
+    // con più file, ogni riga trovata è preceduta dal nome del file (come nel vero grep)
+    const sources: [string | null, string | null][] = files.length > 1 ? files.map((f) => [f, readText(c, [f], 'grep')]) : [[null, readText(c, files, 'grep')]];
     let found = 0;
-    splitLines(text).forEach((l, i) => {
-      const hay = ci ? l.toLowerCase() : l;
-      const match = hay.includes(needle) !== flags.has('v');
-      if (match) {
-        found++;
-        if (!flags.has('c')) c.out(flags.has('n') ? `${i + 1}:${l}` : l);
+    let failed = false;
+    for (const [name, text] of sources) {
+      if (text === null) {
+        failed = true;
+        continue;
       }
-    });
-    if (flags.has('c')) c.out(String(found));
+      let count = 0;
+      splitLines(text).forEach((l, i) => {
+        const hay = ci ? l.toLowerCase() : l;
+        if (hay.includes(needle) !== flags.has('v')) {
+          count++;
+          if (!flags.has('c')) c.out(`${name ? name + ':' : ''}${flags.has('n') ? `${i + 1}:` : ''}${l}`);
+        }
+      });
+      if (flags.has('c')) c.out(`${name ? name + ':' : ''}${count}`);
+      found += count;
+    }
+    if (failed && sources.length === 1) return 2;
     return found ? 0 : 1;
   },
 
@@ -1631,6 +1650,28 @@ const COMMANDS: Record<string, Command> = {
     return 0;
   },
 
+  ss(c) {
+    const list: [number, string][] = c.sh.system?.listening ?? [[22, 'sshd']];
+    c.out('State   Recv-Q  Send-Q  Local Address:Port   Process', 'dim');
+    list.forEach(([port, proc], i) => c.out(`LISTEN  0       128     0.0.0.0:${String(port).padEnd(13)}users:(("${proc}",pid=${400 + i * 37},fd=3))`));
+    c.emit({ type: 'command', name: 'ss-ok', args: list.map(([p]) => String(p)), ok: true });
+    return 0;
+  },
+
+  apt(c) {
+    if (c.args[0] !== 'list' || !c.args.includes('--upgradable')) {
+      c.err('E: in questo deck: apt list --upgradable');
+      c.info('💡 Installare o aggiornare pacchetti richiede root (sudo apt upgrade).');
+      return 100;
+    }
+    c.out('Listing... Done', 'dim');
+    const ups = c.sh.system?.upgradable ?? [];
+    for (const u of ups) c.out(u, u.includes('-security') ? 'warn' : 'out');
+    if (!ups.length) c.out('(nessun aggiornamento disponibile)', 'dim');
+    c.emit({ type: 'command', name: 'apt-ok', args: [String(ups.length)], ok: true });
+    return 0;
+  },
+
   ipcalc(c) {
     const arg = c.args[0];
     const m = arg?.match(/^(\d{1,3}(?:\.\d{1,3}){3})\/(\d{1,2})$/);
@@ -1824,6 +1865,17 @@ const COMMANDS: Record<string, Command> = {
   },
 
   sudo(c) {
+    if (c.args[0] === '-l') {
+      const rules = c.sh.system ? c.sh.system.sudo?.[c.sh.user] ?? [] : ['(root) /usr/sbin/ufw'];
+      if (!rules.length) {
+        c.out(`Sorry, user ${c.sh.user} may not run sudo on ${c.sh.host}.`);
+        return 1;
+      }
+      c.out(`User ${c.sh.user} may run the following commands on ${c.sh.host}:`);
+      for (const r of rules) c.out(`    ${r}`, r.includes('NOPASSWD') || r.includes('ALL') ? 'warn' : 'out');
+      c.emit({ type: 'command', name: 'sudo-l', args: rules, ok: true });
+      return 0;
+    }
     if (c.args[0] === 'ufw') {
       c.info('[sudo] concesso: il contratto ti autorizza ad amministrare solo il firewall (ufw).');
       return ufw({ ...c, args: c.args.slice(1) }, true);
@@ -1888,6 +1940,7 @@ const COMMANDS: Record<string, Command> = {
     let name: RegExp | null = null;
     let type: string | null = null;
     let user: string | null = null;
+    let suid = false;
     for (let i = 0; i < c.args.length; i++) {
       const a = c.args[i];
       if (a === '-name' || a === '-iname') {
@@ -1906,9 +1959,16 @@ const COMMANDS: Record<string, Command> = {
         }
       } else if (a === '-user') {
         user = c.args[++i] ?? '';
+      } else if (a === '-perm') {
+        const pm = c.args[++i] ?? '';
+        if (!['-4000', '/4000', '-u=s', '/u=s', '4000'].includes(pm)) {
+          c.err(`find: in questo deck -perm supporta solo -4000 (file SUID)`);
+          return 1;
+        }
+        suid = true;
       } else if (a.startsWith('-')) {
         c.err(`find: unknown predicate \`${a}'`);
-        c.info('💡 In questo deck find supporta: -name, -iname, -type f|d, -user.');
+        c.info('💡 In questo deck find supporta: -name, -iname, -type f|d, -user, -perm -4000.');
         return 1;
       } else start = a;
     }
@@ -1922,7 +1982,7 @@ const COMMANDS: Record<string, Command> = {
     const walk = (n: VNode, shown: string, base: string) => {
       const okName = !name || name.test(base);
       const okType = !type || (type === 'd') === (n.type === 'dir');
-      const okUser = !user || n.owner === user;
+      const okUser = (!user || n.owner === user) && (!suid || (n.type === 'file' && n.perms[2] === 's'));
       if (okName && okType && okUser) c.out(shown, n.type === 'dir' ? 'dir' : 'out');
       if (n.type !== 'dir') return;
       if (n.locked) {

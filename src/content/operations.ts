@@ -800,7 +800,121 @@ Ci sono **4 problemi** da segnalare con \`report\`.`,
   },
 };
 
-export const OPERATIONS: Operation[] = [OP01, OP02, OP03, OP04, OP05, OP06];
+// ---------------------------------------------------------------- OP-07
+
+const OP07: Operation = {
+  id: 'op07',
+  code: 'OP-07',
+  title: 'Blindare la cassa',
+  client: 'Mama Reyes, bar "Lo Scantinato"',
+  kind: 'audit',
+  requires: 'ch11-m4',
+  xp: 500,
+  brief: `@rook: Dopo tutto quello che è successo, Mama ha comprato un server nuovo per la cassa. L'installatore giura che è "sicurissimo". Lei vuole un secondo parere prima di metterci sopra gli incassi.
+
+@nyx: Audit di **hardening**. Hai un account da auditor senza privilegi particolari: guarda il sistema come farebbe un attaccante che fosse entrato con un account normale. Collegati con:
+
+\`\`\`
+ssh auditor@cassa-nuova.lan
+\`\`\`
+
+Ci sono **5 problemi** da segnalare con \`report\`. Ripassa il capitolo 11: \`sudo -l\`, \`find / -perm -4000\`, file di configurazione, \`ss -tlnp\`, \`apt list --upgradable\`.`,
+  scope: ['cassa-nuova.lan (10.20.0.70), accesso SSH come "auditor"', 'Solo verifica: nessuna modifica'],
+  findings: [
+    {
+      id: 'sudo',
+      title: 'Una regola sudo che equivale a dare root',
+      answers: ['less', '/usr/bin/less'],
+      hints: ['Quali comandi puoi eseguire come root?', 'sudo -l', 'report less'],
+      explain: `\`(root) NOPASSWD: /usr/bin/less\`: \`less\`, oltre a mostrare file, permette di eseguire comandi. Concesso come root e senza password, regala i pieni poteri a chiunque usi l'account \`auditor\`. Correzione: rimuovere la regola; se serve leggere i log, aggiungere l'utente al gruppo \`adm\`.`,
+    },
+    {
+      id: 'suid',
+      title: 'Un programma SUID non standard',
+      answers: ['/opt/pos/pos-update', 'pos-update'],
+      hints: ['Cerca i file che girano con i permessi del proprietario.', 'find / -perm -4000 2>/dev/null', 'report /opt/pos/pos-update'],
+      explain: `\`/opt/pos/pos-update\` è di root e ha il bit SUID: un programma dell'installatore, che nessuno ha mai verificato, girerebbe come root per chiunque lo lanci. Correzione: \`chmod u-s\` e aggiornamenti gestiti da root via cron.`,
+    },
+    {
+      id: 'creds',
+      title: 'Credenziali del database leggibili da tutti',
+      answers: ['/etc/pos/db.conf', 'db.conf'],
+      hints: ['Le configurazioni dei programmi stanno spesso in /etc.', 'ls -l /etc/pos e cat sui file', 'report /etc/pos/db.conf'],
+      explain: `\`/etc/pos/db.conf\` contiene la password del database degli incassi, con permessi \`rw-r--r--\`. Correzione: \`chmod 640\` con gruppo dedicato all'applicazione (o \`600\`), e un utente del database con i soli permessi necessari.`,
+    },
+    {
+      id: 'ftp',
+      title: 'Un servizio inutile e in chiaro in ascolto',
+      answers: ['ftp', 'vsftpd', '21'],
+      hints: ['Quali porte sono aperte sul server?', 'ss -tlnp', 'report ftp'],
+      explain: `**FTP** (vsftpd, porta 21) trasmette credenziali e file in chiaro, e la cassa non ne ha bisogno: l'installatore l'aveva usato per copiare i file. Correzione: spegnerlo e disinstallarlo; per trasferire file c'è SFTP, che passa da SSH.`,
+    },
+    {
+      id: 'update',
+      title: 'Un aggiornamento di sicurezza critico mai installato',
+      answers: ['openssl', 'libssl3'],
+      hints: ['Ci sono aggiornamenti del canale -security?', 'apt list --upgradable | grep security', 'report openssl'],
+      explain: `\`openssl\` ha un aggiornamento di **sicurezza** in attesa: è la libreria che cifra le comunicazioni del terminale di pagamento. Correzione: installare gli aggiornamenti e attivare \`unattended-upgrades\` per quelli di sicurezza.`,
+    },
+  ],
+  debrief: `@nyx: "Sicurissimo", diceva l'installatore. Il tuo rapporto per Mama:
+
+\`\`\`
+[CRITICO] sudo: NOPASSWD su /usr/bin/less → root per chiunque
+[ALTO]    /opt/pos/pos-update SUID root, mai verificato
+[ALTO]    /etc/pos/db.conf con la password del DB leggibile da tutti
+[MEDIO]   FTP in ascolto sulla 21, non necessario
+[MEDIO]   aggiornamento di sicurezza openssl non installato
+\`\`\`
+
+Nessuno di questi è un attacco sofisticato: sono **errori di configurazione**, e un attaccante entrato con un account qualsiasi li avrebbe usati per diventare root e arrivare agli incassi. Corretti questi cinque punti, la cassa è davvero più dura da violare. Questo è l'hardening.`,
+  setup(sh) {
+    const fs = baseFs(
+      'cassa-nuova',
+      [
+        'root:x:0:0:root:/root:/bin/bash',
+        'pos:x:200:200:Applicazione cassa:/opt/pos:/usr/sbin/nologin',
+        'ftp:x:113:118:ftp daemon:/srv/ftp:/usr/sbin/nologin',
+        'auditor:x:1001:1001:Auditor esterno:/home/auditor:/bin/bash',
+      ],
+      ['root:x:0:', 'adm:x:4:', 'pos:x:200:', 'auditor:x:1001:'],
+    );
+    fs.mkdirp('/home/auditor', { owner: 'auditor' });
+    fs.writeFile('/home/auditor/LEGGIMI.txt', 'Accesso per la verifica di sicurezza. Buon lavoro.\n-- Mama\n', { owner: 'auditor' });
+    for (const [f, mode, owner] of [
+      ['/usr/bin/passwd', 'rwsr-xr-x', 'root'],
+      ['/usr/bin/sudo', 'rwsr-xr-x', 'root'],
+      ['/usr/bin/su', 'rwsr-xr-x', 'root'],
+      ['/opt/pos/pos-update', 'rwsr-xr-x', 'root'],
+      ['/opt/pos/pos-server', 'rwxr-x---', 'pos'],
+    ])
+      fs.writeFile(f, '\u007fELF (programma binario)', { perms: mode, owner });
+    fs.writeFile('/etc/pos/app.conf', 'porta=8443\nvaluta=eurodollari\n', { perms: 'rw-r--r--' });
+    fs.writeFile('/etc/pos/db.conf', '[database]\nhost=127.0.0.1\nuser=pos\npassword=Incassi#2077\n', { perms: 'rw-r--r--', owner: 'root', group: 'pos' });
+    fs.writeFile('/etc/ssh/sshd_config', ['Port 22', 'PermitRootLogin no', 'PasswordAuthentication no'].join('\n') + '\n');
+    fs.writeFile('/etc/vsftpd.conf', 'anonymous_enable=NO\nlocal_enable=YES\n');
+    sh.net.hosts.push(host('10.20.0.70', ['cassa-nuova.lan', 'cassa-nuova'], [[21, 'ftp', 'vsftpd 3.0.5'], [22, 'ssh', 'OpenSSH 8.9p1'], [8443, 'https', 'pos-server']]));
+    sh.remotes.set('10.20.0.70', {
+      hostname: 'cassa-nuova',
+      fs,
+      users: ['auditor'],
+      banner: ['Welcome to Ubuntu 22.04.4 LTS (GNU/Linux)', '', ' * Server cassa · Lo Scantinato'],
+      sudo: { auditor: ['(root) NOPASSWD: /usr/bin/less'] },
+      listening: [
+        [21, 'vsftpd'],
+        [22, 'sshd'],
+        [8443, 'pos-server'],
+      ],
+      upgradable: [
+        'openssl/jammy-security 3.0.2-0ubuntu1.18 amd64 [upgradable from: 3.0.2-0ubuntu1.10]',
+        'libssl3/jammy-security 3.0.2-0ubuntu1.18 amd64 [upgradable from: 3.0.2-0ubuntu1.10]',
+        'vim/jammy-updates 2:8.2.3995-1ubuntu2.17 amd64 [upgradable from: 2:8.2.3995-1ubuntu2.15]',
+      ],
+    });
+  },
+};
+
+export const OPERATIONS: Operation[] = [OP01, OP02, OP03, OP04, OP05, OP06, OP07];
 
 export function normalizeReport(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, ' ').replace(/\/+$/, '');

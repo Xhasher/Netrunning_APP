@@ -236,6 +236,7 @@ export const MANPAGES: Record<string, ManPage> = {
     description: [
       '"superuser do": esegue un comando con i privilegi di root (l\'amministratore). Funziona solo se il tuo utente è autorizzato nel file /etc/sudoers.',
       'Ottenere i privilegi di root su una macchina si chiama "privilege escalation": lo studieremo più avanti.',
+      '"sudo -l" mostra quali comandi il tuo utente può eseguire come root: è la prima cosa da controllare in un audit dei privilegi.',
     ],
   },
   id: {
@@ -280,6 +281,7 @@ export const MANPAGES: Record<string, ManPage> = {
       ['-name', 'cerca per nome (es. "*.txt"); -iname ignora maiuscole/minuscole'],
       ['-type f', 'solo file; -type d solo cartelle'],
       ['-user U', 'solo file di proprietà dell\'utente U'],
+      ['-perm -4000', 'solo i file SUID (eseguiti con i permessi del proprietario)'],
     ],
     examples: [
       ['find ~ -name "*.bak"', 'tutti i file di backup nella tua home'],
@@ -624,6 +626,25 @@ export const MANPAGES: Record<string, ManPage> = {
     ],
     examples: [['cve apache 2.4.29', 'vulnerabilità note per quella versione di Apache']],
     game: true,
+  },
+  ss: {
+    name: 'ss',
+    short: 'mostra i servizi in ascolto',
+    synopsis: 'ss -tlnp',
+    description: [
+      '"socket statistics": elenca le porte su cui il sistema è in ascolto e quale programma le usa. È la versione moderna di netstat.',
+      'Ogni servizio in ascolto è una porta aperta verso il mondo: quelli che non servono vanno spenti.',
+    ],
+    options: [['-tlnp', 't = TCP, l = in ascolto, n = numeri, p = processo']],
+  },
+  apt: {
+    name: 'apt',
+    short: 'gestisce i pacchetti software (Debian/Ubuntu)',
+    synopsis: 'apt list --upgradable',
+    description: [
+      'Il gestore dei pacchetti di Debian e Ubuntu. "apt list --upgradable" elenca gli aggiornamenti disponibili; quelli dal canale "-security" correggono vulnerabilità.',
+      'Per installarli serve root: sudo apt upgrade.',
+    ],
   },
   flag: {
     name: 'flag',
