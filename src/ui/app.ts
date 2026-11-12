@@ -1,5 +1,6 @@
 import { CAREER, CHAPTERS, PLANNED, allMissions, findMission } from '../content';
 import { GAMES } from '../content/games';
+import { TIPS, randomTip } from '../content/tips';
 import { OPERATIONS, matchFinding, type Operation } from '../content/operations';
 import { buildWorld } from '../content/world';
 import type { Shell } from '../engine/shell';
@@ -183,6 +184,7 @@ export class App {
     const next = nextMissionId(s);
     const nextInfo = next ? findMission(next) : null;
     const total = allMissions().length;
+    const tip = randomTip();
 
     const node = el(html`
       <div class="screen map">
@@ -211,6 +213,10 @@ export class App {
           : `<div class="continue done"><span class="c-kicker">${s.completed.length}/${total} MISSIONI</span>
               <span class="c-title">Hai completato tutte le missioni disponibili!</span>
               <span class="c-tag">Nuovi capitoli sono in arrivo. Intanto prova i laboratori nella sezione Carriera.</span></div>`}
+        <div class="tip" data-act="tip">
+          <span class="tip-k">TRUCCO DEL MESTIERE · ${tip.area.toUpperCase()}</span>
+          <span class="tip-t">${inline(tip.text)}</span>
+        </div>
         <div class="chapters"></div>
       </div>`);
 
@@ -282,6 +288,11 @@ export class App {
       else if (t.dataset.act === 'career') this.showCareer();
       else if (t.dataset.act === 'settings') this.showSettings();
       else if (t.dataset.act === 'title') this.showTitle();
+      else if (t.dataset.act === 'tip') {
+        const n = randomTip();
+        t.querySelector('.tip-k')!.textContent = `TRUCCO DEL MESTIERE · ${n.area.toUpperCase()}`;
+        t.querySelector('.tip-t')!.innerHTML = inline(n.text);
+      }
     });
     this.mount('map', node);
   }
@@ -1033,7 +1044,19 @@ export class App {
         <h3>I ruoli</h3>
         <ul class="res">${CAREER.roles.map(([n, d]) => `<li><b>${n}</b><span>${inline(d)}</span></li>`).join('')}</ul>
       </section>
-      <div class="prose">${renderMarkup(CAREER.advice)}</div>`;
+      <div class="prose">${renderMarkup(CAREER.advice)}</div>
+      <h3 id="trucchi">Trucchi del mestiere</h3>
+      ${['Terminale', 'Metodo', 'Studio', 'Lavoro', 'Sicurezza personale']
+        .map(
+          (a) => html`
+            <section class="phase">
+              <h3 class="sub">${a}</h3>
+              <ul class="res">${TIPS.filter((t) => t.area === a)
+                .map((t) => `<li><span class="tip-li">${inline(t.text)}</span></li>`)
+                .join('')}</ul>
+            </section>`,
+        )
+        .join('')}`;
     this.page('career', 'Carriera', '// dal gioco al lavoro', content);
   }
 
@@ -1055,7 +1078,7 @@ export class App {
       </section>
       <section class="setting">
         <h3>Informazioni</h3>
-        <p class="small">Night City Netrunning v0.9 · corso di ethical hacking in italiano. Tutti i sistemi, le reti e i personaggi del gioco sono simulati o inventati. Le conoscenze di sicurezza vanno usate solo su sistemi propri o con autorizzazione scritta.</p>
+        <p class="small">Night City Netrunning v1.0 · corso di ethical hacking in italiano. Tutti i sistemi, le reti e i personaggi del gioco sono simulati o inventati. Le conoscenze di sicurezza vanno usate solo su sistemi propri o con autorizzazione scritta.</p>
       </section>`;
     const node = this.page('settings', 'Opzioni', '// impostazioni', content);
     node.addEventListener('click', (e) => {

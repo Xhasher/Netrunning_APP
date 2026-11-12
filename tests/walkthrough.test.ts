@@ -136,6 +136,10 @@ const SOLUTIONS: Record<string, string[][]> = {
     ['grep ",4624," windows/security.csv', 'flag a.bassi'],
     ['Select-String a.bassi windows/security.csv', 'flag helpdesk2'],
   ],
+  'ch13-m1': [['cat cloud/bucket-policy.json', 'flag neonottica-scontrini-2077'], ['ls -a cloud/repo', 'grep AKIA cloud/repo/.env', 'flag .env']],
+  'ch13-m2': [["alias falliti='grep \"Failed password\" caso/auth.log'", 'falliti | wc -l'], ['cheat soc']],
+  'ch13-m3': [],
+  'ch13-m4': [['@nano report.md|# Sintesi\nAudit della cassa.\nRischio alto.\n# Risultati principali\n- sudo less\n- FTP aperto\n# Raccomandazioni\n1. togliere la regola sudo\n2. spegnere FTP\n']],
 };
 
 describe('ogni missione è completabile', () => {

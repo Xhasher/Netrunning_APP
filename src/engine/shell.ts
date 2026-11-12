@@ -446,10 +446,24 @@ export class Shell {
     return this.vars[name] ?? '';
   }
 
+  /** alias definiti dall'utente: nome → comando */
+  userAliases: Record<string, string> = {};
+
   run(input: string): RunResult {
-    const line = input.trim();
+    let line = input.trim();
     const result: RunResult = { lines: [], events: [] };
     if (!line) return result;
+    // !! ripete l'ultimo comando (anche dentro la riga: "sudo !!"), !N il comando numero N
+    const bang = line.match(/^!(\d+)(.*)$/);
+    if (bang || line.includes('!!')) {
+      const prev = bang ? this.history[Number(bang[1]) - 1] : this.history[this.history.length - 1];
+      if (!prev) {
+        result.lines.push({ text: `bash: ${bang ? '!' + bang[1] : '!!'}: event not found`, cls: 'err' });
+        return result;
+      }
+      line = bang ? prev + bang[2] : line.split('!!').join(prev);
+      result.lines.push({ text: line, cls: 'dim' });
+    }
     this.history.push(line);
     this.steps = 0;
     const sink: Sink = { lines: result.lines, events: result.events };
@@ -660,6 +674,11 @@ export class Shell {
   }
 
   private runCommand(words: string[], stdin: string | null, produced: OutLine[], sink: Sink, depth: number): number {
+    const ua = this.userAliases[words[0]];
+    if (ua && depth < 5) {
+      const expanded = tokenize(ua);
+      if (!('error' in expanded)) words = [...expanded.map((t) => t.t), ...words.slice(1)];
+    }
     const typed = words[0];
     const args = words.slice(1);
 
@@ -2094,6 +2113,94 @@ const COMMANDS: Record<string, Command> = {
     const h = c.sh.hint?.();
     if (h) c.info(`💡 ${h}`);
     else c.info('Nessun obiettivo attivo in questo momento: segui il pannello della missione.');
+    return 0;
+  },
+
+  alias(c) {
+    if (!c.args.length) {
+      for (const [k, v] of Object.entries(c.sh.userAliases)) c.out(`alias ${k}='${v}'`);
+      if (!Object.keys(c.sh.userAliases).length) c.out('(nessun alias definito)', 'dim');
+      return 0;
+    }
+    const def = c.args.join(' ');
+    const eq = def.indexOf('=');
+    if (eq <= 0) {
+      const v = c.sh.userAliases[def];
+      if (v === undefined) {
+        c.err(`bash: alias: ${def}: not found`);
+        return 1;
+      }
+      c.out(`alias ${def}='${v}'`);
+      return 0;
+    }
+    const name = def.slice(0, eq);
+    if (!/^[A-Za-z_][\w-]*$/.test(name)) {
+      c.err(`bash: alias: \`${name}': invalid alias name`);
+      return 1;
+    }
+    c.sh.userAliases[name] = def.slice(eq + 1);
+    c.emit({ type: 'command', name: 'alias-set', args: [name, def.slice(eq + 1)], ok: true });
+    return 0;
+  },
+
+  unalias(c) {
+    for (const a of c.args) delete c.sh.userAliases[a];
+    return 0;
+  },
+
+  cheat(c) {
+    const topic = (c.args[0] ?? '').toLowerCase();
+    const sheets: Record<string, [string, string][]> = {
+      file: [
+        ['ls -la', 'tutto, nascosti e permessi'],
+        ['cd - ', 'torna alla cartella precedente'],
+        ['find / -name "*.conf" 2>/dev/null', 'cerca senza errori'],
+        ['cp f f.bak', 'backup prima di modificare'],
+        ['chmod 600 f', 'solo il proprietario'],
+        ['tree', 'struttura delle cartelle'],
+      ],
+      testo: [
+        ['grep -i -n parola f', 'cerca, ignora maiuscole, numeri di riga'],
+        ['grep -c parola f', 'conta'],
+        ['cut -d " " -f 3', 'terza colonna'],
+        ['sort | uniq -c | sort -n -r', 'classifica per frequenza'],
+        ['head / tail -n 20', 'inizio / fine'],
+        ['wc -l', 'conta righe'],
+      ],
+      rete: [
+        ['ip a / ip route / ip neigh', 'indirizzi, percorsi, vicini'],
+        ['ping -c 3 host', 'risponde?'],
+        ['nmap -sn RETE / -sV HOST', 'chi c\'è / che servizi (solo in scope!)'],
+        ['curl -I url', 'header HTTP'],
+        ['dig dominio MX/TXT', 'record DNS'],
+        ['ss -tlnp', 'servizi in ascolto'],
+      ],
+      soc: [
+        ['grep "Failed password" auth.log | cut -d " " -f 11 | sort | uniq -c', 'brute force per IP'],
+        ['tail -n 50 log', 'eventi recenti'],
+        ['sha256sum -c LISTA', 'integrità dei file'],
+        ['for f in $(find D -type f); do sha256sum $f; done', 'impronte di una cartella'],
+        ['grep -c ",4625," security.csv', 'accessi falliti Windows'],
+        ['sudo -l / find / -perm -4000', 'audit dei privilegi'],
+      ],
+      shell: [
+        ['TAB', 'completa nomi e comandi'],
+        ['↑ / history / !!', 'ripeti comandi'],
+        ['alias ll=\'ls -la\'', 'scorciatoie personali'],
+        ['cmd > f / >> f', 'salva / aggiungi in un file'],
+        ['cmd1 && cmd2', 'il secondo solo se il primo riesce'],
+        ['$(cmd)', 'usa l\'output di un comando'],
+      ],
+    };
+    if (!sheets[topic]) {
+      c.out('Promemoria rapidi: cheat file · cheat testo · cheat rete · cheat soc · cheat shell', 'dim');
+      return topic ? 1 : 0;
+    }
+    const w = Math.max(...sheets[topic].map(([k]) => k.length));
+    for (const [k, v] of sheets[topic]) {
+      c.out(`  ${k.padEnd(Math.min(w, 34))}  `, 'dir');
+      c.out(`      ${v}`, 'dim');
+    }
     return 0;
   },
 

@@ -1049,7 +1049,113 @@ Questo è esattamente il lavoro di un analista SOC e di un incident responder in
   },
 };
 
-export const OPERATIONS: Operation[] = [OP01, OP02, OP03, OP04, OP05, OP06, OP07, OP08];
+// ---------------------------------------------------------------- OP-09
+
+const OP09: Operation = {
+  id: 'op09',
+  code: 'OP-09',
+  title: 'Nuvola bucata',
+  client: 'Mama Reyes, bar "Lo Scantinato"',
+  kind: 'audit',
+  requires: 'ch13-m1',
+  xp: 500,
+  brief: `@rook: Ultimo lavoro per Mama, ed è il più moderno: ha spostato prenotazioni, backup e il bot del jukebox su un cloud. Il nipote ha configurato tutto in un pomeriggio. Ti ha mandato l'esportazione della configurazione.
+
+@nyx: **Audit di configurazione cloud**. Lavori dal tuo deck: i file sono in \`~/nuvola\`. Ricorda i principi: niente di pubblico se non serve, minimo privilegio, MFA, rete chiusa, log attivi.
+
+Ci sono **5 problemi** da segnalare con \`report\`. Usa \`ls\`, \`cat\` e \`grep\`.`,
+  scope: ['esportazione della configurazione cloud in ~/nuvola', 'Solo analisi dei file forniti'],
+  findings: [
+    {
+      id: 'bucket',
+      title: 'Uno storage leggibile da chiunque su Internet',
+      answers: ['scantinato-backup'],
+      hints: ['Guarda le policy degli storage.', 'grep -i principal nuvola/storage.json', 'report scantinato-backup'],
+      explain: `Il bucket **scantinato-backup** ha \`"Principal": "*"\`: i backup del gestionale del bar, con incassi e dati dei clienti, scaricabili da chiunque. Correzione: togliere l'accesso pubblico e attivare il blocco globale dell'accesso pubblico.`,
+    },
+    {
+      id: 'iam',
+      title: 'Un utente automatico con poteri da amministratore',
+      answers: ['jukebox-bot', 'administratoraccess'],
+      hints: ['Che permessi ha ogni utente?', 'cat nuvola/iam.txt', 'report jukebox-bot'],
+      explain: `**jukebox-bot** deve solo leggere la playlist, ma ha \`AdministratorAccess\`: se il suo codice o la sua chiave vengono compromessi, l'attaccante controlla **tutto** l'account cloud. Correzione: una policy con i soli permessi necessari.`,
+    },
+    {
+      id: 'mfa',
+      title: 'L\'account principale senza secondo fattore',
+      answers: ['root', 'mfa', 'root mfa'],
+      hints: ['Nello stesso file degli utenti c\'è una colonna MFA.', 'grep root nuvola/iam.txt', 'report root'],
+      explain: `L'account **root**, che può fare qualsiasi cosa, compreso chiudere l'account, è protetto solo da una password. Correzione: MFA (meglio una chiave fisica), e non usarlo mai per il lavoro di tutti i giorni.`,
+    },
+    {
+      id: 'sg',
+      title: 'Una regola di rete aperta a tutto Internet',
+      answers: ['0.0.0.0/0', 'sg-ssh-gestionale', '22'],
+      hints: ['Le regole di rete del cloud si chiamano security group.', 'cat nuvola/security_groups.txt', 'report 0.0.0.0/0'],
+      explain: `Il security group del server del gestionale permette **SSH (22) da 0.0.0.0/0**, cioè da qualsiasi indirizzo al mondo: brute force e spraying garantiti, come nel capitolo 04. Correzione: solo dagli IP del bar o tramite VPN, e accesso solo con chiavi.`,
+    },
+    {
+      id: 'trail',
+      title: 'Il registro delle attività disattivato',
+      answers: ['cloudtrail', 'log', 'logging'],
+      hints: ['Senza log, nessuna indagine è possibile.', 'cat nuvola/logging.txt', 'report cloudtrail'],
+      explain: `**CloudTrail** è disattivato: se qualcuno usasse l'account, non resterebbe nessuna traccia di cosa ha fatto. Ricordi l'OP-08? Senza log centralizzati, l'indagine sarebbe stata impossibile. Correzione: attivarlo in tutte le regioni, con i log in uno storage protetto.`,
+    },
+  ],
+  debrief: `@nyx: Cinque problemi, tutti di **configurazione**, e nessuno colpa del fornitore cloud: il modello di responsabilità condivisa in pratica.
+
+\`\`\`
+[CRITICO] bucket scantinato-backup pubblico
+[CRITICO] jukebox-bot con AdministratorAccess
+[ALTO]    account root senza MFA
+[ALTO]    SSH aperto a 0.0.0.0/0 sul gestionale
+[MEDIO]   CloudTrail disattivato
+\`\`\`
+
+@rook: Mama ha letto il rapporto. Dice che finalmente ha capito cosa fa il nipote tutto il giorno, e che da domani il bot del jukebox potrà solo leggere le playlist.
+
+Hai completato tutte le Operazioni. Il deck resta tuo: rigioca quando vuoi, e porta questo metodo nel tuo laboratorio.`,
+  setup(sh) {
+    const own = { owner: sh.user, group: sh.user };
+    const d = `${sh.home}/nuvola`;
+    sh.fs.writeFile(
+      `${d}/storage.json`,
+      [
+        '[',
+        '  { "Bucket": "scantinato-prenotazioni", "Statement": [{ "Effect": "Allow", "Principal": {"AWS": "arn:aws:iam::2077:role/sito"}, "Action": "s3:PutObject" }] },',
+        '  { "Bucket": "scantinato-backup", "Statement": [{ "Effect": "Allow", "Principal": "*", "Action": "s3:GetObject" }] },',
+        '  { "Bucket": "scantinato-sito", "Statement": [{ "Effect": "Allow", "Principal": {"AWS": "arn:aws:iam::2077:role/cdn"}, "Action": "s3:GetObject" }] }',
+        ']',
+      ].join('\n') + '\n',
+      own,
+    );
+    sh.fs.writeFile(
+      `${d}/iam.txt`,
+      [
+        '# utente          tipo        policy                 MFA',
+        'root              account     (tutto)                NO',
+        'mama              persona     ReadOnlyAccess         SI',
+        'nipote            persona     PowerUserAccess        SI',
+        'jukebox-bot       automatico  AdministratorAccess    -',
+        'sito-prenotazioni automatico  S3PutPrenotazioni      -',
+      ].join('\n') + '\n',
+      own,
+    );
+    sh.fs.writeFile(
+      `${d}/security_groups.txt`,
+      [
+        '# gruppo              porta  origine          descrizione',
+        'sg-web                443    0.0.0.0/0        sito pubblico (ok)',
+        'sg-ssh-gestionale     22     0.0.0.0/0        "così posso entrare da casa"',
+        'sg-db                 5432   sg-web           database solo dal sito',
+      ].join('\n') + '\n',
+      own,
+    );
+    sh.fs.writeFile(`${d}/logging.txt`, ['CloudTrail: DISATTIVATO', 'Motivo (nota del nipote): "costava 3 eurodollari al mese"'].join('\n') + '\n', own);
+  },
+};
+
+export const OPERATIONS: Operation[] = [OP01, OP02, OP03, OP04, OP05, OP06, OP07, OP08, OP09];
 
 export function normalizeReport(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, ' ').replace(/\/+$/, '');

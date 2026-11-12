@@ -136,6 +136,7 @@ export const MANPAGES: Record<string, ManPage> = {
     description: [
       'Elenca i comandi digitati in precedenza, numerati.',
       'Puoi anche richiamarli con la freccia ↑. Attenzione: anche un difensore può leggere la cronologia per capire cosa ha fatto un intruso!',
+      'Scorciatoie: !! ripete l\'ultimo comando, !N ripete il comando numero N. "history | grep parola" ritrova un comando vecchio.',
     ],
   },
   grep: {
@@ -645,6 +646,26 @@ export const MANPAGES: Record<string, ManPage> = {
       'Il gestore dei pacchetti di Debian e Ubuntu. "apt list --upgradable" elenca gli aggiornamenti disponibili; quelli dal canale "-security" correggono vulnerabilità.',
       'Per installarli serve root: sudo apt upgrade.',
     ],
+  },
+  alias: {
+    name: 'alias',
+    short: 'crea scorciatoie per i comandi',
+    synopsis: "alias NOME='COMANDO'",
+    description: [
+      'Crea un nome breve per un comando lungo che usi spesso. Nel vero Linux si salvano in ~/.bashrc per renderli permanenti.',
+      'Senza argomenti elenca gli alias definiti. "unalias NOME" lo rimuove.',
+    ],
+    examples: [
+      ["alias ll='ls -la'", 'da ora "ll" = "ls -la"'],
+      ["alias falliti='grep \"Failed password\"'", 'una scorciatoia da analista'],
+    ],
+  },
+  cheat: {
+    name: 'cheat',
+    short: 'promemoria rapidi dei comandi',
+    synopsis: 'cheat [file|testo|rete|soc|shell]',
+    description: ['Comando del gioco: mostra un promemoria dei comandi più utili per argomento. Ispirato a strumenti reali come "tldr" e "cheat.sh".'],
+    game: true,
   },
   flag: {
     name: 'flag',

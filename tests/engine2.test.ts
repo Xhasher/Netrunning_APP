@@ -88,4 +88,18 @@ describe('shell: variabili, redirezioni, script', () => {
     expect(sh.fs.get('/home/edge/.ssh/id_ed25519')!.perms).toBe('rw-------');
     expect(text(sh.run('ssh-keygen'))).toContain('already exists');
   });
+
+  it('alias, !! e cheat', () => {
+    const sh = buildWorld('edge');
+    sh.run("alias ll='ls -la'");
+    expect(text(sh.run('ll missioni'))).toContain('.nota_segreta');
+    expect(text(sh.run('alias'))).toBe("alias ll='ls -la'");
+    sh.run('echo ciao');
+    expect(text(sh.run('!!'))).toBe('echo ciao\nciao');
+    expect(text(sh.run('!999'))).toContain('event not found');
+    sh.run('cat /etc/shadow');
+    expect(text(sh.run('sudo !!'))).toContain('sudo cat /etc/shadow');
+    expect(text(sh.run('cheat soc'))).toContain('uniq -c');
+    expect(text(sh.run('Get-Content README.txt'))).toContain('deck');
+  });
 });

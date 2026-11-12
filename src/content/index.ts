@@ -11,18 +11,13 @@ import { CH09 } from './ch09-reti';
 import { CH10 } from './ch10-osint';
 import { CH11 } from './ch11-hardening';
 import { CH12 } from './ch12-windows';
+import { CH13 } from './ch13-carriera';
 
-export const CHAPTERS: Chapter[] = [CH01, CH02, CH03, CH04, CH05, CH06, CH07, CH08, CH09, CH10, CH11, CH12];
+export const CHAPTERS: Chapter[] = [CH01, CH02, CH03, CH04, CH05, CH06, CH07, CH08, CH09, CH10, CH11, CH12, CH13];
 
 /** Il resto del corso: capitoli pianificati, mostrati nella mappa come "in arrivo". */
-export const PLANNED: PlannedChapter[] = [
-  {
-    code: '13',
-    title: 'Cloud e carriera',
-    subtitle: 'L\'ultimo tratto',
-    topics: ['sicurezza cloud (AWS, Azure)', 'scrivere un report professionale', 'certificazioni e colloqui', 'portfolio e CTF'],
-  },
-];
+/** Capitoli futuri, mostrati nella mappa come "in arrivo" (al momento il corso è completo). */
+export const PLANNED: PlannedChapter[] = [];
 
 export function allMissions(): Mission[] {
   return CHAPTERS.flatMap((c) => c.missions);

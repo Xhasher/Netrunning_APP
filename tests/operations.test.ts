@@ -70,6 +70,10 @@ const PLAY: Record<string, { cmds: string[]; reports: string[] }> = {
     ],
     reports: ['WS-12', 'docs-share.top', 'PrintSpoolerHelper', 'backup_adm', 'DC01'],
   },
+  op09: {
+    cmds: ['grep -i principal nuvola/storage.json', 'cat nuvola/iam.txt', 'cat nuvola/security_groups.txt', 'cat nuvola/logging.txt'],
+    reports: ['scantinato-backup', 'jukebox-bot', 'root', '0.0.0.0/0', 'cloudtrail'],
+  },
   op03: {
     cmds: ['curl -I http://radio.lan/', 'curl http://radio.lan/robots.txt', 'curl http://radio.lan/.env', 'curl http://radio.lan/staff/ | grep "<!--"'],
     reports: ['nginx/1.14.0', '/.env', '/staff/'],

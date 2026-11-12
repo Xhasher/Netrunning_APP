@@ -397,6 +397,32 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
   );
   fs.writeFile(`${home}/windows/security.csv`, buildWinEvents(), mine);
 
+  // Capitolo 13 — configurazione cloud esportata di Neon Ottica
+  fs.writeFile(
+    `${home}/cloud/bucket-policy.json`,
+    [
+      '{',
+      '  "Bucket": "neonottica-scontrini-2077",',
+      '  "Statement": [',
+      '    {',
+      '      "Effect": "Allow",',
+      '      "Principal": "*",',
+      '      "Action": "s3:GetObject",',
+      '      "Resource": "arn:aws:s3:::neonottica-scontrini-2077/*"',
+      '    }',
+      '  ]',
+      '}',
+    ].join('\n') + '\n',
+    mine,
+  );
+  fs.writeFile(`${home}/cloud/repo/README.md`, '# sito-ottica\nCodice del sito di Neon Ottica.\n', mine);
+  fs.writeFile(`${home}/cloud/repo/app.js`, 'const config = require("./config");\n// avvio del sito\n', mine);
+  fs.writeFile(
+    `${home}/cloud/repo/.env`,
+    ['# NON COMMITTARE!!! (troppo tardi)', 'AWS_ACCESS_KEY_ID=AKIA2077FAKEEXAMPLE0', 'AWS_SECRET_ACCESS_KEY=finta/chiave/segreta/solo/per/il/gioco', 'REGION=eu-south-1'].join('\n') + '\n',
+    mine,
+  );
+
   // Capitolo 11 — il server di laboratorio per l'audit dei privilegi
   const shell = new Shell({ user, host: HOSTNAME, fs, net: createNetwork(), hint });
   addLab(shell);
