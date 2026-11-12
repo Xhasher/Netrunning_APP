@@ -128,4 +128,32 @@ export class Vfs {
   size(node: VNode): number {
     return node.type === 'file' ? new TextEncoder().encode(node.content).length : 4096;
   }
+
+  /** Esporta un sottoalbero come oggetto JSON (per salvarlo). */
+  serialize(abs: string): unknown {
+    const enc = (n: VNode): unknown =>
+      n.type === 'file'
+        ? { t: 'f', c: n.content, o: n.owner, g: n.group, p: n.perms, m: n.mtime, l: n.locked ? 1 : 0 }
+        : { t: 'd', o: n.owner, g: n.group, p: n.perms, m: n.mtime, l: n.locked ? 1 : 0, k: Object.fromEntries([...n.children].map(([k, v]) => [k, enc(v)])) };
+    const node = this.get(abs);
+    return node ? enc(node) : null;
+  }
+
+  /** Sovrappone un sottoalbero salvato: i file salvati vincono su quelli attuali. */
+  overlay(abs: string, data: unknown): void {
+    type Enc = { t: 'f' | 'd'; c?: string; o: string; g: string; p: string; m: string; l: number; k?: Record<string, Enc> };
+    const apply = (path: string, e: Enc) => {
+      const opts = { owner: e.o, group: e.g, perms: e.p, mtime: e.m, locked: !!e.l };
+      if (e.t === 'f') {
+        this.writeFile(path, e.c ?? '', opts);
+        return;
+      }
+      const existing = this.get(path);
+      if (existing && existing.type !== 'dir') return;
+      const dir = this.mkdirp(path, opts);
+      dir.mtime = e.m;
+      for (const [k, v] of Object.entries(e.k ?? {})) apply(`${path === '/' ? '' : path}/${k}`, v);
+    };
+    if (data && typeof data === 'object') apply(normalize(abs), data as Enc);
+  }
 }

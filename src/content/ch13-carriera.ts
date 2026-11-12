@@ -173,6 +173,7 @@ falliti | wc -l
 \`\`\``,
           objective: 'Crea un alias con alias NOME=\'COMANDO\'.',
           hints: ["Scrivi: alias falliti='grep \"Failed password\" caso/auth.log'", 'Niente spazi attorno all\'uguale, e il comando tra apici singoli.'],
+          state: (sh) => Object.keys(sh.userAliases).length > 0,
           check: (ev) => ev.type === 'command' && ev.name === 'alias-set',
           success: `Da ora quella catena si scrive con una parola. Nel vero Linux salvi gli alias in \`~/.bashrc\` e li ritrovi ogni volta che apri il terminale.`,
         },

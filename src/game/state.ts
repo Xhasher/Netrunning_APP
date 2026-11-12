@@ -78,3 +78,32 @@ export function nextMissionId(s: SaveData): string | null {
 export function validHandle(h: string): boolean {
   return /^[a-z][a-z0-9_-]{1,15}$/.test(h);
 }
+
+const FS_KEY = 'nc-deck-home-v1';
+
+/** Salva la home del deck (file creati, permessi cambiati...) e gli alias. */
+export function saveDeck(data: unknown): void {
+  try {
+    const json = JSON.stringify(data);
+    if (json.length < 1_500_000) localStorage.setItem(FS_KEY, json);
+  } catch {
+    /* spazio esaurito o archiviazione non disponibile: si continua senza */
+  }
+}
+
+export function loadDeck(): { home?: unknown; aliases?: Record<string, string> } | null {
+  try {
+    const raw = localStorage.getItem(FS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearDeck(): void {
+  try {
+    localStorage.removeItem(FS_KEY);
+  } catch {
+    /* ignora */
+  }
+}

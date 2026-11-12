@@ -5,9 +5,12 @@ import { OPERATIONS, matchFinding, type Operation } from '../content/operations'
 import { buildWorld } from '../content/world';
 import type { Shell } from '../engine/shell';
 import type { ShellEvent } from '../engine/types';
-import { evaluate } from '../game/logic';
+import { evaluate, stateOk } from '../game/logic';
 import {
+  clearDeck,
   clearSave,
+  loadDeck,
+  saveDeck,
   isUnlocked,
   loadSave,
   nextMissionId,
@@ -106,6 +109,10 @@ export class App {
   private ensureShell(): Shell {
     if (!this.shell) {
       this.shell = buildWorld(this.save.handle!, () => this.nextHint());
+      // ripristina i file e gli alias della sessione precedente
+      const saved = loadDeck();
+      if (saved?.home) this.shell.fs.overlay(this.shell.home, saved.home);
+      if (saved?.aliases) this.shell.userAliases = { ...saved.aliases };
       this.term = new TerminalView(this.shell, (ev) => this.onShellEvents(ev));
       this.term.system('NightOS 2077 · deck di addestramento', 'banner');
       this.term.system('Tutto ciò che accade qui è simulato. Scrivi "help" per i comandi.', 'info');
@@ -667,6 +674,13 @@ export class App {
     if (scrollToEnd) panel.scrollTo({ top: panel.scrollHeight, behavior: 'smooth' });
     else panel.scrollTop = 0;
     if (step.kind === 'task' && !done && finePointer()) this.term?.focus();
+    // se il lavoro richiesto risulta già fatto (anche prima di arrivare qui), l'obiettivo è completato
+    if (step.kind === 'task' && !done && this.shell && stateOk(step, this.shell))
+      queueMicrotask(() => {
+        if (this.run !== r || r.step !== this.run.mission.steps.indexOf(step) || this.stepIsDone()) return;
+        this.term?.system('✔ OBIETTIVO GIÀ COMPLETATO', 'ok');
+        this.markDone();
+      });
   }
 
   private goTo(i: number): void {
@@ -730,9 +744,17 @@ export class App {
     this.renderStep(true);
   }
 
+  private persistDeck(): void {
+    const sh = this.shell;
+    if (!sh) return;
+    const home = `/home/${this.save.handle}`;
+    saveDeck({ home: sh.localFs.serialize(home), aliases: sh.userAliases });
+  }
+
   private onShellEvents(events: ShellEvent[]): void {
     const r = this.run;
     const term = this.term!;
+    this.persistDeck();
     if (!r) {
       if (events.some((e) => e.type === 'answer'))
         term.system('Sei nel terminale libero: le flag si inviano durante le missioni.', 'info');
@@ -1078,7 +1100,7 @@ export class App {
       </section>
       <section class="setting">
         <h3>Informazioni</h3>
-        <p class="small">Night City Netrunning v1.0 · corso di ethical hacking in italiano. Tutti i sistemi, le reti e i personaggi del gioco sono simulati o inventati. Le conoscenze di sicurezza vanno usate solo su sistemi propri o con autorizzazione scritta.</p>
+        <p class="small">Night City Netrunning v1.0.1 · corso di ethical hacking in italiano. Tutti i sistemi, le reti e i personaggi del gioco sono simulati o inventati. Le conoscenze di sicurezza vanno usate solo su sistemi propri o con autorizzazione scritta.</p>
       </section>`;
     const node = this.page('settings', 'Opzioni', '// impostazioni', content);
     node.addEventListener('click', (e) => {
@@ -1092,6 +1114,7 @@ export class App {
       } else if (act === 'reset') {
         if (confirm('Vuoi davvero cancellare tutti i progressi? Non si può annullare.')) {
           clearSave();
+          clearDeck();
           this.save = loadSave();
           this.shell = null;
           this.term = null;

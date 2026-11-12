@@ -29,6 +29,11 @@ export interface TaskStep {
   hints: string[];
   /** controllo sugli eventi della shell */
   check?: (ev: ShellEvent, sh: Shell) => boolean;
+  /**
+   * verifica lo stato del sistema (file creati, permessi...): se è già vero l'obiettivo
+   * è completato, anche se il lavoro è stato fatto prima di arrivare a questo passo
+   */
+  state?: (sh: Shell) => boolean;
   /** in alternativa: risposte accettate con il comando flag (maiuscole ignorate) */
   answer?: string[];
   /** spiegazione mostrata quando l'obiettivo è raggiunto */

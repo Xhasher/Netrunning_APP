@@ -634,6 +634,7 @@ mkdir appunti
 Poi controlla con \`ls\` che ci sia.`,
           objective: 'Crea la cartella laboratorio/appunti.',
           hints: ['Prima: cd laboratorio', 'Poi: mkdir appunti'],
+          state: (sh) => sh.fs.get(`${sh.home}/laboratorio/appunti`)?.type === 'dir',
           check: (ev, sh) => ev.type === 'fsop' && ev.op === 'mkdir' && ev.paths[0] === `${sh.home}/laboratorio/appunti`,
           success: `Cartella creata. Ricorda: \`mkdir -p a/b/c\` crea anche tutte le cartelle intermedie in un colpo solo.`,
         },
@@ -669,11 +670,15 @@ echo "cd cambia cartella" >> appunti/comandi.txt
 \`\`\`
 
 Controlla il risultato con \`cat appunti/comandi.txt\`.`,
-          objective: 'Scrivi almeno due righe in appunti/comandi.txt.',
+          objective: 'Scrivi almeno due righe in laboratorio/appunti/comandi.txt.',
           hints: [
             'Sei in laboratorio? Controlla con pwd.',
             'echo "ls elenca i file" > appunti/comandi.txt e poi echo "cd cambia cartella" >> appunti/comandi.txt',
           ],
+          state: (sh) => {
+            const n = sh.fs.get(`${sh.home}/laboratorio/appunti/comandi.txt`);
+            return !!n && n.type === 'file' && n.content.trim().split('\n').length >= 2;
+          },
           check: (ev, sh) => {
             if (ev.type !== 'write') return false;
             const n = sh.fs.get(`${sh.home}/laboratorio/appunti/comandi.txt`);
@@ -693,6 +698,7 @@ cp appunti/comandi.txt appunti/comandi.bak
 \`cp ORIGINE DESTINAZIONE\`: prima cosa copiare, poi dove.`,
           objective: 'Copia comandi.txt in comandi.bak.',
           hints: ['Dalla cartella laboratorio: cp appunti/comandi.txt appunti/comandi.bak'],
+          state: (sh) => sh.fs.get(`${sh.home}/laboratorio/appunti/comandi.bak`)?.type === 'file',
           check: (ev) => ev.type === 'fsop' && ev.op === 'cp' && ev.paths[1].endsWith('comandi.bak'),
           success: `Copia fatta.
 
@@ -710,6 +716,7 @@ mv bozza.txt idee.txt
 \`\`\``,
           objective: 'Rinomina bozza.txt in idee.txt.',
           hints: ['Dalla cartella laboratorio: mv bozza.txt idee.txt'],
+          state: (sh) => !!sh.fs.get(`${sh.home}/laboratorio/idee.txt`) && !sh.fs.get(`${sh.home}/laboratorio/bozza.txt`),
           check: (ev, sh) => ev.type === 'fsop' && ev.op === 'mv' && ev.paths[1] === `${sh.home}/laboratorio/idee.txt`,
           success: `Rinominato. \`mv\` serve anche a spostare: \`mv idee.txt appunti/\` metterebbe il file dentro la cartella appunti.`,
         },
@@ -736,6 +743,7 @@ rm vecchio_log.txt
 \`\`\``,
           objective: 'Cancella laboratorio/vecchio_log.txt.',
           hints: ['Dalla cartella laboratorio: rm vecchio_log.txt'],
+          state: (sh) => !!sh.fs.get(`${sh.home}/laboratorio`) && !sh.fs.get(`${sh.home}/laboratorio/vecchio_log.txt`),
           check: (ev, sh) => ev.type === 'fsop' && ev.op === 'rm' && ev.paths[0] === `${sh.home}/laboratorio/vecchio_log.txt`,
           success: `Cancellato, e senza ritorno. Ora guarda il risultato del tuo lavoro.`,
         },

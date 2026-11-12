@@ -246,6 +246,10 @@ chmod 600 audit/scantinato/config.bak
 Poi controlla con \`ls -l\` che sia diventato \`rw-------\`.`,
           objective: 'Rendi config.bak privato con chmod 600.',
           hints: ['Scrivi: chmod 600 audit/scantinato/config.bak'],
+          state: (sh) => {
+            const p = permsOf(sh, 'audit/scantinato/config.bak');
+            return !!p && (p.slice(3) === '------' || (p[4] !== 'w' && p.slice(6) === '---'));
+          },
           check: (ev, sh) => {
             if (ev.type !== 'chmod') return false;
             const p = permsOf(sh, 'audit/scantinato/config.bak');
@@ -269,6 +273,10 @@ chmod 755 audit/scantinato/backup.sh
 \`\`\``,
           objective: 'Togli il permesso di scrittura a gruppo e altri su backup.sh.',
           hints: ['Scrivi: chmod 755 audit/scantinato/backup.sh', 'In alternativa la forma simbolica: chmod go-w audit/scantinato/backup.sh'],
+          state: (sh) => {
+            const p = permsOf(sh, 'audit/scantinato/backup.sh');
+            return !!p && p[0] === 'r' && p[2] === 'x' && p[4] !== 'w' && p[7] !== 'w';
+          },
           check: (ev, sh) => {
             if (ev.type !== 'chmod') return false;
             const p = permsOf(sh, 'audit/scantinato/backup.sh');

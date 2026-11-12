@@ -171,6 +171,10 @@ date
 Poi tocca **Salva** ed **Esci**. (Nel vero nano: Ctrl+O per salvare, Ctrl+X per uscire.)`,
           objective: 'Crea e salva script/ciao.sh con nano.',
           hints: ['Prima cd script, poi nano ciao.sh', 'Nell\'editor scrivi le righe e premi Salva.'],
+          state: (sh) => {
+            const n = sh.fs.get(`${sh.home}/script/ciao.sh`);
+            return !!n && n.type === 'file' && n.content.includes('echo');
+          },
           check: (ev, sh) => {
             if (ev.type !== 'saved' || !ev.path.endsWith('.sh')) return false;
             const n = sh.fs.get(ev.path);

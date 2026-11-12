@@ -405,6 +405,11 @@ export class Shell {
   /** il server remoto attuale (null = il tuo deck) */
   system: RemoteSystem | null = null;
 
+  /** Il filesystem del tuo deck, anche mentre sei collegato a un server remoto. */
+  get localFs(): Vfs {
+    return this.sessions[0]?.fs ?? this.fs;
+  }
+
   get remoteDepth(): number {
     return this.sessions.length;
   }

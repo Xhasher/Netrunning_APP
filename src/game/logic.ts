@@ -24,5 +24,16 @@ export function evaluate(step: Step | undefined, events: ShellEvent[], sh: Shell
     }
     if (step?.kind === 'task' && step.check?.(ev, sh)) return 'pass';
   }
+  // obiettivi basati sullo stato: dopo qualsiasi comando, controlla se il lavoro risulta fatto
+  if (outcome === null && step?.kind === 'task' && step.state && events.length && stateOk(step, sh)) return 'pass';
   return outcome;
+}
+
+export function stateOk(step: Step | undefined, sh: Shell): boolean {
+  if (step?.kind !== 'task' || !step.state) return false;
+  try {
+    return step.state(sh);
+  } catch {
+    return false;
+  }
 }
