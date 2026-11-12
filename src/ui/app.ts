@@ -13,7 +13,7 @@ import {
   writeSave,
   type SaveData,
 } from '../game/state';
-import type { Chapter, Mission, Step } from '../game/types';
+import type { Chapter, Mission, QuizStep, Step } from '../game/types';
 import { inline, renderMarkup } from './markup';
 import { TerminalView } from './terminal';
 
@@ -178,6 +178,7 @@ export class App {
           </div>
         </header>
         <nav class="mapnav">
+          <button data-act="train">Allenamento</button>
           <button data-act="codex">Codex</button>
           <button data-act="career">Carriera</button>
           <button data-act="settings">Opzioni</button>
@@ -255,6 +256,7 @@ export class App {
       if (!t) return;
       if (t.dataset.mission) this.showMission(t.dataset.mission);
       else if (t.dataset.act === 'codex') this.showCodex();
+      else if (t.dataset.act === 'train') this.showTraining();
       else if (t.dataset.act === 'career') this.showCareer();
       else if (t.dataset.act === 'settings') this.showSettings();
       else if (t.dataset.act === 'title') this.showTitle();
@@ -557,6 +559,93 @@ export class App {
     return node;
   }
 
+  // ------------------------------------------------------------- allenamento
+
+  private showTraining(): void {
+    const pool: { q: QuizStep; mission: string }[] = [];
+    for (const m of allMissions())
+      if (this.save.completed.includes(m.id))
+        for (const st of m.steps) if (st.kind === 'quiz') pool.push({ q: st, mission: m.title });
+    if (pool.length === 0) {
+      this.page(
+        'train',
+        'Allenamento',
+        '// ripasso',
+        '<p class="empty">L\'allenamento ripropone a caso le domande delle missioni che hai completato, per fissare i concetti nella memoria. Completa la prima missione per iniziare.</p>',
+      );
+      return;
+    }
+    // mescola e prendi fino a 10 domande; anche le risposte vengono mescolate
+    const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, 10);
+    const rounds = shuffled.map(({ q, mission }) => {
+      const order = q.options.map((_, i) => i).sort(() => Math.random() - 0.5);
+      return { q, mission, order };
+    });
+    let idx = 0;
+    let score = 0;
+    let answered = false;
+    const node = this.page('train', 'Allenamento', '// ripasso', '<div class="train"></div>');
+    const box = node.querySelector<HTMLElement>('.train')!;
+    const render = () => {
+      if (idx >= rounds.length) {
+        const pct = Math.round((score / rounds.length) * 100);
+        const msg =
+          pct === 100 ? 'Perfetto. Nyx sarebbe fiera di te.' : pct >= 70 ? 'Ottimo lavoro, choom.' : 'Ripassa il Codex e riprova: la ripetizione è il segreto.';
+        box.innerHTML = html`
+          <div class="train-end">
+            <div class="xp-gain">${score}/${rounds.length}</div>
+            <p>${msg}</p>
+            <div class="step-actions">
+              <button class="ghost" data-t="map">Mappa</button>
+              <button class="next" data-t="again">Ancora ▸</button>
+            </div>
+          </div>`;
+        return;
+      }
+      const r = rounds[idx];
+      answered = false;
+      box.innerHTML = html`
+        <div class="train-head"><span>Domanda ${idx + 1}/${rounds.length}</span><span>Punti: ${score}</span></div>
+        <div class="train-src">da: ${inline(r.mission)}</div>
+        <div class="question">${renderMarkup(r.q.question)}</div>
+        <div class="options">
+          ${r.order
+            .map((oi, k) => `<button class="opt" data-o="${oi}"><span class="opt-key">${'ABCD'[k]}</span><span>${inline(r.q.options[oi])}</span></button>`)
+            .join('')}
+        </div>
+        <div class="train-explain"></div>`;
+    };
+    box.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      const act = t.closest<HTMLElement>('[data-t]')?.dataset.t;
+      if (act === 'map') return this.showMap();
+      if (act === 'again') return this.showTraining();
+      if (act === 'next') {
+        idx++;
+        render();
+        box.scrollIntoView({ block: 'start' });
+        return;
+      }
+      const opt = t.closest<HTMLElement>('[data-o]');
+      if (!opt || answered) return;
+      answered = true;
+      const r = rounds[idx];
+      const chosen = Number(opt.dataset.o);
+      const right = chosen === r.q.correct;
+      if (right) score++;
+      box.querySelectorAll<HTMLButtonElement>('.opt').forEach((b) => {
+        const o = Number(b.dataset.o);
+        if (o === r.q.correct) b.classList.add('right');
+        else if (o === chosen) b.classList.add('wrong');
+        b.disabled = true;
+      });
+      box.querySelector('.train-explain')!.innerHTML = html`
+        <div class="${right ? 'success' : 'feedback wrong'}">${right ? '' : '<p>Non era questa.</p>'}${renderMarkup(r.q.explain)}</div>
+        <div class="step-actions"><button class="next" data-t="next">${idx + 1 < rounds.length ? 'Prossima ▸' : 'Risultato ▸'}</button></div>`;
+    });
+    render();
+  }
+
   private showCodex(): void {
     const done = allMissions().filter((m) => this.save.completed.includes(m.id));
     const content = done.length
@@ -615,7 +704,7 @@ export class App {
       </section>
       <section class="setting">
         <h3>Informazioni</h3>
-        <p class="small">Night City Netrunning v0.2 · corso di ethical hacking in italiano. Tutti i sistemi, le reti e i personaggi del gioco sono simulati o inventati. Le conoscenze di sicurezza vanno usate solo su sistemi propri o con autorizzazione scritta.</p>
+        <p class="small">Night City Netrunning v0.3 · corso di ethical hacking in italiano. Tutti i sistemi, le reti e i personaggi del gioco sono simulati o inventati. Le conoscenze di sicurezza vanno usate solo su sistemi propri o con autorizzazione scritta.</p>
       </section>`;
     const node = this.page('settings', 'Opzioni', '// impostazioni', content);
     node.addEventListener('click', (e) => {

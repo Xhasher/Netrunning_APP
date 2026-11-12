@@ -600,7 +600,186 @@ clear
       ],
     },
 
-    // ------------------------------------------------------------------ 1.5
+    // ------------------------------------------------------------------ 1.5 laboratorio
+    {
+      id: 'ch01-m6',
+      title: 'Costruire e demolire',
+      tagline: 'Creare, copiare, spostare e cancellare: mkdir, touch, cp, mv, rm.',
+      xp: 150,
+      steps: [
+        {
+          kind: 'lesson',
+          title: 'Mettere le mani sui file',
+          body: `@nyx: Finora hai solo guardato. Ora impari a **cambiare** le cose: creare cartelle, scrivere file, copiarli, spostarli e cancellarli. Sono le operazioni che farai mille volte al giorno, in attacco come in difesa.
+
+I comandi sono brevi e vengono dall'inglese:
+- \`mkdir\` → *make directory*, crea una cartella
+- \`touch\` → crea un file vuoto
+- \`cp\` → *copy*, copia
+- \`mv\` → *move*, sposta (e rinomina)
+- \`rm\` → *remove*, cancella
+
+Lavoreremo nella cartella \`laboratorio\`, dove puoi pasticciare quanto vuoi.`,
+        },
+        {
+          kind: 'task',
+          title: 'Una cartella nuova',
+          body: `Entra nel laboratorio e crea una cartella chiamata \`appunti\`:
+
+\`\`\`
+cd laboratorio
+mkdir appunti
+\`\`\`
+
+Poi controlla con \`ls\` che ci sia.`,
+          objective: 'Crea la cartella laboratorio/appunti.',
+          hints: ['Prima: cd laboratorio', 'Poi: mkdir appunti'],
+          check: (ev, sh) => ev.type === 'fsop' && ev.op === 'mkdir' && ev.paths[0] === `${sh.home}/laboratorio/appunti`,
+          success: `Cartella creata. Ricorda: \`mkdir -p a/b/c\` crea anche tutte le cartelle intermedie in un colpo solo.`,
+        },
+        {
+          kind: 'lesson',
+          title: 'Scrivere dentro un file: > e >>',
+          body: `Hai visto che \`echo\` stampa un testo sullo schermo. Con il simbolo \`>\` puoi **mandare quell'output dentro un file** invece che sullo schermo. Si chiama **redirezione**:
+
+\`\`\`
+echo "prima riga" > note.txt
+\`\`\`
+
+Attenzione alla differenza:
+- \`>\` → **sovrascrive**: se il file esisteva, il vecchio contenuto sparisce
+- \`>>\` → **aggiunge** in fondo al file
+
+\`\`\`
+echo "seconda riga" >> note.txt
+\`\`\`
+
+La redirezione funziona con **qualsiasi** comando, non solo echo: \`ls -la > elenco.txt\` salva l'elenco dei file. È così che un analista salva le prove: \`ps aux > processi.txt\`.
+
+!! Un \`>\` al posto di \`>>\` ha cancellato più file importanti di quanto immagini. Prima di premere Invio, controlla quanti \`>\` hai scritto.`,
+        },
+        {
+          kind: 'task',
+          title: 'Il tuo primo file',
+          body: `Crea il file \`appunti/comandi.txt\` con dentro una riga, e poi aggiungine una seconda:
+
+\`\`\`
+echo "ls elenca i file" > appunti/comandi.txt
+echo "cd cambia cartella" >> appunti/comandi.txt
+\`\`\`
+
+Controlla il risultato con \`cat appunti/comandi.txt\`.`,
+          objective: 'Scrivi almeno due righe in appunti/comandi.txt.',
+          hints: [
+            'Sei in laboratorio? Controlla con pwd.',
+            'echo "ls elenca i file" > appunti/comandi.txt e poi echo "cd cambia cartella" >> appunti/comandi.txt',
+          ],
+          check: (ev, sh) => {
+            if (ev.type !== 'write') return false;
+            const n = sh.fs.get(`${sh.home}/laboratorio/appunti/comandi.txt`);
+            return !!n && n.type === 'file' && n.content.trim().split('\n').length >= 2;
+          },
+          success: `Il file ha due righe. Hai appena usato la redirezione: uno degli strumenti più potenti della shell.`,
+        },
+        {
+          kind: 'task',
+          title: 'Copia di sicurezza',
+          body: `Prima di modificare un file importante, un professionista ne fa sempre una **copia di backup**:
+
+\`\`\`
+cp appunti/comandi.txt appunti/comandi.bak
+\`\`\`
+
+\`cp ORIGINE DESTINAZIONE\`: prima cosa copiare, poi dove.`,
+          objective: 'Copia comandi.txt in comandi.bak.',
+          hints: ['Dalla cartella laboratorio: cp appunti/comandi.txt appunti/comandi.bak'],
+          check: (ev) => ev.type === 'fsop' && ev.op === 'cp' && ev.paths[1].endsWith('comandi.bak'),
+          success: `Copia fatta.
+
+?? Ricordi l'audit del capitolo 03? I file \`.bak\` dimenticati in giro sono una miniera per gli attaccanti. Fai i backup, ma poi mettili al sicuro.`,
+        },
+        {
+          kind: 'task',
+          title: 'Rinominare',
+          body: `Su Linux non esiste un comando "rinomina": si usa \`mv\` (*move*). Spostare un file nella stessa cartella con un nome diverso **è** rinominarlo.
+
+Dai un nome migliore alla bozza:
+
+\`\`\`
+mv bozza.txt idee.txt
+\`\`\``,
+          objective: 'Rinomina bozza.txt in idee.txt.',
+          hints: ['Dalla cartella laboratorio: mv bozza.txt idee.txt'],
+          check: (ev, sh) => ev.type === 'fsop' && ev.op === 'mv' && ev.paths[1] === `${sh.home}/laboratorio/idee.txt`,
+          success: `Rinominato. \`mv\` serve anche a spostare: \`mv idee.txt appunti/\` metterebbe il file dentro la cartella appunti.`,
+        },
+        {
+          kind: 'lesson',
+          title: 'rm: niente cestino',
+          body: `\`rm\` cancella i file. Ma attenzione: **su Linux non c'è il cestino**. Un file cancellato con \`rm\` è sparito per sempre. Il sistema non chiede nemmeno conferma.
+
+- \`rm file.txt\` → cancella un file
+- \`rm -r cartella\` → cancella una cartella **con tutto quello che contiene**
+- \`rm -f\` → *force*, non si lamenta nemmeno se il file non esiste
+
+!! \`rm -rf\` sul percorso sbagliato è uno degli errori più catastrofici che si possano fare: c'è chi ha cancellato server interi così. Regola d'oro: **rileggi il comando prima di premere Invio**, e non lanciare mai \`rm -rf\` copiato da Internet senza capirlo.
+
+?? Un attaccante che entra in un sistema spesso usa \`rm\` per cancellare le proprie tracce. Per questo i log vanno copiati altrove in tempo reale (ricordi il SIEM?).`,
+        },
+        {
+          kind: 'task',
+          title: 'Pulizia',
+          body: `Il file \`vecchio_log.txt\` non serve più. Cancellalo:
+
+\`\`\`
+rm vecchio_log.txt
+\`\`\``,
+          objective: 'Cancella laboratorio/vecchio_log.txt.',
+          hints: ['Dalla cartella laboratorio: rm vecchio_log.txt'],
+          check: (ev, sh) => ev.type === 'fsop' && ev.op === 'rm' && ev.paths[0] === `${sh.home}/laboratorio/vecchio_log.txt`,
+          success: `Cancellato, e senza ritorno. Ora guarda il risultato del tuo lavoro.`,
+        },
+        {
+          kind: 'task',
+          title: 'Il quadro d\'insieme',
+          body: `\`tree\` disegna una cartella e tutte le sottocartelle come un albero. Torna nella home e guarda il laboratorio:
+
+\`\`\`
+cd
+tree laboratorio
+\`\`\``,
+          objective: 'Visualizza il laboratorio con tree.',
+          hints: ['Scrivi: tree laboratorio (dalla home)', 'Se sei dentro laboratorio basta: tree'],
+          check: (ev) => ev.type === 'command' && ev.name === 'tree' && ev.ok,
+          success: `Ecco tutto quello che hai costruito. Ora sai creare, scrivere, copiare, rinominare e cancellare: sei pronto per l'esame del capitolo.`,
+        },
+        {
+          kind: 'quiz',
+          title: 'Verifica',
+          question: 'Il file `report.txt` contiene 50 righe di lavoro. Cosa succede se scrivi `echo "fine" > report.txt`?',
+          options: [
+            'Aggiunge "fine" in fondo al file',
+            'Il file ora contiene solo "fine": le 50 righe sono perse',
+            'Dà errore perché il file esiste già',
+            'Crea un nuovo file report2.txt',
+          ],
+          correct: 1,
+          explain: `\`>\` sovrascrive senza chiedere. Per aggiungere in fondo serve \`>>\`. Un errore classico, ed è per questo che si fanno i backup con \`cp\` prima di toccare file importanti.`,
+        },
+      ],
+      recap: [
+        ['mkdir [-p] CARTELLA', 'crea una cartella (-p anche le intermedie)'],
+        ['touch FILE', 'crea un file vuoto'],
+        ['comando > file', 'scrive l\'output nel file, sovrascrivendolo'],
+        ['comando >> file', 'aggiunge l\'output in fondo al file'],
+        ['cp ORIGINE DEST', 'copia (la destinazione esistente viene sovrascritta)'],
+        ['mv ORIGINE DEST', 'sposta o rinomina'],
+        ['rm [-r] FILE', 'cancella per sempre: niente cestino!'],
+        ['tree', 'mostra le cartelle come un albero'],
+      ],
+    },
+
+    // ------------------------------------------------------------------ 1.6 esame
     {
       id: 'ch01-m5',
       title: 'Il primo contratto',

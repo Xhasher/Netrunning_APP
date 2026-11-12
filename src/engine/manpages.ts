@@ -337,6 +337,169 @@ export const MANPAGES: Record<string, ManPage> = {
       ['sudo ufw deny from 203.0.113.77', 'blocca tutto il traffico da quell\'indirizzo'],
     ],
   },
+  mkdir: {
+    name: 'mkdir',
+    short: 'crea una cartella',
+    synopsis: 'mkdir [-p] CARTELLA...',
+    description: ['"make directory": crea una o più cartelle nuove.'],
+    options: [['-p', 'crea anche le cartelle intermedie, e non dà errore se esistono già']],
+    examples: [
+      ['mkdir appunti', 'crea la cartella appunti'],
+      ['mkdir -p progetti/2077/rete', 'crea tutta la catena di cartelle'],
+    ],
+  },
+  touch: {
+    name: 'touch',
+    short: 'crea un file vuoto',
+    synopsis: 'touch FILE...',
+    description: ['Crea un file vuoto. Se il file esiste già, aggiorna solo la sua data di modifica.'],
+  },
+  rm: {
+    name: 'rm',
+    short: 'cancella file (per sempre!)',
+    synopsis: 'rm [-r] [-f] FILE...',
+    description: [
+      '"remove": cancella file. ATTENZIONE: su Linux non c\'è il cestino. Un file cancellato con rm è perso.',
+      'Per le cartelle serve -r ("ricorsivo": la cartella e tutto quello che contiene).',
+      '"rm -rf" su un percorso sbagliato è uno degli errori più famosi (e disastrosi) della storia dell\'informatica: controlla sempre due volte.',
+    ],
+    options: [
+      ['-r', 'cancella cartelle con tutto il contenuto'],
+      ['-f', '"force": non dà errore se il file non esiste'],
+    ],
+  },
+  rmdir: {
+    name: 'rmdir',
+    short: 'cancella una cartella vuota',
+    synopsis: 'rmdir CARTELLA',
+    description: ['Cancella una cartella solo se è vuota: è la versione prudente di rm -r.'],
+  },
+  cp: {
+    name: 'cp',
+    short: 'copia file e cartelle',
+    synopsis: 'cp [-r] ORIGINE DESTINAZIONE',
+    description: [
+      '"copy": copia un file. Se la destinazione è una cartella, la copia finisce lì dentro con lo stesso nome.',
+      'Per copiare una cartella intera serve -r. Attenzione: se il file di destinazione esiste già, viene sovrascritto senza chiedere.',
+    ],
+    examples: [
+      ['cp note.txt note.bak', 'crea una copia di backup'],
+      ['cp note.txt appunti/', 'copia note.txt dentro la cartella appunti'],
+    ],
+  },
+  mv: {
+    name: 'mv',
+    short: 'sposta o rinomina',
+    synopsis: 'mv ORIGINE DESTINAZIONE',
+    description: [
+      '"move": sposta un file o una cartella. Su Linux rinominare è la stessa cosa che spostare: mv vecchio.txt nuovo.txt.',
+    ],
+    examples: [
+      ['mv bozza.txt finale.txt', 'rinomina il file'],
+      ['mv finale.txt archivio/', 'sposta il file nella cartella archivio'],
+    ],
+  },
+  nano: {
+    name: 'nano',
+    short: 'editor di testo semplice',
+    synopsis: 'nano FILE',
+    description: [
+      'Apre un file per modificarlo. Se il file non esiste, lo crea quando salvi.',
+      'Nel vero nano si salva con Ctrl+O e si esce con Ctrl+X. In questo deck usa i pulsanti Salva ed Esci.',
+    ],
+  },
+  base64: {
+    name: 'base64',
+    short: 'codifica o decodifica in Base64',
+    synopsis: 'base64 [-d] [FILE]',
+    description: [
+      'Base64 trasforma qualsiasi dato in lettere e numeri "sicuri" da trasmettere. NON è cifratura: chiunque può decodificarlo, non c\'è nessuna chiave.',
+    ],
+    options: [['-d', 'decodifica']],
+    examples: [
+      ['echo ciao | base64', 'codifica: Y2lhbwo='],
+      ['echo Y2lhbwo= | base64 -d', 'decodifica: ciao'],
+    ],
+  },
+  sha256sum: {
+    name: 'sha256sum',
+    short: 'calcola l\'impronta (hash) SHA-256 di un file',
+    synopsis: 'sha256sum FILE...',
+    description: [
+      'Calcola l\'hash SHA-256: un\'impronta di 64 caratteri esadecimali. Se cambia anche un solo carattere del file, l\'impronta cambia completamente.',
+      'Si usa per verificare che un file non sia stato modificato (integrità) o che un download sia autentico.',
+    ],
+  },
+  seq: {
+    name: 'seq',
+    short: 'stampa una sequenza di numeri',
+    synopsis: 'seq [INIZIO] FINE',
+    description: ['Stampa i numeri da INIZIO a FINE, uno per riga. Utile nei cicli for.'],
+    examples: [['seq 1 5', '1 2 3 4 5, uno per riga']],
+  },
+  test: {
+    name: 'test',
+    short: 'verifica una condizione (usato con if)',
+    synopsis: 'test ESPRESSIONE   oppure   [ ESPRESSIONE ]',
+    description: [
+      'Non stampa nulla: termina con successo (codice 0) se la condizione è vera, con errore se è falsa. Si usa con if.',
+      'Le parentesi quadre vogliono uno spazio dopo [ e prima di ].',
+    ],
+    options: [
+      ['-f F', 'F esiste ed è un file'],
+      ['-d D', 'D esiste ed è una cartella'],
+      ['A = B', 'i due testi sono uguali (!= diversi)'],
+      ['N -gt M', 'N maggiore di M (-lt minore, -eq uguale, -ge, -le, -ne)'],
+    ],
+    examples: [['[ -f note.txt ] && echo "esiste"', 'stampa "esiste" se il file c\'è']],
+  },
+  bash: {
+    name: 'bash',
+    short: 'esegue uno script',
+    synopsis: 'bash SCRIPT [ARGOMENTI]   oppure   ./SCRIPT',
+    description: [
+      'bash è la shell stessa. Dandogli un file, esegue i comandi scritti dentro, uno dopo l\'altro: questo è uno script.',
+      'Con ./script.sh lo script si avvia direttamente, ma il file deve essere eseguibile (chmod +x script.sh).',
+      'Dentro lo script, $1, $2... sono gli argomenti ricevuti.',
+    ],
+  },
+  env: {
+    name: 'env',
+    short: 'mostra le variabili d\'ambiente',
+    synopsis: 'env',
+    description: [
+      'Mostra le variabili: nomi a cui è associato un valore, come HOME o USER. Si leggono con $NOME (es. echo $HOME).',
+      'Puoi crearne di nuove con NOME=valore (senza spazi attorno all\'uguale).',
+    ],
+  },
+  date: {
+    name: 'date',
+    short: 'mostra data e ora',
+    synopsis: 'date',
+    description: ['Mostra data e ora del sistema. Avere l\'ora giusta è fondamentale per confrontare i log di macchine diverse.'],
+  },
+  tree: {
+    name: 'tree',
+    short: 'mostra le cartelle ad albero',
+    synopsis: 'tree [CARTELLA]',
+    description: ['Disegna il contenuto di una cartella e delle sottocartelle come un albero.'],
+  },
+  curl: {
+    name: 'curl',
+    short: 'scarica una pagina web',
+    synopsis: 'curl [-I] [-i] URL',
+    description: [
+      'Fa una richiesta HTTP a un server e mostra la risposta: è come un browser, ma senza grafica. Usatissimo per testare siti e API.',
+    ],
+    options: [
+      ['-I', 'mostra solo gli header della risposta'],
+      ['-i', 'mostra header e contenuto'],
+    ],
+    examples: [
+      ['curl http://jukebox.lan/', 'il codice HTML della pagina'],
+      ['curl -I http://jukebox.lan/', 'solo gli header'],
+    ],
+  },
   flag: {
     name: 'flag',
     short: 'invia una risposta o una flag trovata',
@@ -361,5 +524,11 @@ export const MANPAGES: Record<string, ManPage> = {
 export const ALIASES: Record<string, string> = {
   risposta: 'flag',
   aiuto: 'help',
+  less: 'cat',
+  more: 'cat',
+  sh: 'bash',
+  vi: 'nano',
+  vim: 'nano',
+  export: 'env',
   suggerimento: 'hint',
 };

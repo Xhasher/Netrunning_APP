@@ -27,7 +27,13 @@ export type ShellEvent =
   | { type: 'scan'; target: string; ip: string | null; flags: string[]; outOfScope: boolean }
   | { type: 'netinfo' }
   | { type: 'chmod'; path: string; perms: string }
-  | { type: 'firewall'; action: 'deny' | 'allow'; ip: string };
+  | { type: 'firewall'; action: 'deny' | 'allow'; ip: string }
+  | { type: 'write'; path: string }
+  | { type: 'script'; path: string; ok: boolean }
+  | { type: 'edit'; path: string }
+  | { type: 'saved'; path: string }
+  | { type: 'http'; host: string; path: string; status: number; head: boolean }
+  | { type: 'fsop'; op: 'mkdir' | 'touch' | 'rm' | 'cp' | 'mv'; paths: string[] };
 
 export interface RunResult {
   lines: Line[];

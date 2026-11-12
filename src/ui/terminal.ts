@@ -220,11 +220,82 @@ export class TerminalView {
       await this.print(res.lines);
       this.updatePrompt();
       this.onEvents(res.events);
+      const edit = res.events.find((e) => e.type === 'edit');
+      if (edit && edit.type === 'edit') this.openEditor(edit.path);
     } finally {
       this.busy = false;
       this.inputLine.classList.remove('busy');
       this.scrollToEnd();
     }
+  }
+
+  /** Editor di testo a tutto schermo (il "nano" del deck). */
+  openEditor(path: string): void {
+    const node = this.shell.fs.get(path);
+    const content = node && node.type === 'file' ? node.content : '';
+    const name = path.startsWith(this.shell.home) ? '~' + path.slice(this.shell.home.length) : path;
+    const ov = document.createElement('div');
+    ov.className = 'editor';
+    ov.innerHTML = `
+      <div class="ed-bar">
+        <span class="ed-title">GNU nano · <b></b></span>
+        <span class="ed-state"></span>
+      </div>
+      <textarea spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off"></textarea>
+      <div class="ed-actions">
+        <button type="button" class="ghost" data-a="exit">Esci</button>
+        <button type="button" class="next" data-a="save">Salva</button>
+      </div>`;
+    ov.querySelector('.ed-title b')!.textContent = name;
+    const ta = ov.querySelector('textarea')!;
+    const state = ov.querySelector<HTMLElement>('.ed-state')!;
+    ta.value = content;
+    let dirty = false;
+    ta.addEventListener('input', () => {
+      dirty = true;
+      state.textContent = 'modificato';
+    });
+    ta.addEventListener('keydown', (e) => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const st = ta.selectionStart;
+        ta.setRangeText('  ', st, ta.selectionEnd, 'end');
+        dirty = true;
+      } else if (e.ctrlKey && (e.key === 'o' || e.key === 's')) {
+        e.preventDefault();
+        save();
+      } else if (e.ctrlKey && e.key === 'x') {
+        e.preventDefault();
+        close();
+      }
+    });
+    const save = () => {
+      let text = ta.value;
+      if (text && !text.endsWith('\n')) text += '\n';
+      const err = this.shell.writeText(path, text, false);
+      if (err) {
+        state.textContent = `errore: ${err}`;
+        state.classList.add('err');
+        return;
+      }
+      dirty = false;
+      state.textContent = 'salvato ✔';
+      state.classList.remove('err');
+      this.system(`[ nano: scritte ${text.split('\n').length - 1} righe in ${name} ]`, 'info');
+      this.onEvents([{ type: 'saved', path }]);
+    };
+    const close = () => {
+      if (dirty && !confirm('Ci sono modifiche non salvate. Uscire lo stesso?')) return;
+      ov.remove();
+      this.focus();
+    };
+    ov.addEventListener('click', (e) => {
+      const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
+      if (a === 'save') save();
+      if (a === 'exit') close();
+    });
+    document.body.appendChild(ov);
+    setTimeout(() => ta.focus(), 30);
   }
 
   /** Usato dai test automatici e dai pulsanti "prova questo comando". */

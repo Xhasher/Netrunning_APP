@@ -4,6 +4,7 @@
 import { ALIASES, MANPAGES } from './manpages';
 import { displayName, hostsInRange, isIp, lookup, type Host, type Network } from './network';
 import type { Line, LineClass, RunResult, ShellEvent } from './types';
+import { base64Decode, base64Encode, sha256 } from './sha256';
 import type { DirNode, Vfs, VNode } from './vfs';
 
 type Stream = 'out' | 'err';
@@ -21,6 +22,9 @@ interface Ctx {
   info(text: string): void;
   emit(ev: ShellEvent): void;
   clear(): void;
+  raw(l: Line, stream: Stream): void;
+  depth: number;
+  sink: Sink;
 }
 
 type Command = (c: Ctx) => number;
@@ -55,19 +59,72 @@ const NMAP_HEADER = 'Starting Nmap 7.95 ( https://nmap.org ) at 2077-11-11 21:04
 
 // ---------------------------------------------------------------- tokenizer
 
-type Token = { t: string; pipe?: boolean };
+type Op = '|' | '>' | '>>' | '2>';
+type Token = { t: string; op?: Op; glob?: boolean };
 
-function tokenize(line: string): Token[] | { error: string } {
+/** Espansione delle variabili ($NOME, ${NOME}, $1, $?) e della sostituzione di comando $(...). */
+export interface Expander {
+  get(name: string): string;
+  sub(cmd: string): string;
+}
+
+function matchParen(s: string, open: number): number {
+  let depth = 0;
+  let q: string | null = null;
+  for (let i = open; i < s.length; i++) {
+    const ch = s[i];
+    if (q) {
+      if (ch === q) q = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'") q = ch;
+    else if (ch === '(') depth++;
+    else if (ch === ')' && --depth === 0) return i;
+  }
+  return -1;
+}
+
+function tokenize(line: string, ex?: Expander): Token[] | { error: string } {
   const tokens: Token[] = [];
   let cur = '';
   let has = false;
+  let glob = false;
   let quote: '"' | "'" | null = null;
+  const push = () => {
+    if (has) tokens.push(glob ? { t: cur, glob: true } : { t: cur });
+    cur = '';
+    has = false;
+    glob = false;
+  };
+  const expand = (i: number): [string, number] | null => {
+    if (!ex) return null;
+    const next = line[i + 1];
+    if (next === '(') {
+      const end = matchParen(line, i + 1);
+      if (end < 0) return null;
+      return [ex.sub(line.slice(i + 2, end)), end];
+    }
+    if (next === '{') {
+      const end = line.indexOf('}', i);
+      if (end < 0) return null;
+      return [ex.get(line.slice(i + 2, end)), end];
+    }
+    const m = line.slice(i + 1).match(/^([A-Za-z_]\w*|[0-9?#])/);
+    if (!m) return null;
+    return [ex.get(m[1]), i + m[1].length];
+  };
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
     if (quote) {
       if (ch === quote) quote = null;
       else if (ch === '\\' && quote === '"' && i + 1 < line.length) cur += line[++i];
-      else cur += ch;
+      else if (ch === '$' && quote === '"') {
+        const r = expand(i);
+        if (r) {
+          cur += r[0];
+          i = r[1];
+        } else cur += ch;
+      } else cur += ch;
       continue;
     }
     if (ch === '"' || ch === "'") {
@@ -76,23 +133,173 @@ function tokenize(line: string): Token[] | { error: string } {
     } else if (ch === '\\' && i + 1 < line.length) {
       cur += line[++i];
       has = true;
+    } else if (ch === '$') {
+      const r = expand(i);
+      if (!r) {
+        cur += ch;
+        has = true;
+        continue;
+      }
+      i = r[1];
+      // senza virgolette il valore viene diviso sugli spazi, come in bash
+      const parts = r[0].split(/\s+/);
+      parts.forEach((part, k) => {
+        if (k > 0) push();
+        if (part) {
+          cur += part;
+          has = true;
+        }
+      });
     } else if (ch === ' ' || ch === '\t') {
-      if (has) tokens.push({ t: cur });
-      cur = '';
-      has = false;
+      push();
     } else if (ch === '|') {
-      if (has) tokens.push({ t: cur });
-      cur = '';
-      has = false;
-      tokens.push({ t: '|', pipe: true });
+      push();
+      tokens.push({ t: '|', op: '|' });
+    } else if (ch === '>') {
+      const append = line[i + 1] === '>';
+      if (cur === '2' && has) {
+        cur = '';
+        has = false;
+        tokens.push({ t: '2>', op: '2>' });
+      } else {
+        push();
+        tokens.push(append ? { t: '>>', op: '>>' } : { t: '>', op: '>' });
+      }
+      if (append) i++;
     } else {
+      if (ch === '*' || ch === '?') glob = true;
       cur += ch;
       has = true;
     }
   }
   if (quote) return { error: `bash: unexpected EOF while looking for matching \`${quote}'` };
-  if (has) tokens.push({ t: cur });
+  push();
   return tokens;
+}
+
+// ---------------------------------------------------------------- parser di script
+
+type Joint = ';' | '&&' | '||';
+interface Stmt {
+  text: string;
+  op: Joint;
+}
+type Node =
+  | { k: 'cmd'; text: string; op: Joint }
+  | { k: 'for'; v: string; list: string; body: Node[]; op: Joint }
+  | { k: 'if'; cond: string; then: Node[]; else: Node[]; op: Joint };
+
+/** Divide il testo in istruzioni su ; && || e a capo, ignorando i commenti #. */
+function splitStatements(src: string): Stmt[] {
+  const out: Stmt[] = [];
+  let cur = '';
+  let op: Joint = ';';
+  let q: string | null = null;
+  let depth = 0;
+  const flush = (next: Joint) => {
+    if (cur.trim()) out.push({ text: cur.trim(), op });
+    cur = '';
+    op = next;
+  };
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (q) {
+      if (ch === q) q = null;
+      cur += ch;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      q = ch;
+      cur += ch;
+    } else if (ch === '$' && src[i + 1] === '(') {
+      depth++;
+      cur += '$(';
+      i++;
+    } else if (ch === ')' && depth > 0) {
+      depth--;
+      cur += ch;
+    } else if (depth > 0) cur += ch;
+    else if (ch === '#' && (i === 0 || /\s/.test(src[i - 1]))) {
+      while (i < src.length && src[i] !== '\n') i++;
+      flush(';');
+    } else if (ch === '\n' || ch === ';') flush(';');
+    else if (ch === '&' && src[i + 1] === '&') {
+      flush('&&');
+      i++;
+    } else if (ch === '|' && src[i + 1] === '|') {
+      flush('||');
+      i++;
+    } else cur += ch;
+  }
+  flush(';');
+  return out;
+}
+
+class ParseError extends Error {}
+
+function parseScript(src: string): Node[] {
+  const stmts = splitStatements(src);
+  let i = 0;
+  const first = (s: Stmt) => s.text.split(/\s+/)[0];
+  /** consuma la parola chiave kw all'inizio dell'istruzione corrente */
+  const expect = (kw: string) => {
+    const s = stmts[i];
+    if (!s || first(s) !== kw) throw new ParseError(`bash: syntax error: manca "${kw}"`);
+    const rest = s.text.slice(kw.length).trim();
+    if (rest) stmts[i] = { text: rest, op: ';' };
+    else i++;
+  };
+  const block = (ends: string[]): Node[] => {
+    const nodes: Node[] = [];
+    while (i < stmts.length) {
+      const s = stmts[i];
+      const w = first(s);
+      if (ends.includes(w)) return nodes;
+      if (['done', 'fi', 'else', 'then', 'do'].includes(w))
+        throw new ParseError(`bash: syntax error near unexpected token \`${w}'`);
+      if (w === 'for') {
+        const m = s.text.match(/^for\s+([A-Za-z_]\w*)\s+in\s*(.*)$/);
+        if (!m) throw new ParseError('bash: syntax error: usa "for NOME in VALORI; do ...; done"');
+        i++;
+        expect('do');
+        const body = block(['done']);
+        expect('done');
+        nodes.push({ k: 'for', v: m[1], list: m[2], body, op: s.op });
+      } else if (w === 'if') {
+        const cond = s.text.slice(2).trim();
+        i++;
+        expect('then');
+        const then = block(['else', 'fi']);
+        let els: Node[] = [];
+        if (stmts[i] && first(stmts[i]) === 'else') {
+          expect('else');
+          els = block(['fi']);
+        }
+        expect('fi');
+        nodes.push({ k: 'if', cond, then, else: els, op: s.op });
+      } else {
+        nodes.push({ k: 'cmd', text: s.text, op: s.op });
+        i++;
+      }
+    }
+    if (ends.length) throw new ParseError(`bash: syntax error: manca "${ends[ends.length - 1]}"`);
+    return nodes;
+  };
+  return block([]);
+}
+
+/** Destinazione dell'output durante l'esecuzione. */
+interface Sink {
+  lines: Line[];
+  events: ShellEvent[];
+  /** se presente, lo stdout finale viene raccolto qui invece di essere mostrato */
+  capture?: Line[];
+  clear?: boolean;
+}
+
+function globToRegex(pat: string): RegExp {
+  const rx = pat.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.');
+  return new RegExp(`^${rx}$`);
 }
 
 /** Separa le opzioni brevi (-la → l, a) dagli argomenti. */
@@ -113,6 +320,11 @@ function levenshtein(a: string, b: string): number {
     for (let j = 1; j <= b.length; j++)
       d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
   return d[a.length][b.length];
+}
+
+function dirnameOf(p: string): string {
+  const i = p.lastIndexOf('/');
+  return i <= 0 ? '/' : p.slice(0, i);
 }
 
 function splitLines(s: string): string[] {
@@ -168,93 +380,337 @@ export class Shell {
     return Object.keys(COMMANDS).sort();
   }
 
+  vars: Record<string, string> = {};
+  private steps = 0;
+
+  getVar(name: string): string {
+    switch (name) {
+      case 'HOME':
+        return this.home;
+      case 'USER':
+        return this.user;
+      case 'PWD':
+        return this.cwd;
+      case 'HOSTNAME':
+        return this.host;
+      case 'SHELL':
+        return '/bin/bash';
+      case 'PATH':
+        return '/usr/local/bin:/usr/bin:/bin';
+    }
+    return this.vars[name] ?? '';
+  }
+
   run(input: string): RunResult {
     const line = input.trim();
     const result: RunResult = { lines: [], events: [] };
     if (!line) return result;
     this.history.push(line);
+    this.steps = 0;
+    const sink: Sink = { lines: result.lines, events: result.events };
+    this.execText(line, sink, 0);
+    if (sink.clear) result.clear = true;
+    return result;
+  }
 
-    const tokens = tokenize(line);
-    if ('error' in tokens) {
-      result.lines.push({ text: tokens.error, cls: 'err' });
-      return result;
+  /** Esegue un testo che può contenere più istruzioni, cicli e condizioni. */
+  execText(src: string, sink: Sink, depth: number): number {
+    let nodes: Node[];
+    try {
+      nodes = parseScript(src);
+    } catch (e) {
+      if (!(e instanceof ParseError)) throw e;
+      sink.lines.push({ text: e.message, cls: 'err' });
+      this.vars['?'] = '2';
+      return 2;
+    }
+    return this.execNodes(nodes, sink, depth);
+  }
+
+  private execNodes(nodes: Node[], sink: Sink, depth: number): number {
+    let code = Number(this.vars['?'] ?? 0);
+    for (const n of nodes) {
+      if (n.op === '&&' && code !== 0) continue;
+      if (n.op === '||' && code === 0) continue;
+      if (++this.steps > 2000) {
+        sink.lines.push({ text: 'bash: interrotto: troppi comandi (ciclo infinito?)', cls: 'err' });
+        return 1;
+      }
+      if (n.k === 'cmd') code = this.execPipeline(n.text, sink, depth);
+      else if (n.k === 'for') {
+        const toks = this.expandGlobs(tokenize(n.list, this.expander(sink, depth)));
+        if ('error' in toks) {
+          sink.lines.push({ text: toks.error, cls: 'err' });
+          return 2;
+        }
+        code = 0;
+        sink.events.push({ type: 'command', name: 'for', args: [n.v, ...toks.map((t) => t.t)], ok: true });
+        for (const t of toks) {
+          this.vars[n.v] = t.t;
+          code = this.execNodes(n.body, sink, depth);
+        }
+      } else {
+        const c = this.execPipeline(n.cond, sink, depth);
+        sink.events.push({ type: 'command', name: 'if', args: [n.cond], ok: true });
+        code = this.execNodes(c === 0 ? n.then : n.else, sink, depth);
+      }
+      this.vars['?'] = String(code);
+    }
+    return code;
+  }
+
+  private expander(sink: Sink, depth: number): Expander {
+    return {
+      get: (name) => this.getVar(name),
+      sub: (cmd) => {
+        if (depth > 8) return '';
+        const inner: Sink = { lines: [], events: sink.events, capture: [] };
+        this.execText(cmd, inner, depth + 1);
+        sink.lines.push(...inner.lines);
+        return inner.capture!.map((l) => l.text).join('\n').replace(/\n+$/, '');
+      },
+    };
+  }
+
+  /** Sostituisce i modelli come *.txt con i file corrispondenti. */
+  private expandGlobs<T extends Token[] | { error: string }>(toks: T): T {
+    if ('error' in toks) return toks;
+    const out: Token[] = [];
+    for (const t of toks as Token[]) {
+      if (!t.glob || t.op) {
+        out.push(t);
+        continue;
+      }
+      const slash = t.t.lastIndexOf('/');
+      const dirPart = slash >= 0 ? t.t.slice(0, slash + 1) : '';
+      const pat = slash >= 0 ? t.t.slice(slash + 1) : t.t;
+      const dir = this.fs.get(this.abs(dirPart || '.'));
+      const rx = globToRegex(pat);
+      const matches =
+        dir && dir.type === 'dir' && !dir.locked
+          ? [...dir.children.keys()].filter((k) => rx.test(k) && (pat.startsWith('.') || !k.startsWith('.'))).sort()
+          : [];
+      if (matches.length) for (const m of matches) out.push({ t: dirPart + m });
+      else out.push({ t: t.t });
+    }
+    return out as T;
+  }
+
+  /** Si può scrivere in questo percorso? */
+  canWrite(abs: string): boolean {
+    const node = this.fs.get(abs);
+    if (node) return !node.locked && node.type === 'file' && (node.owner === this.user || node.perms[7] === 'w');
+    const parent = this.fs.get(dirnameOf(abs));
+    return !!parent && parent.type === 'dir' && !parent.locked && (parent.owner === this.user || parent.perms[7] === 'w');
+  }
+
+  writeText(abs: string, text: string, append: boolean): string | null {
+    if (abs === '/dev/null') return null;
+    const parent = this.fs.get(dirnameOf(abs));
+    if (!parent || parent.type !== 'dir') return 'No such file or directory';
+    const node = this.fs.get(abs);
+    if (node?.type === 'dir') return 'Is a directory';
+    if (!this.canWrite(abs)) return 'Permission denied';
+    if (node && node.type === 'file') {
+      node.content = append ? node.content + text : text;
+      node.mtime = 'Nov 12 21:04';
+    } else this.fs.writeFile(abs, text, { owner: this.user, group: this.user, mtime: 'Nov 12 21:04' });
+    return null;
+  }
+
+  private execPipeline(text: string, sink: Sink, depth: number): number {
+    const raw = tokenize(text, this.expander(sink, depth));
+    if ('error' in raw) {
+      sink.lines.push({ text: raw.error, cls: 'err' });
+      return 2;
+    }
+    const tokens = this.expandGlobs(raw);
+    if (tokens.length === 0) return 0;
+
+    // assegnazione di variabile: NOME=valore (anche con "export")
+    const assign = (t: Token) => !t.op && /^[A-Za-z_]\w*=/.test(t.t);
+    const assignList = tokens[0].t === 'export' ? tokens.slice(1) : tokens;
+    if (assignList.length > 0 && assignList.every(assign)) {
+      for (const t of assignList) {
+        const eq = t.t.indexOf('=');
+        this.vars[t.t.slice(0, eq)] = t.t.slice(eq + 1);
+      }
+      sink.events.push({ type: 'command', name: 'assign', args: assignList.map((t) => t.t), ok: true });
+      return 0;
     }
 
-    const segments: string[][] = [[]];
+    const segments: Token[][] = [[]];
     for (const tok of tokens) {
-      if (tok.pipe) segments.push([]);
-      else segments[segments.length - 1].push(tok.t);
+      if (tok.op === '|') segments.push([]);
+      else segments[segments.length - 1].push(tok);
     }
-    if (segments.some((s) => s.length === 0)) {
-      result.lines.push({ text: "bash: syntax error near unexpected token `|'", cls: 'err' });
-      return result;
+    if (segments.some((sg) => sg.length === 0)) {
+      sink.lines.push({ text: "bash: syntax error near unexpected token `|'", cls: 'err' });
+      return 2;
     }
 
     let stdin: string | null = null;
-    segments.forEach((seg, idx) => {
+    let code = 0;
+    for (let idx = 0; idx < segments.length; idx++) {
       const isLast = idx === segments.length - 1;
+      // redirezioni
+      const words: string[] = [];
+      let outFile: { path: string; append: boolean } | null = null;
+      let errFile: string | null = null;
+      const seg = segments[idx];
+      for (let j = 0; j < seg.length; j++) {
+        const t = seg[j];
+        if (t.op === '>' || t.op === '>>' || t.op === '2>') {
+          const target = seg[j + 1];
+          if (!target || target.op) {
+            sink.lines.push({ text: "bash: syntax error near unexpected token `newline'", cls: 'err' });
+            return 2;
+          }
+          j++;
+          if (t.op === '2>') errFile = this.abs(target.t);
+          else outFile = { path: this.abs(target.t), append: t.op === '>>' };
+        } else words.push(t.t);
+      }
+      if (words.length === 0) {
+        if (outFile) this.writeText(outFile.path, '', outFile.append);
+        continue;
+      }
+
       const produced: OutLine[] = [];
-      const typed = seg[0];
-      const name = ALIASES[typed] ?? typed;
-      const args = seg.slice(1);
-      const cmd = COMMANDS[name];
+      code = this.runCommand(words, stdin, produced, sink, depth);
 
-      if (!cmd) {
-        produced.push({ text: `bash: ${typed}: command not found`, cls: 'err', stream: 'err' });
-        const lower = typed.toLowerCase();
-        if (lower !== typed && COMMANDS[ALIASES[lower] ?? lower]) {
-          produced.push({
-            text: `💡 Linux distingue MAIUSCOLE e minuscole: "${typed}" e "${lower}" sono parole diverse. Prova "${lower}".`,
-            cls: 'info',
-            stream: 'err',
-          });
-        } else {
-          const near = this.commandNames()
-            .map((c) => [c, levenshtein(lower, c)] as const)
-            .filter(([c, d]) => d <= (c.length > 3 ? 2 : 1))
-            .sort((a, b) => a[1] - b[1]);
-          produced.push({
-            text: near.length
-              ? `💡 Forse intendevi "${near[0][0]}"?`
-              : '💡 Scrivi "help" per vedere i comandi disponibili.',
-            cls: 'info',
-            stream: 'err',
-          });
+      const outLines = produced.filter((l) => l.stream === 'out');
+      const errLines = produced.filter((l) => l.stream === 'err');
+      if (errFile === null) for (const l of errLines) sink.lines.push({ text: l.text, cls: l.cls, delay: l.delay });
+      else if (errFile !== '/dev/null') this.writeText(errFile, errLines.map((l) => l.text + '\n').join(''), false);
+
+      const outText = outLines.map((l) => l.text + '\n').join('');
+      if (outFile) {
+        const e = this.writeText(outFile.path, outText, outFile.append);
+        if (e) {
+          sink.lines.push({ text: `bash: ${outFile.path}: ${e}`, cls: 'err' });
+          code = 1;
+        } else sink.events.push({ type: 'write', path: outFile.path });
+        stdin = '';
+      } else if (isLast) {
+        for (const l of outLines) {
+          const line = { text: l.text, cls: l.cls, delay: l.delay };
+          if (sink.capture) sink.capture.push(line);
+          else sink.lines.push(line);
         }
-        result.events.push({ type: 'command', name: typed, args, ok: false });
+      }
+      if (!outFile) stdin = outText;
+    }
+    return code;
+  }
+
+  private runCommand(words: string[], stdin: string | null, produced: OutLine[], sink: Sink, depth: number): number {
+    const typed = words[0];
+    const args = words.slice(1);
+
+    // esecuzione di uno script con ./script.sh o /percorso/script.sh
+    if (typed.includes('/')) {
+      const p = this.abs(typed);
+      const node = this.fs.get(p);
+      if (!node) {
+        produced.push({ text: `bash: ${typed}: No such file or directory`, cls: 'err', stream: 'err' });
+        sink.events.push({ type: 'command', name: typed, args, ok: false });
+        return 127;
+      }
+      if (node.type === 'dir') {
+        produced.push({ text: `bash: ${typed}: Is a directory`, cls: 'err', stream: 'err' });
+        return 126;
+      }
+      if (node.locked || node.perms[2] !== 'x' || node.owner !== this.user) {
+        produced.push({ text: `bash: ${typed}: Permission denied`, cls: 'err', stream: 'err' });
+        if (node.perms[2] !== 'x')
+          produced.push({ text: `💡 Il file non è eseguibile. Rendilo eseguibile con: chmod +x ${typed}`, cls: 'info', stream: 'err' });
+        sink.events.push({ type: 'command', name: typed, args, ok: false });
+        return 126;
+      }
+      const code = this.runScript(p, args, produced, sink, depth);
+      sink.events.push({ type: 'script', path: p, ok: code === 0 });
+      sink.events.push({ type: 'command', name: typed, args, ok: code === 0 });
+      return code;
+    }
+
+    const name = ALIASES[typed] ?? typed;
+    const cmd = COMMANDS[name];
+    if (!cmd) {
+      produced.push({ text: `bash: ${typed}: command not found`, cls: 'err', stream: 'err' });
+      const lower = typed.toLowerCase();
+      if (lower !== typed && COMMANDS[ALIASES[lower] ?? lower]) {
+        produced.push({
+          text: `💡 Linux distingue MAIUSCOLE e minuscole: "${typed}" e "${lower}" sono parole diverse. Prova "${lower}".`,
+          cls: 'info',
+          stream: 'err',
+        });
       } else {
-        const ctx: Ctx = {
-          sh: this,
-          name,
-          args,
-          stdin,
-          out: (text, cls, delay) => produced.push({ text, cls: cls ?? 'out', delay, stream: 'out' }),
-          err: (text) => produced.push({ text, cls: 'err', stream: 'err' }),
-          info: (text) => produced.push({ text, cls: 'info', stream: 'err' }),
-          emit: (ev) => result.events.push(ev),
-          clear: () => {
-            result.clear = true;
-            result.lines = [];
-          },
-        };
-        let code = 1;
-        try {
-          code = cmd(ctx);
-        } catch (e) {
-          ctx.err(`${name}: errore interno (${(e as Error).message})`);
-        }
-        result.events.push({ type: 'command', name, args, ok: code === 0 });
+        const near = this.commandNames()
+          .map((c) => [c, levenshtein(lower, c)] as const)
+          .filter(([c, d]) => d <= (c.length > 3 ? 2 : 1))
+          .sort((a, b) => a[1] - b[1]);
+        produced.push({
+          text: near.length ? `💡 Forse intendevi "${near[0][0]}"?` : '💡 Scrivi "help" per vedere i comandi disponibili.',
+          cls: 'info',
+          stream: 'err',
+        });
       }
+      sink.events.push({ type: 'command', name: typed, args, ok: false });
+      return 127;
+    }
+    const ctx: Ctx = {
+      sh: this,
+      name,
+      args,
+      stdin,
+      depth,
+      out: (text, cls, delay) => produced.push({ text, cls: cls ?? 'out', delay, stream: 'out' }),
+      err: (text) => produced.push({ text, cls: 'err', stream: 'err' }),
+      info: (text) => produced.push({ text, cls: 'info', stream: 'err' }),
+      raw: (l, stream) => produced.push({ ...l, stream }),
+      emit: (ev) => sink.events.push(ev),
+      clear: () => {
+        sink.clear = true;
+        sink.lines.length = 0;
+      },
+      sink,
+    };
+    let code = 1;
+    try {
+      code = cmd(ctx);
+    } catch (e) {
+      ctx.err(`${name}: errore interno (${(e as Error).message})`);
+    }
+    sink.events.push({ type: 'command', name, args, ok: code === 0 });
+    return code;
+  }
 
-      for (const l of produced) {
-        if (l.stream === 'err' || isLast) result.lines.push({ text: l.text, cls: l.cls, delay: l.delay });
-      }
-      stdin = produced
-        .filter((l) => l.stream === 'out')
-        .map((l) => l.text + '\n')
-        .join('');
-    });
-    return result;
+  /** Esegue un file di script con i suoi argomenti ($1, $2...). */
+  runScript(path: string, args: string[], produced: OutLine[], sink: Sink, depth: number): number {
+    if (depth > 6) {
+      produced.push({ text: 'bash: troppi script annidati', cls: 'err', stream: 'err' });
+      return 1;
+    }
+    const node = this.fs.get(path);
+    if (!node || node.type !== 'file') return 127;
+    const saved: Record<string, string | undefined> = {};
+    const positional: Record<string, string> = { '0': path, '#': String(args.length) };
+    for (let k = 1; k <= 9; k++) positional[String(k)] = args[k - 1] ?? '';
+    for (const [k, v] of Object.entries(positional)) {
+      saved[k] = this.vars[k];
+      this.vars[k] = v;
+    }
+    const inner: Sink = { lines: [], events: sink.events, capture: [] };
+    const code = this.execText(node.content, inner, depth + 1);
+    for (const [k, v] of Object.entries(saved)) {
+      if (v === undefined) delete this.vars[k];
+      else this.vars[k] = v;
+    }
+    // stdout dello script → stdout del comando; errori e messaggi → stderr
+    for (const l of inner.lines) produced.push({ ...l, stream: 'err' });
+    for (const l of inner.capture!) produced.push({ ...l, stream: 'out' });
+    return code;
   }
 
   /** Completamento con TAB. Restituisce la nuova riga e le alternative possibili. */
@@ -772,6 +1228,350 @@ const COMMANDS: Record<string, Command> = {
     return 0;
   },
 
+  mkdir(c) {
+    const { flags, rest } = splitShortFlags(c.args);
+    if (!rest.length) {
+      c.err('mkdir: missing operand');
+      return 1;
+    }
+    let code = 0;
+    for (const d of rest) {
+      const p = c.sh.abs(d);
+      if (c.sh.fs.get(p)) {
+        if (!flags.has('p')) {
+          c.err(`mkdir: cannot create directory '${d}': File exists`);
+          code = 1;
+        }
+        continue;
+      }
+      const parent = c.sh.fs.get(dirnameOf(p));
+      if (!parent && !flags.has('p')) {
+        c.err(`mkdir: cannot create directory '${d}': No such file or directory`);
+        c.info('💡 Per creare anche le cartelle intermedie usa: mkdir -p');
+        code = 1;
+        continue;
+      }
+      if (!c.sh.canWrite(p) && parent) {
+        c.err(`mkdir: cannot create directory '${d}': Permission denied`);
+        code = 1;
+        continue;
+      }
+      c.sh.fs.mkdirp(p, { owner: c.sh.user, group: c.sh.user });
+      c.emit({ type: 'fsop', op: 'mkdir', paths: [p] });
+    }
+    return code;
+  },
+
+  touch(c) {
+    if (!c.args.length) {
+      c.err('touch: missing file operand');
+      return 1;
+    }
+    for (const f of c.args) {
+      const p = c.sh.abs(f);
+      const node = c.sh.fs.get(p);
+      if (node) {
+        node.mtime = 'Nov 12 21:04';
+        continue;
+      }
+      const e = c.sh.writeText(p, '', false);
+      if (e) {
+        c.err(`touch: cannot touch '${f}': ${e}`);
+        return 1;
+      }
+      c.emit({ type: 'fsop', op: 'touch', paths: [p] });
+    }
+    return 0;
+  },
+
+  rm(c) {
+    const { flags, rest } = splitShortFlags(c.args);
+    if (!rest.length) {
+      c.err('rm: missing operand');
+      return 1;
+    }
+    let code = 0;
+    for (const f of rest) {
+      const p = c.sh.abs(f);
+      const node = c.sh.fs.get(p);
+      if (!node) {
+        if (!flags.has('f')) {
+          c.err(`rm: cannot remove '${f}': No such file or directory`);
+          code = 1;
+        }
+        continue;
+      }
+      if (p === '/' || p === c.sh.home) {
+        c.err(`rm: it is dangerous to operate recursively on '${f}'`);
+        c.info('⚠️ Il deck ti ha fermato. Su un vero Linux "rm -rf" su una cartella importante cancella tutto, senza cestino e senza conferma.');
+        code = 1;
+        continue;
+      }
+      if (node.type === 'dir' && !flags.has('r') && !flags.has('R')) {
+        c.err(`rm: cannot remove '${f}': Is a directory`);
+        c.info('💡 Per cancellare una cartella con tutto il contenuto: rm -r (fai molta attenzione!)');
+        code = 1;
+        continue;
+      }
+      const parent = c.sh.fs.get(dirnameOf(p)) as DirNode;
+      const writable = parent.owner === c.sh.user || parent.perms[7] === 'w';
+      if (!writable || parent.locked) {
+        c.err(`rm: cannot remove '${f}': Permission denied`);
+        code = 1;
+        continue;
+      }
+      parent.children.delete(p.slice(p.lastIndexOf('/') + 1));
+      c.emit({ type: 'fsop', op: 'rm', paths: [p] });
+    }
+    return code;
+  },
+
+  rmdir(c) {
+    for (const d of c.args) {
+      const p = c.sh.abs(d);
+      const node = c.sh.fs.get(p);
+      if (!node || node.type !== 'dir') {
+        c.err(`rmdir: failed to remove '${d}': ${node ? 'Not a directory' : 'No such file or directory'}`);
+        return 1;
+      }
+      if (node.children.size) {
+        c.err(`rmdir: failed to remove '${d}': Directory not empty`);
+        return 1;
+      }
+      const parent = c.sh.fs.get(dirnameOf(p)) as DirNode;
+      if (parent.owner !== c.sh.user) {
+        c.err(`rmdir: failed to remove '${d}': Permission denied`);
+        return 1;
+      }
+      parent.children.delete(p.slice(p.lastIndexOf('/') + 1));
+      c.emit({ type: 'fsop', op: 'rm', paths: [p] });
+    }
+    return 0;
+  },
+
+  cp(c) {
+    return copyMove(c, 'cp');
+  },
+
+  mv(c) {
+    return copyMove(c, 'mv');
+  },
+
+  nano(c) {
+    const f = c.args[0];
+    if (!f) {
+      c.err('nano: indica il file da aprire, es: nano note.txt');
+      return 1;
+    }
+    const p = c.sh.abs(f);
+    const node = c.sh.fs.get(p);
+    if (node?.type === 'dir') {
+      c.err(`nano: ${f}: Is a directory`);
+      return 1;
+    }
+    if (node?.locked) {
+      c.err(`nano: ${f}: Permission denied`);
+      return 1;
+    }
+    c.emit({ type: 'edit', path: p });
+    return 0;
+  },
+
+  base64(c) {
+    const { flags, rest } = splitShortFlags(c.args);
+    const text = readText(c, rest, 'base64');
+    if (text === null) return 1;
+    if (flags.has('d')) {
+      const dec = base64Decode(text);
+      if (dec === null) {
+        c.err('base64: invalid input');
+        return 1;
+      }
+      for (const l of splitLines(dec)) c.out(l);
+    } else {
+      const enc = base64Encode(text);
+      for (let i = 0; i < enc.length; i += 76) c.out(enc.slice(i, i + 76));
+    }
+    return 0;
+  },
+
+  sha256sum(c) {
+    if (c.args[0] === '-c') {
+      const list = readText(c, c.args.slice(1), 'sha256sum');
+      if (list === null) return 1;
+      let failed = 0;
+      for (const l of splitLines(list)) {
+        const m = l.match(/^([0-9a-f]{64})\s+\*?(.+)$/);
+        if (!m) continue;
+        const t = readText(c, [m[2]], 'sha256sum');
+        if (t === null) {
+          failed++;
+          continue;
+        }
+        const ok = sha256(t) === m[1];
+        if (!ok) failed++;
+        c.out(`${m[2]}: ${ok ? 'OK' : 'FAILED'}`, ok ? 'ok' : 'err');
+      }
+      if (failed) c.err(`sha256sum: WARNING: ${failed} computed checksum${failed > 1 ? 's' : ''} did NOT match`);
+      c.emit({ type: 'command', name: 'sha256check', args: [String(failed)], ok: true });
+      return failed ? 1 : 0;
+    }
+    if (!c.args.length) {
+      if (c.stdin === null) {
+        c.err('sha256sum: indica un file, es: sha256sum file.txt');
+        return 1;
+      }
+      c.out(`${sha256(c.stdin)}  -`);
+      return 0;
+    }
+    let code = 0;
+    for (const f of c.args) {
+      const t = readText(c, [f], 'sha256sum');
+      if (t === null) {
+        code = 1;
+        continue;
+      }
+      c.out(`${sha256(t)}  ${f}`);
+    }
+    return code;
+  },
+
+  seq(c) {
+    const nums = c.args.map(Number);
+    if (!nums.length || nums.some((n) => !Number.isInteger(n))) {
+      c.err('seq: usa seq FINE oppure seq INIZIO FINE');
+      return 1;
+    }
+    const [from, to] = nums.length === 1 ? [1, nums[0]] : [nums[0], nums[1]];
+    if (to - from > 500) {
+      c.err('seq: massimo 500 numeri in questo deck');
+      return 1;
+    }
+    for (let i = from; i <= to; i++) c.out(String(i));
+    return 0;
+  },
+
+  test(c) {
+    return testExpr(c, c.args);
+  },
+
+  '['(c) {
+    if (c.args[c.args.length - 1] !== ']') {
+      c.err("bash: [: missing `]'");
+      c.info('💡 Attenzione agli spazi: [ -f file ] (spazio dopo [ e prima di ])');
+      return 2;
+    }
+    return testExpr(c, c.args.slice(0, -1));
+  },
+
+  true() {
+    return 0;
+  },
+
+  false() {
+    return 1;
+  },
+
+  bash(c) {
+    const f = c.args[0];
+    if (!f) {
+      c.info('Sei già dentro bash 🙂 Per eseguire uno script: bash nomescript.sh');
+      return 0;
+    }
+    const p = c.sh.abs(f);
+    const node = c.sh.fs.get(p);
+    if (!node || node.type !== 'file') {
+      c.err(`bash: ${f}: No such file or directory`);
+      return 127;
+    }
+    if (node.locked) {
+      c.err(`bash: ${f}: Permission denied`);
+      return 126;
+    }
+    const produced: OutLine[] = [];
+    const code = c.sh.runScript(p, c.args.slice(1), produced, c.sink, c.depth);
+    for (const l of produced) c.raw(l, l.stream);
+    c.emit({ type: 'script', path: p, ok: code === 0 });
+    return code;
+  },
+
+  env(c) {
+    for (const k of ['HOME', 'USER', 'HOSTNAME', 'PWD', 'SHELL', 'PATH']) c.out(`${k}=${c.sh.getVar(k)}`);
+    for (const [k, v] of Object.entries(c.sh.vars)) if (/^[A-Za-z_]\w*$/.test(k)) c.out(`${k}=${v}`);
+    return 0;
+  },
+
+  date(c) {
+    c.out('Thu Nov 12 21:04:00 CET 2077');
+    return 0;
+  },
+
+  tree(c) {
+    const start = c.args[0] ?? '.';
+    const node = c.sh.fs.get(c.sh.abs(start));
+    if (!node) {
+      c.err(`${start} [error opening dir]`);
+      return 1;
+    }
+    let dirs = 0;
+    let files = 0;
+    c.out(start, 'dir');
+    const walk = (n: VNode, prefix: string) => {
+      if (n.type !== 'dir' || n.locked) return;
+      const kids = [...n.children.entries()].filter(([k]) => !k.startsWith('.')).sort(([a], [b]) => a.localeCompare(b));
+      kids.forEach(([k, child], i) => {
+        const last = i === kids.length - 1;
+        c.out(`${prefix}${last ? '└── ' : '├── '}${k}`, child.type === 'dir' ? 'dir' : 'out');
+        if (child.type === 'dir') {
+          dirs++;
+          walk(child, prefix + (last ? '    ' : '│   '));
+        } else files++;
+      });
+    };
+    walk(node, '');
+    c.out('');
+    c.out(`${dirs} directories, ${files} files`, 'dim');
+    return 0;
+  },
+
+  curl(c) {
+    const { flags, rest } = splitShortFlags(c.args);
+    const url = rest[0];
+    if (!url) {
+      c.err('curl: try \'curl --help\' for more information');
+      c.info('💡 Esempio: curl http://jukebox.lan/');
+      return 2;
+    }
+    const m = url.match(/^(?:https?:\/\/)?([^/:]+)(\/.*)?$/);
+    const host = m?.[1].toLowerCase() ?? '';
+    const path = m?.[2] ?? '/';
+    const res = lookup(c.sh.net, host);
+    if (!res) {
+      c.err(`curl: (6) Could not resolve host: ${host}`);
+      return 6;
+    }
+    if (res.host && !res.host.inScope) return outOfScope(c, host);
+    const site = WEB[res.ip];
+    if (!site) {
+      c.err(`curl: (7) Failed to connect to ${host} port 80: Connection refused`);
+      return 7;
+    }
+    const page = site.pages[path];
+    const status = page ? '200 OK' : '404 Not Found';
+    c.emit({ type: 'http', host, path, status: page ? 200 : 404, head: flags.has('I') });
+    if (flags.has('I') || flags.has('i')) {
+      c.out(`HTTP/1.1 ${status}`, page ? 'ok' : 'err');
+      c.out('Date: Thu, 12 Nov 2077 21:04:00 GMT');
+      for (const hdr of site.headers) c.out(hdr);
+      c.out(`Content-Type: ${page?.type ?? 'text/html'}; charset=UTF-8`);
+      if (flags.has('I')) return 0;
+      c.out('');
+    }
+    const body = page?.body ?? '<html><body><h1>Not Found</h1></body></html>';
+    for (const l of splitLines(body)) c.out(l);
+    return 0;
+  },
+
   sudo(c) {
     if (c.args[0] === 'ufw') {
       c.info('[sudo] concesso: il contratto ti autorizza ad amministrare solo il firewall (ufw).');
@@ -1051,6 +1851,144 @@ function ufw(c: Ctx, root: boolean): number {
   c.info('💡 Esempi: sudo ufw status · sudo ufw deny from 203.0.113.77');
   return 1;
 }
+
+function copyMove(c: Ctx, which: 'cp' | 'mv'): number {
+  const { flags, rest } = splitShortFlags(c.args);
+  if (rest.length < 2) {
+    c.err(`${which}: missing destination file operand`);
+    c.info(`💡 Sintassi: ${which} ORIGINE DESTINAZIONE`);
+    return 1;
+  }
+  const dest = rest[rest.length - 1];
+  const sources = rest.slice(0, -1);
+  const destAbs = c.sh.abs(dest);
+  const destNode = c.sh.fs.get(destAbs);
+  if (sources.length > 1 && destNode?.type !== 'dir') {
+    c.err(`${which}: target '${dest}' is not a directory`);
+    return 1;
+  }
+  for (const src of sources) {
+    const sAbs = c.sh.abs(src);
+    const node = c.sh.fs.get(sAbs);
+    if (!node) {
+      c.err(`${which}: cannot stat '${src}': No such file or directory`);
+      return 1;
+    }
+    if (node.locked) {
+      c.err(`${which}: cannot open '${src}' for reading: Permission denied`);
+      return 1;
+    }
+    if (node.type === 'dir' && which === 'cp' && !flags.has('r') && !flags.has('R')) {
+      c.err(`cp: -r not specified; omitting directory '${src}'`);
+      return 1;
+    }
+    const target = destNode?.type === 'dir' ? `${destAbs}/${sAbs.slice(sAbs.lastIndexOf('/') + 1)}` : destAbs;
+    if (target === sAbs || target.startsWith(sAbs + '/')) {
+      c.err(`${which}: '${src}' and '${dest}' are the same file`);
+      return 1;
+    }
+    if (!c.sh.canWrite(target) && !(c.sh.fs.get(target)?.type === 'file' && c.sh.fs.get(target)!.owner === c.sh.user)) {
+      c.err(`${which}: cannot create '${dest}': Permission denied`);
+      return 1;
+    }
+    const parent = c.sh.fs.get(dirnameOf(target));
+    if (!parent || parent.type !== 'dir') {
+      c.err(`${which}: cannot create '${dest}': No such file or directory`);
+      return 1;
+    }
+    const clone = (n: VNode): VNode =>
+      n.type === 'file'
+        ? { ...n, owner: which === 'cp' ? c.sh.user : n.owner, group: which === 'cp' ? c.sh.user : n.group }
+        : { ...n, children: new Map([...n.children].map(([k, v]) => [k, clone(v)])) };
+    parent.children.set(target.slice(target.lastIndexOf('/') + 1), which === 'cp' ? clone(node) : node);
+    if (which === 'mv') {
+      const sp = c.sh.fs.get(dirnameOf(sAbs)) as DirNode;
+      sp.children.delete(sAbs.slice(sAbs.lastIndexOf('/') + 1));
+    }
+    c.emit({ type: 'fsop', op: which, paths: [sAbs, target] });
+  }
+  return 0;
+}
+
+function testExpr(c: Ctx, a: string[]): number {
+  const ok = (b: boolean) => (b ? 0 : 1);
+  if (a[0] === '!') return 1 - testExpr(c, a.slice(1));
+  if (a.length === 0) return 1;
+  if (a.length === 1) return ok(a[0] !== '');
+  if (a.length === 2) {
+    const node = c.sh.fs.get(c.sh.abs(a[1]));
+    switch (a[0]) {
+      case '-f':
+        return ok(node?.type === 'file');
+      case '-d':
+        return ok(node?.type === 'dir');
+      case '-e':
+        return ok(!!node);
+      case '-z':
+        return ok(a[1] === '');
+      case '-n':
+        return ok(a[1] !== '');
+    }
+  }
+  if (a.length === 3) {
+    const [x, op, y] = a;
+    const nx = Number(x);
+    const ny = Number(y);
+    switch (op) {
+      case '=':
+      case '==':
+        return ok(x === y);
+      case '!=':
+        return ok(x !== y);
+      case '-eq':
+        return ok(nx === ny);
+      case '-ne':
+        return ok(nx !== ny);
+      case '-gt':
+        return ok(nx > ny);
+      case '-ge':
+        return ok(nx >= ny);
+      case '-lt':
+        return ok(nx < ny);
+      case '-le':
+        return ok(nx <= ny);
+    }
+  }
+  c.err(`test: espressione non riconosciuta: ${a.join(' ')}`);
+  return 2;
+}
+
+/** Siti web simulati, raggiungibili con curl. */
+const WEB: Record<string, { headers: string[]; pages: Record<string, { body: string; type?: string }> }> = {
+  '192.168.1.20': {
+    headers: ['Server: Apache/2.4.29 (Ubuntu)', 'X-Powered-By: PHP/7.2.24'],
+    pages: {
+      '/': {
+        body: [
+          '<!DOCTYPE html>',
+          '<html><head><title>Jukebox dello Scantinato</title></head>',
+          '<body>',
+          '  <h1>🎵 Jukebox dello Scantinato</h1>',
+          '  <p>Scegli la prossima canzone!</p>',
+          '  <a href="/playlist.php?id=1">Playlist della casa</a>',
+          '  <!-- TODO: togliere il link al pannello prima di andare online: /pannello/ -->',
+          '</body></html>',
+        ].join('\n'),
+      },
+      '/robots.txt': {
+        type: 'text/plain',
+        body: ['User-agent: *', 'Disallow: /pannello/', 'Disallow: /backup/'].join('\n'),
+      },
+      '/playlist.php?id=1': {
+        body: '<html><body><h2>Playlist della casa</h2><ul><li>Chippin\' In</li><li>Never Fade Away</li></ul></body></html>',
+      },
+    },
+  },
+  '192.168.1.1': {
+    headers: ['Server: lighttpd/1.4.76'],
+    pages: { '/': { body: '<html><body><h1>Router</h1><form>Password: <input type="password"></form></body></html>' } },
+  },
+};
 
 function headTail(c: Ctx, which: 'head' | 'tail'): number {
   let n = 10;

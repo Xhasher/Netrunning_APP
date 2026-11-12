@@ -43,11 +43,12 @@ export function clearSave(): void {
 
 export const RANKS: [number, string][] = [
   [0, 'Pivello'],
-  [300, 'Runner di strada'],
-  [800, 'Netrunner'],
-  [1600, 'Edgerunner'],
-  [3000, 'Leggenda di Night City'],
-];
+  [400, 'Runner di strada'],
+  [1200, 'Netrunner'],
+  [2500, 'Edgerunner'],
+  [4000, 'Analista di Night City'],
+  [5000, 'Leggenda di Night City'],
+]
 
 export function rankFor(xp: number): { name: string; next: number | null; floor: number } {
   let idx = 0;

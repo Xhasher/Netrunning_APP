@@ -4,16 +4,21 @@ Un gioco per Android che insegna **ethical hacking, penetration testing e cyber 
 
 Si gioca in un **terminale Linux simulato**: comandi, file, rete e bersagli sono tutti finti, quindi si può sperimentare senza rischi e senza connessione.
 
-## Contenuti attuali (v0.2)
+## Contenuti attuali (v0.3)
 
 | Capitolo | Missioni | Argomenti |
 |---|---|---|
-| 01 · Jack-in | 5 | cos'è Linux, il terminale, il prompt, `whoami`, `pwd`, `ls`, `cd`, percorsi, `cat`, file nascosti, `man`, `ls -l`, `echo`, `history`, prima CTF |
+| 01 · Jack-in | 6 | cos'è Linux, il terminale, il prompt, `whoami`, `pwd`, `ls`, `cd`, percorsi, `cat`, file nascosti, `man`, `ls -l`, `echo`, `history`, `mkdir`, `touch`, `>` e `>>`, `cp`, `mv`, `rm`, `tree`, prima CTF |
 | 02 · Rete di quartiere | 3 | reti, indirizzi IP, `ip a`, `ping`, DNS, firewall, porte, TCP, scope e legge (art. 615-ter c.p.), `nmap`, CVE, report di pentest |
-| 03 · Linux in profondità | 3 | utenti e gruppi, `id`, `/etc/passwd`, `/etc/shadow` e hash, permessi rwx e numerici, `chmod`, audit dei permessi, minimo privilegio, `find`, pipe, `grep`, `wc`, processi e `ps aux` |
-| 04 · Primo turno al SOC | 3 | Blue Team: log e `/var/log`, `head`/`tail`, riconoscere un brute force, `cut \| sort \| uniq -c`, intrusione confermata, cryptominer, timeline, `sudo ufw`, incident response, rapporto d'incidente |
+| 03 · Linux in profondità | 3 | utenti e gruppi, `id`, `/etc/passwd`, `/etc/shadow` e hash, permessi e `chmod`, audit, minimo privilegio, `find`, pipe, `grep`, `wc`, `ps aux` |
+| 04 · Primo turno al SOC | 3 | log e `/var/log`, `head`/`tail`, brute force, `cut \| sort \| uniq -c`, intrusione, cryptominer, timeline, `sudo ufw`, incident response, rapporto d'incidente |
+| 05 · Scripting | 3 | variabili, `$(...)`, stdout/stderr, `2>/dev/null`, `nano`, shebang, `chmod +x`, argomenti `$1`, cicli `for`, `if` e `test`, script di allarme |
+| 06 · Crittografia e password | 3 | codifica vs cifratura vs hash, `base64`, cifratura simmetrica e asimmetrica, TLS/HTTPS, SHA-256, `sha256sum -c`, supply chain attack, sale e hash lenti, password manager, MFA |
+| 07 · Web security | 3 | URL e HTTP, codici di stato, header, `curl`, information disclosure, robots.txt, security through obscurity, `access.log`, scanner, SQL injection, XSS, path traversal e relative difese |
 
-Gli altri capitoli (scripting, reti avanzate, crittografia, web security, Windows, Blue Team avanzato, cloud) sono già nella mappa come "in arrivo". La sezione **Carriera** indica laboratori legali gratuiti e certificazioni per il percorso reale.
+Altre funzioni: **Allenamento** (quiz di ripasso a caso sulle missioni completate), **Codex** (glossario di tutto ciò che hai imparato), **Carriera** (laboratori legali gratuiti e certificazioni).
+
+I capitoli 08-13 (reti avanzate, OSINT, hardening, Windows e Active Directory, Blue Team avanzato, cloud) sono nella mappa come "in arrivo".
 
 ## Scaricare l'APK
 
