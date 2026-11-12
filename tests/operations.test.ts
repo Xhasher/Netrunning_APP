@@ -28,6 +28,18 @@ const PLAY: Record<string, { cmds: string[]; reports: string[] }> = {
     ],
     reports: ['198.51.100.66', 'marco', 'sysupdate', '/etc/cron.d/.sync-check', '/var/tmp/.cache/updater'],
   },
+  op04: {
+    cmds: [
+      'ssh analista@porto.lan',
+      'grep 192.0.2.200 /var/log/nginx/access.log',
+      'for f in $(find /tmp /var/tmp -type f 2>/dev/null); do sha256sum $f; done',
+      'ls /etc/cron.d',
+      'cat /etc/cron.d/fontcache',
+      'find /home -name authorized_keys 2>/dev/null',
+      'grep void /home/deploy/.ssh/authorized_keys',
+    ],
+    reports: ['/var/www/html/upload/shell.php', '/var/tmp/.fonts/kdevtmp', '/etc/cron.d/fontcache', '/home/deploy/.ssh/authorized_keys'],
+  },
   op03: {
     cmds: ['curl -I http://radio.lan/', 'curl http://radio.lan/robots.txt', 'curl http://radio.lan/.env', 'curl http://radio.lan/staff/ | grep "<!--"'],
     reports: ['nginx/1.14.0', '/.env', '/staff/'],

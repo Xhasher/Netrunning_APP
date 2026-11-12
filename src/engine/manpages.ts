@@ -149,6 +149,7 @@ export const MANPAGES: Record<string, ManPage> = {
       ['-i', 'ignora maiuscole/minuscole'],
       ['-v', 'inverti: mostra le righe che NON contengono il testo'],
       ['-n', 'mostra il numero di riga'],
+      ['-c', 'stampa solo quante righe corrispondono'],
     ],
     examples: [
       ['grep errore log.txt', 'righe di log.txt che contengono "errore"'],

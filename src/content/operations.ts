@@ -4,6 +4,7 @@
 import type { Host } from '../engine/network';
 import type { RemoteSystem, Shell } from '../engine/shell';
 import { addSite } from '../engine/shell';
+import { sha256 } from '../engine/sha256';
 import { Vfs } from '../engine/vfs';
 import type { Markup } from '../game/types';
 
@@ -397,7 +398,145 @@ const OP03: Operation = {
   },
 };
 
-export const OPERATIONS: Operation[] = [OP01, OP02, OP03];
+// ---------------------------------------------------------------- OP-04
+
+const MINER = '#!/bin/sh\n# kdevtmp: binario malevolo (simulato)\n';
+const MINER_HASH = sha256(MINER);
+
+const OP04: Operation = {
+  id: 'op04',
+  code: 'OP-04',
+  title: 'Caccia nel porto',
+  client: 'Autorità portuale di Night City',
+  kind: 'incident',
+  requires: 'ch08-m3',
+  xp: 500,
+  brief: `@rook: L'autorità portuale ha ricevuto un bollettino del CERT: una campagna sta colpendo i server web della zona. Nessun allarme da loro, ma vogliono essere sicuri. Ti danno un account da analista sul server \`porto.lan\`.
+
+@nyx: È **threat hunting**: parti dagli IOC e cerchi le tracce, anche dove nessuna regola ha suonato. Ecco gli IOC del bollettino:
+
+\`\`\`
+IP C2             : 192.0.2.200
+hash SHA-256 file : ${MINER_HASH}
+chiave SSH        : commento "x@void-c2"
+\`\`\`
+
+\`\`\`
+ssh analista@porto.lan
+\`\`\`
+
+Ci sono **4 elementi** da segnalare con \`report\`. Indica sempre il **percorso completo** del file.
+
+?? Strumenti utili: \`grep\` nei log, \`find\` con \`2>/dev/null\`, \`sha256sum\` dentro un ciclo \`for\`. Ricordi \`for f in $(find ...); do ...; done\`?`,
+  scope: ['porto.lan (10.20.0.40), accesso SSH come "analista" (gruppo adm)', 'Solo indagine: non modificare nulla'],
+  findings: [
+    {
+      id: 'entry',
+      title: 'Il file caricato sul sito da cui è entrato l\'attaccante',
+      answers: ['/var/www/html/upload/shell.php', 'shell.php'],
+      hints: [
+        'Cerca l\'IP C2 nei log del server web, in /var/log/nginx.',
+        'grep 192.0.2.200 /var/log/nginx/access.log',
+        'report /var/www/html/upload/shell.php',
+      ],
+      explain: `L'attaccante ha caricato \`shell.php\` tramite il modulo di upload del sito, e poi l'ha richiamato con dei comandi nei parametri: è una **web shell**, un programma che dà il controllo del server attraverso il browser. Tattica ATT&CK: *Initial Access* e *Persistence* (T1505.003). Correzione: il modulo di upload non deve mai accettare file eseguibili.`,
+    },
+    {
+      id: 'hash',
+      title: 'Un file con l\'hash dell\'IOC',
+      answers: ['/var/tmp/.fonts/kdevtmp', 'kdevtmp'],
+      hints: [
+        'Gli attaccanti amano le cartelle scrivibili da tutti: /tmp e /var/tmp. Cerca file lì dentro.',
+        'for f in $(find /tmp /var/tmp -type f 2>/dev/null); do sha256sum $f; done',
+        'report /var/tmp/.fonts/kdevtmp',
+      ],
+      explain: `\`/var/tmp/.fonts/kdevtmp\` ha esattamente l'hash del bollettino: è il malware della campagna, nascosto in una cartella dal nome innocuo. La ricerca per **hash** non si fa ingannare dal nome del file.`,
+    },
+    {
+      id: 'cron',
+      title: 'Il meccanismo che lo fa ripartire',
+      answers: ['/etc/cron.d/fontcache', 'fontcache'],
+      hints: ['Come sopravvive un programma ai riavvii? Guarda i lavori programmati.', 'ls /etc/cron.d, poi leggi ogni file con cat', 'report /etc/cron.d/fontcache'],
+      explain: `\`/etc/cron.d/fontcache\` riavvia \`kdevtmp\` ogni 5 minuti: **persistenza** tramite cron (T1053.003), come nella clinica. Nome credibile, comportamento malevolo.`,
+    },
+    {
+      id: 'key',
+      title: 'Una porta di servizio per tornare via SSH',
+      answers: ['/home/deploy/.ssh/authorized_keys', 'authorized_keys'],
+      hints: [
+        'L\'IOC parla di una chiave SSH. Le chiavi autorizzate stanno in ~/.ssh/authorized_keys di ogni utente.',
+        'find /home -name authorized_keys 2>/dev/null, poi grep void su ciascun file',
+        'report /home/deploy/.ssh/authorized_keys',
+      ],
+      explain: `Nel file \`authorized_keys\` dell'utente \`deploy\` c'è una chiave con il commento \`x@void-c2\`: con quella l'attaccante può rientrare via SSH **senza password**, anche dopo aver chiuso la web shell. Tecnica: *Account Manipulation: SSH Authorized Keys* (T1098.004).`,
+    },
+  ],
+  debrief: `@nyx: Caccia riuscita. Nessun allarme aveva suonato, eppure il server era compromesso da giorni. Ecco la catena completa:
+
+\`\`\`
+Initial Access   upload di shell.php dal modulo del sito
+Execution        comandi lanciati attraverso la web shell
+Persistence      chiave SSH in /home/deploy/.ssh/authorized_keys
+Persistence      /etc/cron.d/fontcache riavvia il malware
+Impact / C2      /var/tmp/.fonts/kdevtmp contatta 192.0.2.200
+\`\`\`
+
+Raccomandazioni per l'autorità portuale:
+- salvare le prove, poi rimuovere web shell, chiave, job di cron e malware
+- correggere il modulo di upload (solo immagini, mai file eseguibili, salvati fuori dalla web root)
+- **trasformare gli IOC in regole** sul SIEM e sul firewall
+- valutare la **reinstallazione** del server: dopo una compromissione così profonda è la scelta più sicura`,
+  setup(sh) {
+    const fs = baseFs(
+      'porto',
+      [
+        'root:x:0:0:root:/root:/bin/bash',
+        'www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin',
+        'analista:x:1001:1001:SOC esterno:/home/analista:/bin/bash',
+        'deploy:x:1002:1002:Pubblicazione sito:/home/deploy:/bin/bash',
+      ],
+      ['root:x:0:', 'adm:x:4:analista', 'www-data:x:33:', 'analista:x:1001:', 'deploy:x:1002:'],
+    );
+    fs.mkdirp('/home/analista', { owner: 'analista' });
+    fs.writeFile('/home/analista/LEGGIMI.txt', 'Account per il SOC esterno. Hai accesso in lettura ai log (gruppo adm).\n', { owner: 'analista' });
+    const p2 = (n: number) => String(n).padStart(2, '0');
+    const web: string[] = [];
+    const add = (m: number, ip: string, req: string, st: number) =>
+      web.push(`${ip} - - [10/Nov/2077:14:${p2(m)}:00 +0100] "${req} HTTP/1.1" ${st} 512 "-" "Mozilla/5.0"`);
+    add(1, '10.0.3.4', 'GET /', 200);
+    add(3, '10.0.3.9', 'GET /orari-navi', 200);
+    add(10, '192.0.2.200', 'GET /upload/', 200);
+    add(11, '192.0.2.200', 'POST /upload/', 200);
+    add(12, '192.0.2.200', 'GET /upload/shell.php?cmd=id', 200);
+    add(13, '192.0.2.200', 'GET /upload/shell.php?cmd=whoami', 200);
+    add(20, '10.0.3.4', 'GET /contatti', 200);
+    fs.writeFile('/var/log/nginx/access.log', web.join('\n') + '\n', { owner: 'root', group: 'adm', perms: 'rw-r-----' });
+    fs.writeFile('/var/log/syslog', 'Nov 12 09:05:01 porto CRON[812]: (root) CMD (/var/tmp/.fonts/kdevtmp)\n', { group: 'adm', perms: 'rw-r-----' });
+    fs.writeFile('/var/www/html/index.html', '<html><body><h1>Porto di Night City</h1></body></html>\n', { owner: 'www-data' });
+    fs.writeFile('/var/www/html/upload/shell.php', '<?php /* web shell (simulata): esegue il parametro cmd */ ?>\n', { owner: 'www-data' });
+    fs.writeFile('/var/www/html/upload/logo.png', 'PNG logo (simulato)\n', { owner: 'www-data' });
+    fs.writeFile('/var/tmp/.fonts/kdevtmp', MINER, { owner: 'www-data', perms: 'rwxr-xr-x' });
+    fs.writeFile('/var/tmp/.fonts/fonts.cache', 'cache dei font (innocuo)\n', { owner: 'www-data' });
+    fs.writeFile('/tmp/sess_8812', 'sessione php (innocuo)\n', { owner: 'www-data' });
+    fs.writeFile('/etc/cron.d/fontcache', '# aggiorna la cache dei font\n*/5 * * * * www-data /var/tmp/.fonts/kdevtmp\n');
+    fs.writeFile('/etc/cron.d/logrotate', '# rotazione dei log\n0 0 * * * root /usr/sbin/logrotate /etc/logrotate.conf\n');
+    fs.mkdirp('/home/deploy/.ssh', { owner: 'deploy' });
+    fs.writeFile(
+      '/home/deploy/.ssh/authorized_keys',
+      ['ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGk3...q9 deploy@ufficio-it', 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPz8...w2 x@void-c2'].join('\n') + '\n',
+      { owner: 'deploy', perms: 'rw-r--r--' },
+    );
+    sh.net.hosts.push(host('10.20.0.40', ['porto.lan', 'porto'], [[22, 'ssh', 'OpenSSH 7.6p1'], [80, 'http', 'nginx 1.14.0']]));
+    sh.remotes.set('10.20.0.40', {
+      hostname: 'porto',
+      fs,
+      users: ['analista'],
+      banner: ['Welcome to Ubuntu 18.04.6 LTS (GNU/Linux)', '', ' * Autorità portuale di Night City. Sistema monitorato.'],
+    });
+  },
+};
+
+export const OPERATIONS: Operation[] = [OP01, OP02, OP03, OP04];
 
 export function normalizeReport(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, ' ').replace(/\/+$/, '');

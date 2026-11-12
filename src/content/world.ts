@@ -311,6 +311,33 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
     mine,
   );
 
+  // Capitolo 08 — Blue Team avanzato: eventi del SIEM, DNS, allegati e intelligence
+  fs.writeFile(`${home}/siem/eventi.log`, buildSiemEvents(), mine);
+  fs.writeFile(`${home}/siem/dns.log`, buildDnsLog(), mine);
+  const allegati: Record<string, string> = {
+    'listino_fornitore.pdf': '%PDF-1.7 listino prezzi fornitore (simulato)\n',
+    'turni_dicembre.xlsx': 'PK foglio turni di dicembre (simulato)\n',
+    'fattura_2077_118.pdf.js': 'var s=new ActiveXObject("WScript.Shell"); /* dropper simulato */\n',
+    'foto_evento.jpg': 'JFIF foto della festa (simulata)\n',
+  };
+  for (const [n, c] of Object.entries(allegati)) fs.writeFile(`${home}/siem/allegati/${n}`, c, mine);
+  fs.writeFile(
+    `${home}/intel/bollettino.txt`,
+    [
+      '=== BOLLETTINO DI THREAT INTELLIGENCE NC-CERT 2077-114 ===',
+      'Campagna: "FATTURA FANTASMA"',
+      'Vettore: email con finta fattura in allegato.',
+      '',
+      'Indicatori di compromissione (IOC):',
+      `  hash SHA-256 allegato : ${sha256(allegati['fattura_2077_118.pdf.js'])}`,
+      '  dominio C2            : update-checker.top',
+      '  IP C2                 : 192.0.2.200',
+      '',
+      'Raccomandazione: cercare gli IOC nei log degli ultimi 7 giorni.',
+    ].join('\n'),
+    mine,
+  );
+
   return new Shell({ user, host: HOSTNAME, fs, net: createNetwork(), hint });
 }
 
@@ -377,4 +404,42 @@ function buildAccessLog(): string {
   add('192.168.1.12', '/', 200, 512, phone);
   add('192.168.1.12', '/playlist.php?id=1', 200, 830, phone);
   return lines.join('\n') + '\n';
+}
+
+/** Eventi di autenticazione raccolti dal SIEM da più sistemi (formato semplificato). */
+function buildSiemEvents(): string {
+  const lines: string[] = [];
+  let t = 1 * 3600;
+  const p2 = (n: number) => String(n).padStart(2, '0');
+  const add = (host: string, ev: string, user: string, src: string) => {
+    t += 23 + (lines.length % 7);
+    lines.push(`2077-11-12T${p2(Math.floor(t / 3600))}:${p2(Math.floor((t % 3600) / 60))}:${p2(t % 60)} ${host} ${ev} user=${user} src=${src}`);
+  };
+  add('vpn', 'LOGIN_OK', 'anna', '10.0.0.21');
+  add('mail', 'LOGIN_OK', 'paolo', '10.0.0.22');
+  for (let i = 0; i < 6; i++) add('mail', 'LOGIN_FAIL', 'luca', '10.0.0.15');
+  add('mail', 'LOGIN_OK', 'luca', '10.0.0.15');
+  // password spraying: una password comune provata su tanti utenti diversi
+  const users = ['anna', 'paolo', 'luca', 'sara', 'marta', 'enzo', 'ivo', 'carla', 'dario', 'elena', 'franco', 'gina', 'hugo', 'irene', 'jacopo'];
+  users.forEach((u, i) => add(i % 2 ? 'mail' : 'vpn', 'LOGIN_FAIL', u, '192.0.2.44'));
+  add('vpn', 'LOGIN_OK', 'sara', '192.0.2.44');
+  add('vpn', 'LOGIN_OK', 'marta', '10.0.0.30');
+  add('mail', 'LOGIN_FAIL', 'enzo', '10.0.0.31');
+  add('mail', 'LOGIN_OK', 'enzo', '10.0.0.31');
+  return lines.join('\n') + '\n';
+}
+
+/** Richieste DNS della rete aziendale. */
+function buildDnsLog(): string {
+  const q: [string, string][] = [
+    ['pc-amministrazione', 'mail.nc-company.net'],
+    ['pc-reception', 'www.nc-news.net'],
+    ['pc-magazzino', 'update.nightos.net'],
+    ['pc-reception', 'update-checker.top'],
+    ['pc-amministrazione', 'banca.nc'],
+    ['pc-reception', 'update-checker.top'],
+    ['pc-direzione', 'calendar.nc-company.net'],
+    ['pc-reception', 'update-checker.top'],
+  ];
+  return q.map(([h, d], i) => `2077-11-12T09:${String(10 + i * 3).padStart(2, '0')}:00 ${h} query ${d}`).join('\n') + '\n';
 }

@@ -89,6 +89,18 @@ const SOLUTIONS: Record<string, string[][]> = {
     ['grep -i "union" web/access.log', 'flag 203.0.113.77'],
     ['grep 203.0.113.77 web/access.log', 'flag 500'],
   ],
+  'ch08-m1': [
+    ['head -n 5 siem/eventi.log'],
+    ['grep LOGIN_FAIL siem/eventi.log | cut -d " " -f 5 | sort | uniq -c', 'flag 192.0.2.44'],
+    ['grep 192.0.2.44 siem/eventi.log | grep LOGIN_FAIL | cut -d " " -f 4 | sort | uniq | wc -l', 'flag 15'],
+    ['grep 192.0.2.44 siem/eventi.log | grep LOGIN_OK', 'flag sara'],
+  ],
+  'ch08-m2': [],
+  'ch08-m3': [
+    ['cat intel/bollettino.txt'],
+    ['grep update-checker.top siem/dns.log', 'grep -c update-checker.top siem/dns.log', 'flag pc-reception'],
+    ['sha256sum siem/allegati/*', 'flag fattura_2077_118.pdf.js'],
+  ],
 };
 
 describe('ogni missione è completabile', () => {

@@ -1031,9 +1031,10 @@ const COMMANDS: Record<string, Command> = {
       const match = hay.includes(needle) !== flags.has('v');
       if (match) {
         found++;
-        c.out(flags.has('n') ? `${i + 1}:${l}` : l);
+        if (!flags.has('c')) c.out(flags.has('n') ? `${i + 1}:${l}` : l);
       }
     });
+    if (flags.has('c')) c.out(String(found));
     return found ? 0 : 1;
   },
 

@@ -6,40 +6,35 @@ import { CH04 } from './ch04-soc';
 import { CH05 } from './ch05-script';
 import { CH06 } from './ch06-cripto';
 import { CH07 } from './ch07-web';
+import { CH08 } from './ch08-blue';
 
-export const CHAPTERS: Chapter[] = [CH01, CH02, CH03, CH04, CH05, CH06, CH07];
+export const CHAPTERS: Chapter[] = [CH01, CH02, CH03, CH04, CH05, CH06, CH07, CH08];
 
 /** Il resto del corso: capitoli pianificati, mostrati nella mappa come "in arrivo". */
 export const PLANNED: PlannedChapter[] = [
   {
-    code: '08',
+    code: '09',
     title: 'Reti avanzate',
     subtitle: 'Il modello OSI e il traffico vero',
     topics: ['modello OSI e TCP/IP', 'subnetting', 'analizzare il traffico con Wireshark e tcpdump', 'SSH, chiavi e tunnel', 'VPN e segmentazione'],
   },
   {
-    code: '09',
+    code: '10',
     title: 'Ricognizione e OSINT',
     subtitle: 'Raccogliere informazioni prima di agire',
     topics: ['OSINT: fonti pubbliche', 'DNS e sottodomini', 'nmap avanzato', 'vulnerabilità note: CVE e CVSS', 'come proteggere la propria impronta pubblica'],
   },
   {
-    code: '10',
+    code: '11',
     title: 'Dall\'accesso al controllo',
     subtitle: 'Come avanza un attaccante, e come fermarlo',
     topics: ['la kill chain e MITRE ATT&CK', 'privilege escalation: le cause comuni', 'movimento laterale', 'hardening di Linux'],
   },
   {
-    code: '11',
+    code: '12',
     title: 'Windows e Active Directory',
     subtitle: 'Dove vive il mondo aziendale',
     topics: ['basi di Windows e PowerShell', 'Active Directory', 'Windows Event Log', 'proteggere un dominio'],
-  },
-  {
-    code: '12',
-    title: 'Blue Team avanzato',
-    subtitle: 'Rilevare, indagare, rintracciare',
-    topics: ['SIEM e regole di rilevamento', 'IDS: Suricata e Snort', 'forensics di disco e memoria', 'analisi di base del malware', 'threat hunting'],
   },
   {
     code: '13',
