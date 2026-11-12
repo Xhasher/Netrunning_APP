@@ -178,6 +178,7 @@ export class App {
           </div>
         </header>
         <nav class="mapnav">
+          <button data-act="sandbox">Terminale</button>
           <button data-act="train">Allenamento</button>
           <button data-act="codex">Codex</button>
           <button data-act="career">Carriera</button>
@@ -257,6 +258,7 @@ export class App {
       if (t.dataset.mission) this.showMission(t.dataset.mission);
       else if (t.dataset.act === 'codex') this.showCodex();
       else if (t.dataset.act === 'train') this.showTraining();
+      else if (t.dataset.act === 'sandbox') this.showSandbox();
       else if (t.dataset.act === 'career') this.showCareer();
       else if (t.dataset.act === 'settings') this.showSettings();
       else if (t.dataset.act === 'title') this.showTitle();
@@ -265,6 +267,32 @@ export class App {
   }
 
   // ------------------------------------------------------------- missione
+
+  // ------------------------------------------------------------- terminale libero
+
+  private showSandbox(): void {
+    this.run = null;
+    const shell = this.ensureShell();
+    const term = this.term!;
+    term.updatePrompt();
+    term.system('── TERMINALE LIBERO · nessuna missione attiva ──', 'banner');
+    term.system('Sperimenta quello che vuoi. Idee: cat palestra/LEGGIMI.txt · help · man COMANDO', 'info');
+    const node = el(html`
+      <div class="screen mission sandbox">
+        <header class="topbar">
+          <button class="iconbtn" data-act="map" aria-label="Torna alla mappa">◂</button>
+          <div class="tb-title">
+            <div class="tb-kicker">DECK · ${shell.user}@${shell.host}</div>
+            <div class="tb-name">Terminale libero</div>
+          </div>
+        </header>
+        <section class="term-area"></section>
+      </div>`);
+    node.querySelector('.term-area')!.appendChild(term.el);
+    node.querySelector('[data-act="map"]')!.addEventListener('click', () => this.showMap());
+    this.mount('sandbox', node);
+    if (finePointer()) term.focus();
+  }
 
   private showMission(id: string): void {
     const found = findMission(id);
@@ -483,7 +511,11 @@ export class App {
   private onShellEvents(events: ShellEvent[]): void {
     const r = this.run;
     const term = this.term!;
-    if (!r) return;
+    if (!r) {
+      if (events.some((e) => e.type === 'answer'))
+        term.system('Sei nel terminale libero: le flag si inviano durante le missioni.', 'info');
+      return;
+    }
     const step = this.currentStep();
     const done = this.stepIsDone();
     const outcome = evaluate(done ? undefined : step, events, this.shell!);

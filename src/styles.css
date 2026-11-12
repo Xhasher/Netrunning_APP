@@ -413,7 +413,7 @@ strong {
 
 .mapnav {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 0.5rem;
   margin-bottom: 1rem;
 }
@@ -426,7 +426,7 @@ strong {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
 }
 
 .continue {
@@ -1290,4 +1290,17 @@ pre.code {
 
 .train-end .step-actions {
   justify-content: center;
+}
+
+/* ------------------------------------------------------------------ terminale libero */
+
+.screen.sandbox .term-area {
+  flex: 1 1 100%;
+}
+
+@media (min-width: 900px) {
+  .screen.mission.sandbox {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
 }

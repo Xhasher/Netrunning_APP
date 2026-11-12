@@ -289,6 +289,28 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
   // Capitolo 07 — sito del jukebox
   fs.writeFile(`${home}/web/access.log`, buildAccessLog(), mine);
 
+  // Terminale libero — la palestra
+  fs.writeFile(
+    `${home}/palestra/LEGGIMI.txt`,
+    [
+      '=== PALESTRA DEL DECK ===',
+      'Qui non ci sono obiettivi: prova, sbaglia, riprova.',
+      '',
+      'Esercizi liberi (dal più facile):',
+      ' 1. Crea la cartella palestra/progetto e dentro un file note.txt con tre righe.',
+      ' 2. Conta quante righe di /etc/passwd contengono "nologin".',
+      ' 3. Elenca tutti i file .txt della tua home con find.',
+      ' 4. Scrivi uno script che stampi i numeri da 1 a 10, solo quelli maggiori di 5.',
+      ' 5. Salva in un file l\'elenco ordinato degli IP che compaiono in web/access.log.',
+      ' 6. Calcola lo SHA-256 di ogni file in cripto/firmware con un ciclo for.',
+      ' 7. Scrivi uno script che riceve un IP e conta quante volte compare in caso/auth.log',
+      '    e in web/access.log.',
+      '',
+      'Bloccato? "man COMANDO" spiega ogni comando. "help" li elenca tutti.',
+    ].join('\n'),
+    mine,
+  );
+
   return new Shell({ user, host: HOSTNAME, fs, net: createNetwork(), hint });
 }
 
