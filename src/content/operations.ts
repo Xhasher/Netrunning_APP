@@ -536,7 +536,162 @@ Raccomandazioni per l'autorità portuale:
   },
 };
 
-export const OPERATIONS: Operation[] = [OP01, OP02, OP03, OP04];
+// ---------------------------------------------------------------- OP-05
+
+const OP05: Operation = {
+  id: 'op05',
+  code: 'OP-05',
+  title: 'Il tram fantasma',
+  client: 'Tranvie di Night City',
+  kind: 'incident',
+  requires: 'ch09-m4',
+  xp: 500,
+  brief: `@rook: Le Tranvie di Night City hanno notato che la rete dei tram di notte è più "pesante" del solito. Il loro tecnico ha raccolto un po' di dati sul server di monitoraggio, ma non sa leggerli.
+
+@nyx: Analisi forense di rete. Tutto quello che ti serve è in \`/home/analista/catture\`: inventario dei dispositivi, tabella ARP dello switch, una cattura, i log DNS e i flussi di traffico. Collegati con:
+
+\`\`\`
+ssh analista@tram.lan
+\`\`\`
+
+Ci sono **4 elementi** da segnalare con \`report\`: segui i dati, ogni file risponde a una domanda.
+
+?? Strumenti utili: \`cat\`, \`grep\`, \`cut\`, \`sort -n -r\`, \`uniq -c\`, \`head\`. E il confronto tra quello che **c'è** e quello che **dovrebbe esserci**.`,
+  scope: ['tram.lan (10.20.0.50), accesso SSH come "analista"', 'Solo analisi dei file raccolti'],
+  findings: [
+    {
+      id: 'rogue',
+      title: 'Un dispositivo che non dovrebbe essere in rete',
+      answers: ['10.30.0.99', 'de:ad:be:ef:00:99'],
+      hints: [
+        'Confronta la tabella ARP dello switch con l\'inventario ufficiale.',
+        'cat catture/inventario.txt e poi cat catture/arp.txt: quale IP/MAC manca nell\'inventario?',
+        'report 10.30.0.99',
+      ],
+      explain: `\`10.30.0.99\` (MAC \`de:ad:be:ef:00:99\`) è collegato alla rete dei tram ma non compare nell'**inventario**. Un dispositivo "fantasma" collegato fisicamente, magari un piccolo computer nascosto in un armadio tecnico. Si individua sullo switch dalla porta a cui è collegato il suo MAC, e si scollega dopo averlo documentato.`,
+    },
+    {
+      id: 'telnet',
+      title: 'Un protocollo che trasmette le credenziali in chiaro',
+      answers: ['telnet', '23'],
+      hints: ['Leggi la cattura e cerca la parola password.', 'grep -i pass catture/cattura.txt: guarda la porta nella riga (l\'ultimo numero dopo l\'IP)', 'report telnet'],
+      explain: `Il tecnico gestisce i controller dei tram via **telnet** (porta 23): utente e password viaggiano leggibili, e il dispositivo fantasma li ha potuti catturare. Correzione: sostituire telnet con SSH, cambiare le credenziali e isolare i controller in una sottorete dedicata.`,
+    },
+    {
+      id: 'dns',
+      title: 'Un dominio usato per far uscire dati nascosti nel DNS',
+      answers: ['exfil-cdn.top', 'data.exfil-cdn.top'],
+      hints: [
+        'Nei log DNS cerca richieste strane: nomi lunghissimi e casuali.',
+        'cat catture/dns.txt: guarda i nomi chiesti da 10.30.0.99, poi contali con grep -c',
+        'report exfil-cdn.top',
+      ],
+      explain: `Centinaia di richieste come \`4f2a91c0.data.exfil-cdn.top\`: i "sottodomini" sono in realtà **dati codificati**. È il **DNS tunneling**: i dati escono travestiti da richieste DNS, che molti firewall lasciano passare senza controlli. Si rileva da nomi lunghi e casuali e da un volume anomalo verso un solo dominio.`,
+    },
+    {
+      id: 'exfil',
+      title: 'La destinazione del grosso trasferimento di dati',
+      answers: ['203.0.113.250'],
+      hints: [
+        'Il file dei flussi ha i byte trasferiti nella prima colonna: ordinali dal più grande.',
+        'sort -n -r catture/flussi.txt | head -n 3',
+        'report 203.0.113.250',
+      ],
+      explain: `Dal dispositivo fantasma sono usciti **oltre 2 GB** verso \`203.0.113.250\`, alle 3 di notte, quando la rete dei tram è normalmente quasi ferma: è l'**esfiltrazione** principale (tattica *Exfiltration* di ATT&CK). Il DNS tunneling era il canale "discreto", questo il grosso dei dati.`,
+    },
+  ],
+  debrief: `@nyx: Hai fatto analisi forense di rete vera: nessun log di sistema, solo traffico. Il quadro:
+
+\`\`\`
+1. dispositivo fantasma 10.30.0.99 collegato alla rete dei tram
+2. intercetta le credenziali telnet del tecnico
+3. fa uscire dati a piccoli pezzi via DNS (exfil-cdn.top)
+4. di notte manda oltre 2 GB a 203.0.113.250
+\`\`\`
+
+Raccomandazioni:
+- localizzare e rimuovere fisicamente il dispositivo (dopo averlo fotografato e documentato)
+- **eliminare telnet**, usare SSH, cambiare tutte le credenziali dei controller
+- **segmentare**: i controller in una sottorete isolata, raggiungibile solo dal server di gestione
+- permettere il DNS verso l'esterno **solo** dal resolver aziendale, e monitorarlo
+- attivare la **sicurezza delle porte** sugli switch: solo MAC autorizzati`,
+  setup(sh) {
+    const fs = baseFs(
+      'tram',
+      ['root:x:0:0:root:/root:/bin/bash', 'analista:x:1001:1001:SOC esterno:/home/analista:/bin/bash'],
+      ['root:x:0:', 'analista:x:1001:'],
+    );
+    const own = { owner: 'analista', group: 'analista' };
+    fs.mkdirp('/home/analista', own);
+    const d = '/home/analista/catture';
+    fs.writeFile(
+      `${d}/inventario.txt`,
+      [
+        '# inventario ufficiale dei dispositivi di rete (aggiornato 01/11/2077)',
+        '10.30.0.1   02:aa:00:00:00:01  router-depositi',
+        '10.30.0.10  02:aa:00:00:00:10  server-monitoraggio',
+        '10.30.0.21  02:aa:00:00:00:21  controller-linea-1',
+        '10.30.0.22  02:aa:00:00:00:22  controller-linea-2',
+        '10.30.0.40  02:aa:00:00:00:40  pc-tecnico',
+      ].join('\n') + '\n',
+      own,
+    );
+    fs.writeFile(
+      `${d}/arp.txt`,
+      [
+        '# tabella ARP dello switch dei depositi',
+        '10.30.0.1   02:aa:00:00:00:01',
+        '10.30.0.10  02:aa:00:00:00:10',
+        '10.30.0.21  02:aa:00:00:00:21',
+        '10.30.0.22  02:aa:00:00:00:22',
+        '10.30.0.40  02:aa:00:00:00:40',
+        '10.30.0.99  de:ad:be:ef:00:99',
+      ].join('\n') + '\n',
+      own,
+    );
+    fs.writeFile(
+      `${d}/cattura.txt`,
+      [
+        '02:10:01.100000 IP 10.30.0.40.51000 > 10.30.0.21.23: Flags [S], seq 1, length 0',
+        '02:10:01.101000 IP 10.30.0.21.23 > 10.30.0.40.51000: Flags [S.], length 0',
+        '02:10:01.300000 IP 10.30.0.21.23 > 10.30.0.40.51000: Flags [P.], length 9: login: ',
+        '02:10:02.900000 IP 10.30.0.40.51000 > 10.30.0.21.23: Flags [P.], length 8: tecnico',
+        '02:10:03.000000 IP 10.30.0.21.23 > 10.30.0.40.51000: Flags [P.], length 10: Password: ',
+        '02:10:04.700000 IP 10.30.0.40.51000 > 10.30.0.21.23: Flags [P.], length 10: Tram2077!',
+        '02:10:04.800000 IP 10.30.0.21.23 > 10.30.0.40.51000: Flags [P.], length 26: Benvenuto, controller L1',
+      ].join('\n') + '\n',
+      own,
+    );
+    const dns: string[] = [];
+    const hex = (n: number) => ((n * 2654435761) >>> 0).toString(16).padStart(8, '0');
+    for (let i = 0; i < 40; i++) {
+      if (i % 8 === 0) dns.push(`02:${String(20 + i).padStart(2, '0')}:00 10.30.0.40 query aggiornamenti.tranvie.nc`);
+      dns.push(`02:${String(20 + (i % 39)).padStart(2, '0')}:${String(i % 60).padStart(2, '0')} 10.30.0.99 query ${hex(i + 7)}.data.exfil-cdn.top`);
+    }
+    fs.writeFile(`${d}/dns.txt`, dns.join('\n') + '\n', own);
+    fs.writeFile(
+      `${d}/flussi.txt`,
+      [
+        '# byte  sorgente  destinazione  porta  ora',
+        '1520000  10.30.0.40  10.30.0.21  23  02:10',
+        '880000  10.30.0.10  10.30.0.22  443  01:00',
+        '2147483648  10.30.0.99  203.0.113.250  443  03:12',
+        '45000  10.30.0.40  10.30.0.1  53  02:20',
+        '3200000  10.30.0.10  10.30.0.1  443  04:00',
+      ].join('\n') + '\n',
+      own,
+    );
+    sh.net.hosts.push(host('10.20.0.50', ['tram.lan', 'tram'], [[22, 'ssh', 'OpenSSH 8.9p1']]));
+    sh.remotes.set('10.20.0.50', {
+      hostname: 'tram',
+      fs,
+      users: ['analista'],
+      banner: ['Welcome to Ubuntu 22.04.4 LTS (GNU/Linux)', '', ' * Server di monitoraggio · Tranvie di Night City'],
+    });
+  },
+};
+
+export const OPERATIONS: Operation[] = [OP01, OP02, OP03, OP04, OP05];
 
 export function normalizeReport(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, ' ').replace(/\/+$/, '');

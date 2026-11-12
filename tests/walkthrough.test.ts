@@ -101,6 +101,14 @@ const SOLUTIONS: Record<string, string[][]> = {
     ['grep update-checker.top siem/dns.log', 'grep -c update-checker.top siem/dns.log', 'flag pc-reception'],
     ['sha256sum siem/allegati/*', 'flag fattura_2077_118.pdf.js'],
   ],
+  'ch09-m1': [['ip neigh', 'flag 02:4e:43:00:00:01'], ['ip route']],
+  'ch09-m2': [['ipcalc 192.168.1.50/24', 'ipcalc 10.0.0.0/26', 'flag 62'], ['ipcalc 192.168.1.128/25', 'flag no']],
+  'ch09-m3': [
+    ['tcpdump -r rete/cattura.txt'],
+    ['grep -i password rete/cattura.txt', 'flag http'],
+    ['grep "Flags [S]," rete/cattura.txt | cut -d " " -f 3 | sort | uniq -c', 'flag 192.168.1.66'],
+  ],
+  'ch09-m4': [['ssh-keygen', 'ls -l ~/.ssh', 'flag 600']],
 };
 
 describe('ogni missione è completabile', () => {

@@ -40,6 +40,17 @@ const PLAY: Record<string, { cmds: string[]; reports: string[] }> = {
     ],
     reports: ['/var/www/html/upload/shell.php', '/var/tmp/.fonts/kdevtmp', '/etc/cron.d/fontcache', '/home/deploy/.ssh/authorized_keys'],
   },
+  op05: {
+    cmds: [
+      'ssh analista@tram.lan',
+      'cat catture/inventario.txt',
+      'cat catture/arp.txt',
+      'grep -i pass catture/cattura.txt',
+      'grep -c exfil-cdn.top catture/dns.txt',
+      'sort -n -r catture/flussi.txt | head -n 3',
+    ],
+    reports: ['10.30.0.99', 'telnet', 'exfil-cdn.top', '203.0.113.250'],
+  },
   op03: {
     cmds: ['curl -I http://radio.lan/', 'curl http://radio.lan/robots.txt', 'curl http://radio.lan/.env', 'curl http://radio.lan/staff/ | grep "<!--"'],
     reports: ['nginx/1.14.0', '/.env', '/staff/'],

@@ -1062,9 +1062,21 @@ const COMMANDS: Record<string, Command> = {
 
   ip(c) {
     const sub = c.args[0];
+    if (sub === 'route' || sub === 'r') {
+      c.out(`default via ${c.sh.net.gateway} dev eth0 proto dhcp`);
+      c.out(`192.168.1.0/24 dev eth0 proto kernel scope link src ${c.sh.net.myIp}`);
+      c.emit({ type: 'netinfo' });
+      return 0;
+    }
+    if (sub === 'neigh' || sub === 'n' || sub === 'neighbor') {
+      for (const h of c.sh.net.hosts)
+        if (h.mac && h.ip !== c.sh.net.myIp && h.ip.startsWith('192.168.1.')) c.out(`${h.ip} dev eth0 lladdr ${h.mac} REACHABLE`);
+      c.emit({ type: 'command', name: 'ip-neigh', args: [], ok: true });
+      return 0;
+    }
     if (!sub || !['a', 'addr', 'address'].includes(sub)) {
       c.err('Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }');
-      c.info('💡 In questo deck prova: ip a');
+      c.info('💡 In questo deck: ip a · ip route · ip neigh');
       return 255;
     }
     const n = c.sh.net;
@@ -1615,6 +1627,88 @@ const COMMANDS: Record<string, Command> = {
     }
     const body = page?.body ?? '<html><body><h1>Not Found</h1></body></html>';
     for (const l of splitLines(body)) c.out(l);
+    return 0;
+  },
+
+  ipcalc(c) {
+    const arg = c.args[0];
+    const m = arg?.match(/^(\d{1,3}(?:\.\d{1,3}){3})\/(\d{1,2})$/);
+    if (!m || !isIp(m[1]) || Number(m[2]) > 32) {
+      c.err('ipcalc: usa INDIRIZZO/PREFISSO, es: ipcalc 192.168.1.50/24');
+      return 1;
+    }
+    const toInt = (ip: string) => ip.split('.').reduce((a, o) => a * 256 + Number(o), 0);
+    const toIp = (n: number) => [24, 16, 8, 0].map((sh) => Math.floor(n / 2 ** sh) % 256).join('.');
+    const bits = Number(m[2]);
+    const size = 2 ** (32 - bits);
+    const addr = toInt(m[1]);
+    const net = Math.floor(addr / size) * size;
+    const bcast = net + size - 1;
+    const mask = 2 ** 32 - size;
+    const hosts = bits >= 31 ? size : size - 2;
+    const pad = (k: string) => k.padEnd(11);
+    c.out(`${pad('Address:')}${m[1]}`);
+    c.out(`${pad('Netmask:')}${toIp(mask)} = ${bits}`);
+    c.out(`${pad('Wildcard:')}${toIp(size - 1)}`);
+    c.out('=>', 'dim');
+    c.out(`${pad('Network:')}${toIp(net)}/${bits}`, 'ok');
+    if (bits < 31) {
+      c.out(`${pad('HostMin:')}${toIp(net + 1)}`);
+      c.out(`${pad('HostMax:')}${toIp(bcast - 1)}`);
+      c.out(`${pad('Broadcast:')}${toIp(bcast)}`);
+    }
+    const first = Math.floor(addr / 2 ** 24);
+    const second = Math.floor(addr / 2 ** 16) % 256;
+    const priv = first === 10 || (first === 172 && second >= 16 && second <= 31) || (first === 192 && second === 168);
+    c.out(`${pad('Hosts/Net:')}${hosts}${priv ? '   Private Internet' : ''}`);
+    c.emit({ type: 'command', name: 'ipcalc', args: [arg], ok: true });
+    return 0;
+  },
+
+  arp(c) {
+    for (const h of c.sh.net.hosts)
+      if (h.mac && h.ip !== c.sh.net.myIp && h.ip.startsWith('192.168.1.')) c.out(`${h.names[0] ?? '?'} (${h.ip}) at ${h.mac} [ether] on eth0`);
+    c.emit({ type: 'command', name: 'ip-neigh', args: [], ok: true });
+    return 0;
+  },
+
+  tcpdump(c) {
+    const i = c.args.indexOf('-r');
+    if (i < 0 || !c.args[i + 1]) {
+      c.err("tcpdump: eth0: You don't have permission to capture on that device");
+      c.info('💡 Catturare il traffico dal vivo richiede i privilegi di root. Qui puoi leggere una cattura salvata: tcpdump -r FILE');
+      return 1;
+    }
+    const text = readText(c, [c.args[i + 1]], 'tcpdump');
+    if (text === null) return 1;
+    c.out(`reading from file ${c.args[i + 1]}, link-type EN10MB (Ethernet)`, 'dim');
+    for (const l of splitLines(text)) if (!l.startsWith('#')) c.out(l);
+    return 0;
+  },
+
+  'ssh-keygen'(c) {
+    const dir = `${c.sh.home}/.ssh`;
+    const priv = `${dir}/id_ed25519`;
+    if (c.sh.fs.get(priv)) {
+      c.err(`${priv} already exists.`);
+      c.info('💡 Una chiave esiste già: non sovrascriverla, o perderai l\'accesso ai server dove l\'hai installata.');
+      return 1;
+    }
+    const rnd = () => Math.random().toString(36).slice(2, 10);
+    const pub = `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI${rnd()}${rnd()}${rnd()} ${c.sh.user}@${c.sh.host}`;
+    c.sh.fs.mkdirp(dir, { owner: c.sh.user, group: c.sh.user, perms: 'rwx------' });
+    c.sh.fs.writeFile(priv, `-----BEGIN OPENSSH PRIVATE KEY-----\n(chiave privata simulata ${rnd()}${rnd()})\n-----END OPENSSH PRIVATE KEY-----\n`, {
+      owner: c.sh.user,
+      group: c.sh.user,
+      perms: 'rw-------',
+    });
+    c.sh.fs.writeFile(`${priv}.pub`, pub + '\n', { owner: c.sh.user, group: c.sh.user, perms: 'rw-r--r--' });
+    c.out('Generating public/private ed25519 key pair.');
+    c.out(`Your identification has been saved in ${priv}`);
+    c.out(`Your public key has been saved in ${priv}.pub`);
+    c.out('The key fingerprint is:');
+    c.out(`SHA256:${sha256(pub).slice(0, 43)} ${c.sh.user}@${c.sh.host}`, 'ok');
+    c.emit({ type: 'fsop', op: 'touch', paths: [priv, `${priv}.pub`] });
     return 0;
   },
 

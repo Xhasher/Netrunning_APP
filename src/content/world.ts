@@ -338,6 +338,9 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
     mine,
   );
 
+  // Capitolo 09 — cattura del traffico della rete del bar
+  fs.writeFile(`${home}/rete/cattura.txt`, buildCapture(), mine);
+
   return new Shell({ user, host: HOSTNAME, fs, net: createNetwork(), hint });
 }
 
@@ -442,4 +445,35 @@ function buildDnsLog(): string {
     ['pc-reception', 'update-checker.top'],
   ];
   return q.map(([h, d], i) => `2077-11-12T09:${String(10 + i * 3).padStart(2, '0')}:00 ${h} query ${d}`).join('\n') + '\n';
+}
+
+/** Una cattura di traffico in stile tcpdump -n -A (semplificata). */
+function buildCapture(): string {
+  const L: string[] = [];
+  let t = 0;
+  const ts = () => {
+    t += 137;
+    const s = 21 * 3600 + 10 * 60 + Math.floor(t / 1000);
+    const p2 = (n: number) => String(n).padStart(2, '0');
+    return `${p2(Math.floor(s / 3600))}:${p2(Math.floor((s % 3600) / 60))}:${p2(s % 60)}.${String(t % 1000).padStart(3, '0')}000`;
+  };
+  L.push(`${ts()} IP 192.168.1.33.53211 > 192.168.1.1.53: 4410+ A? jukebox.lan. (29)`);
+  L.push(`${ts()} IP 192.168.1.1.53 > 192.168.1.33.53211: 4410 1/0/0 A 192.168.1.20 (45)`);
+  L.push(`${ts()} IP 192.168.1.33.50512 > 192.168.1.20.80: Flags [S], seq 1000, length 0`);
+  L.push(`${ts()} IP 192.168.1.20.80 > 192.168.1.33.50512: Flags [S.], seq 2000, ack 1001, length 0`);
+  L.push(`${ts()} IP 192.168.1.33.50512 > 192.168.1.20.80: Flags [.], ack 2001, length 0`);
+  L.push(`${ts()} IP 192.168.1.33.50512 > 192.168.1.20.80: Flags [P.], length 98: HTTP: POST /pannello/login HTTP/1.1`);
+  L.push('        Host: jukebox.lan');
+  L.push('        Content-Type: application/x-www-form-urlencoded');
+  L.push('        utente=mama&password=Scantinato2077');
+  L.push(`${ts()} IP 192.168.1.20.80 > 192.168.1.33.50512: Flags [P.], length 140: HTTP: HTTP/1.1 302 Found`);
+  L.push(`${ts()} IP 192.168.1.12.44120 > 192.168.1.30.443: Flags [P.], length 517`);
+  L.push('        ..\\.......=..j.Q*.....(dati TLS cifrati: illeggibili)....z..');
+  for (const port of [21, 22, 23, 25, 80, 110, 139, 443, 445, 3306, 3389, 8080]) {
+    L.push(`${ts()} IP 192.168.1.66.61000 > 192.168.1.20.${port}: Flags [S], seq 777, length 0`);
+    L.push(
+      `${ts()} IP 192.168.1.20.${port} > 192.168.1.66.61000: Flags [${[22, 23, 80].includes(port) ? 'S.' : 'R.'}], length 0`,
+    );
+  }
+  return L.join('\n') + '\n';
 }

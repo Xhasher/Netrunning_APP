@@ -183,7 +183,11 @@ export const MANPAGES: Record<string, ManPage> = {
       '"lo" è l\'interfaccia di loopback (il computer che parla con se stesso, sempre 127.0.0.1). "eth0" è la scheda di rete vera: cerca la riga "inet" per trovare il tuo indirizzo IP.',
       'Su sistemi più vecchi si usa "ifconfig", che mostra le stesse informazioni.',
     ],
-    examples: [['ip a', 'mostra tutte le interfacce e i loro IP']],
+    examples: [
+      ['ip a', 'mostra tutte le interfacce e i loro IP'],
+      ['ip route', 'la tabella di instradamento: dove mandare i pacchetti'],
+      ['ip neigh', 'i vicini conosciuti: IP e indirizzo MAC (tabella ARP)'],
+    ],
   },
   ifconfig: {
     name: 'ifconfig',
@@ -531,6 +535,43 @@ export const MANPAGES: Record<string, ManPage> = {
     short: 'chiude la connessione ssh',
     synopsis: 'exit',
     description: ['Chiude la sessione attuale: se sei collegato a un server con ssh, torni al tuo deck.'],
+  },
+  ipcalc: {
+    name: 'ipcalc',
+    short: 'calcolatrice per reti e sottoreti',
+    synopsis: 'ipcalc INDIRIZZO/PREFISSO',
+    description: [
+      'Dato un indirizzo con il suo prefisso CIDR, calcola maschera, indirizzo di rete, broadcast, primo e ultimo host e quanti host può contenere la rete.',
+    ],
+    examples: [
+      ['ipcalc 192.168.1.50/24', 'la rete del bar'],
+      ['ipcalc 10.0.0.0/26', 'una sottorete da 62 host'],
+    ],
+  },
+  arp: {
+    name: 'arp',
+    short: 'mostra la tabella ARP (IP → MAC)',
+    synopsis: 'arp -a',
+    description: ['Versione storica di "ip neigh": mostra gli indirizzi MAC dei dispositivi della rete locale che il computer conosce.'],
+  },
+  tcpdump: {
+    name: 'tcpdump',
+    short: 'cattura o legge il traffico di rete',
+    synopsis: 'tcpdump -r FILE',
+    description: [
+      'Mostra i pacchetti che passano sulla rete: chi parla con chi, su quale porta, con quali flag TCP, e (con -A) il contenuto.',
+      'Catturare dal vivo richiede root; qui si leggono catture già salvate con -r. Wireshark è la versione grafica dello stesso lavoro.',
+    ],
+    examples: [['tcpdump -r rete/cattura.txt', 'legge una cattura salvata']],
+  },
+  'ssh-keygen': {
+    name: 'ssh-keygen',
+    short: 'crea una coppia di chiavi SSH',
+    synopsis: 'ssh-keygen',
+    description: [
+      'Crea una coppia di chiavi: la privata (~/.ssh/id_ed25519) resta sul tuo computer e non va mai condivisa; la pubblica (.pub) si copia sui server.',
+      'Il server conserva le chiavi pubbliche autorizzate in ~/.ssh/authorized_keys.',
+    ],
   },
   flag: {
     name: 'flag',

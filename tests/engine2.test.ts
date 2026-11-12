@@ -74,4 +74,18 @@ describe('shell: variabili, redirezioni, script', () => {
     expect(text(sh.run('curl http://jukebox.lan/robots.txt'))).toContain('Disallow: /pannello/');
     expect(text(sh.run('curl http://helix.corp/'))).toContain('NON è nello scope');
   });
+
+  it('ipcalc, ip neigh, tcpdump, ssh-keygen', () => {
+    const sh = buildWorld('edge');
+    const calc = text(sh.run('ipcalc 192.168.1.130/25'));
+    expect(calc).toContain('Network:   192.168.1.128/25');
+    expect(calc).toContain('Broadcast: 192.168.1.255');
+    expect(calc).toContain('Hosts/Net: 126');
+    expect(text(sh.run('ip neigh'))).toContain('192.168.1.1 dev eth0 lladdr 02:4e:43:00:00:01');
+    expect(text(sh.run('tcpdump'))).toContain("don't have permission");
+    expect(text(sh.run('grep "Flags [S]," rete/cattura.txt | cut -d " " -f 3 | sort | uniq -c'))).toContain('     12 192.168.1.66.61000');
+    sh.run('ssh-keygen');
+    expect(sh.fs.get('/home/edge/.ssh/id_ed25519')!.perms).toBe('rw-------');
+    expect(text(sh.run('ssh-keygen'))).toContain('already exists');
+  });
 });

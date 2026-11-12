@@ -7,17 +7,12 @@ import { CH05 } from './ch05-script';
 import { CH06 } from './ch06-cripto';
 import { CH07 } from './ch07-web';
 import { CH08 } from './ch08-blue';
+import { CH09 } from './ch09-reti';
 
-export const CHAPTERS: Chapter[] = [CH01, CH02, CH03, CH04, CH05, CH06, CH07, CH08];
+export const CHAPTERS: Chapter[] = [CH01, CH02, CH03, CH04, CH05, CH06, CH07, CH08, CH09];
 
 /** Il resto del corso: capitoli pianificati, mostrati nella mappa come "in arrivo". */
 export const PLANNED: PlannedChapter[] = [
-  {
-    code: '09',
-    title: 'Reti avanzate',
-    subtitle: 'Il modello OSI e il traffico vero',
-    topics: ['modello OSI e TCP/IP', 'subnetting', 'analizzare il traffico con Wireshark e tcpdump', 'SSH, chiavi e tunnel', 'VPN e segmentazione'],
-  },
   {
     code: '10',
     title: 'Ricognizione e OSINT',
