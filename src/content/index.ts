@@ -1,77 +1,60 @@
 import type { Chapter, Mission, PlannedChapter } from '../game/types';
 import { CH01 } from './ch01-terminale';
 import { CH02 } from './ch02-reti';
+import { CH03 } from './ch03-linux';
+import { CH04 } from './ch04-soc';
 
-export const CHAPTERS: Chapter[] = [CH01, CH02];
+export const CHAPTERS: Chapter[] = [CH01, CH02, CH03, CH04];
 
 /** Il resto del corso: capitoli pianificati, mostrati nella mappa come "in arrivo". */
 export const PLANNED: PlannedChapter[] = [
   {
-    code: '03',
-    title: 'Linux in profondità',
-    subtitle: 'Il sistema come lo vede un amministratore',
-    topics: [
-      'utenti, gruppi, /etc/passwd e /etc/shadow',
-      'permessi: chmod, chown, SUID',
-      'processi: ps, top, kill',
-      'cercare: find, grep, pipe e redirezioni',
-      'editor di testo: nano e vim',
-      'pacchetti e servizi: apt, systemctl',
-    ],
-  },
-  {
-    code: '04',
+    code: '05',
     title: 'Scripting',
     subtitle: 'Automatizzare con Bash e Python',
-    topics: ['variabili, cicli e condizioni in Bash', 'basi di Python', 'scrivere un piccolo port scanner', 'leggere e modificare exploit pubblici'],
-  },
-  {
-    code: '05',
-    title: 'Reti avanzate',
-    subtitle: 'Il modello OSI e il traffico vero',
-    topics: ['modello OSI e TCP/IP', 'subnetting', 'HTTP in dettaglio', 'catturare il traffico con Wireshark e tcpdump', 'SSH, chiavi e tunnel'],
+    topics: ['variabili, cicli e condizioni in Bash', 'editor di testo: nano e vim', 'basi di Python', 'automatizzare l\'analisi dei log', 'leggere e capire codice altrui'],
   },
   {
     code: '06',
-    title: 'Crittografia e password',
-    subtitle: 'Hash, cifratura e attacchi alle credenziali',
-    topics: ['codifica vs cifratura vs hash', 'cifratura simmetrica e asimmetrica, TLS', 'cracking di hash con John e Hashcat', 'brute force e password spraying', 'difese: password manager, MFA'],
+    title: 'Reti avanzate',
+    subtitle: 'Il modello OSI e il traffico vero',
+    topics: ['modello OSI e TCP/IP', 'subnetting', 'HTTP in dettaglio', 'analizzare il traffico con Wireshark e tcpdump', 'SSH, chiavi e tunnel'],
   },
   {
     code: '07',
-    title: 'Ricognizione e OSINT',
-    subtitle: 'Raccogliere informazioni prima di agire',
-    topics: ['OSINT: fonti pubbliche', 'enumerazione DNS e sottodomini', 'nmap avanzato e script NSE', 'cercare vulnerabilità note (CVE, Exploit-DB)'],
+    title: 'Crittografia e password',
+    subtitle: 'Hash, cifratura e sicurezza delle credenziali',
+    topics: ['codifica vs cifratura vs hash', 'cifratura simmetrica e asimmetrica, TLS', 'perché le password deboli cadono', 'password manager e MFA', 'certificati e HTTPS'],
   },
   {
     code: '08',
-    title: 'Web hacking',
-    subtitle: 'OWASP Top 10, passo per passo',
-    topics: ['come funziona un\'applicazione web', 'Burp Suite', 'SQL injection', 'XSS', 'autenticazione e controllo accessi difettosi', 'SSRF, upload di file, path traversal'],
+    title: 'Ricognizione e OSINT',
+    subtitle: 'Raccogliere informazioni prima di agire',
+    topics: ['OSINT: fonti pubbliche', 'DNS e sottodomini', 'nmap avanzato', 'vulnerabilità note: CVE e CVSS'],
   },
   {
     code: '09',
-    title: 'Exploitation',
-    subtitle: 'Dall\'accesso iniziale al controllo',
-    topics: ['Metasploit', 'reverse shell e bind shell', 'privilege escalation su Linux', 'privilege escalation su Windows', 'movimento laterale'],
+    title: 'Web security',
+    subtitle: 'OWASP Top 10, attacco e difesa',
+    topics: ['come funziona un\'applicazione web', 'proxy di analisi (Burp Suite)', 'SQL injection e come prevenirla', 'XSS e come prevenirlo', 'autenticazione e controllo accessi'],
   },
   {
     code: '10',
-    title: 'Windows e Active Directory',
-    subtitle: 'Dove vive il mondo aziendale',
-    topics: ['basi di Windows e PowerShell', 'Active Directory', 'Kerberos e NTLM', 'attacchi AD e come difendersi'],
+    title: 'Dall\'accesso al controllo',
+    subtitle: 'Come avanza un attaccante, e come fermarlo',
+    topics: ['la kill chain e MITRE ATT&CK', 'privilege escalation: le cause comuni', 'movimento laterale', 'hardening di Linux'],
   },
   {
     code: '11',
-    title: 'Blue Team',
-    subtitle: 'Difendere e rilevare',
-    topics: ['hardening di Linux e Windows', 'firewall e segmentazione', 'log: syslog, auth.log, Windows Event Log', 'SIEM e regole di rilevamento', 'IDS: Suricata e Snort', 'MITRE ATT&CK'],
+    title: 'Windows e Active Directory',
+    subtitle: 'Dove vive il mondo aziendale',
+    topics: ['basi di Windows e PowerShell', 'Active Directory', 'Windows Event Log', 'proteggere un dominio'],
   },
   {
     code: '12',
-    title: 'Incident Response e Forensics',
-    subtitle: 'Rintracciare l\'intruso',
-    topics: ['il ciclo dell\'incident response', 'analisi dei log e timeline', 'forensics di disco e memoria', 'analisi di base del malware', 'threat hunting e indicatori di compromissione'],
+    title: 'Blue Team avanzato',
+    subtitle: 'Rilevare, indagare, rintracciare',
+    topics: ['SIEM e regole di rilevamento', 'IDS: Suricata e Snort', 'forensics di disco e memoria', 'analisi di base del malware', 'threat hunting'],
   },
   {
     code: '13',

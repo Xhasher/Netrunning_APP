@@ -45,7 +45,7 @@ describe('shell', () => {
     const sh = buildWorld('edge');
     expect(text(sh.run('echo "ciao   mondo"'))).toBe('ciao   mondo');
     expect(text(sh.run('cat /etc/passwd | grep edge'))).toContain('edge:x:1000');
-    expect(text(sh.run('cat /etc/passwd | wc -l'))).toBe('4');
+    expect(text(sh.run('cat /etc/passwd | wc -l'))).toBe('7');
     expect(text(sh.run('echo "aperta'))).toContain('unexpected EOF');
   });
 
@@ -79,5 +79,46 @@ describe('shell', () => {
     expect(text(sh.run('man ls'))).toContain('OPZIONI');
     expect(text(sh.run('man boh'))).toBe('No manual entry for boh');
     expect(text(sh.run('aiuto'))).toContain('Comandi disponibili');
+  });
+});
+
+describe('comandi capitoli 03-04', () => {
+  it('dati reali del caso coerenti con le risposte', () => {
+    const sh = buildWorld('edge');
+    expect(text(sh.run('wc -l caso/auth.log'))).toBe('46 caso/auth.log');
+    expect(text(sh.run('grep "Failed password" caso/auth.log | wc -l'))).toBe('40');
+    const stats = text(sh.run('grep "Failed password" caso/auth.log | cut -d " " -f 11 | sort | uniq -c'));
+    expect(stats).toContain('     37 203.0.113.77');
+    expect(stats).toContain('      3 198.51.100.9');
+    expect(text(sh.run('tail -n 5 caso/auth.log'))).toContain('Accepted password for mama from 203.0.113.77');
+    expect(text(sh.run('find ~ -name "*.bak"')).split('\n')).toHaveLength(2);
+    expect(text(sh.run('cat /etc/passwd | grep bash | wc -l'))).toBe('3');
+  });
+
+  it('chmod numerico e simbolico, e permessi', () => {
+    const sh = buildWorld('edge');
+    sh.run('chmod 640 README.txt');
+    expect(sh.fs.get('/home/edge/README.txt')!.perms).toBe('rw-r-----');
+    sh.run('chmod go-w,u+x audit/scantinato/backup.sh');
+    expect(sh.fs.get('/home/edge/audit/scantinato/backup.sh')!.perms).toBe('rwxr-xr-x');
+    expect(text(sh.run('chmod 777 /etc/passwd'))).toContain('Operation not permitted');
+    expect(text(sh.run('chmod abc README.txt'))).toContain('invalid mode');
+  });
+
+  it('find gestisce cartelle protette e filtri', () => {
+    const sh = buildWorld('edge');
+    const out = text(sh.run('find / -name "*.txt" -type f'));
+    expect(out).toContain("find: '/root': Permission denied");
+    expect(out).toContain('/home/edge/README.txt');
+    expect(text(sh.run('find /etc -name pass*'))).toBe('/etc/passwd');
+  });
+
+  it('sudo solo per ufw', () => {
+    const sh = buildWorld('edge');
+    expect(text(sh.run('ufw status'))).toContain('need to be root');
+    expect(text(sh.run('sudo cat /etc/shadow'))).toContain('not in the sudoers');
+    sh.run('sudo ufw deny from 203.0.113.77');
+    expect(text(sh.run('sudo ufw status'))).toMatch(/DENY\s+203\.0\.113\.77/);
+    expect(text(sh.run('id'))).toBe('uid=1000(edge) gid=1000(edge) groups=1000(edge),100(users)');
   });
 });

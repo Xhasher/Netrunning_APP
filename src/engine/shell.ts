@@ -132,6 +132,10 @@ export class Shell {
   fs: Vfs;
   net: Network;
   history: string[] = [];
+  /** IP bloccati dal firewall (ufw) */
+  firewall: string[] = [];
+  /** gruppi dell'utente */
+  groups: string[] = ['users'];
   hint?: () => string | null;
 
   constructor(o: ShellOptions) {
@@ -769,9 +773,199 @@ const COMMANDS: Record<string, Command> = {
   },
 
   sudo(c) {
+    if (c.args[0] === 'ufw') {
+      c.info('[sudo] concesso: il contratto ti autorizza ad amministrare solo il firewall (ufw).');
+      return ufw({ ...c, args: c.args.slice(1) }, true);
+    }
     c.err(`${c.sh.user} is not in the sudoers file.  This incident will be reported.`);
-    c.info('💡 Il tuo utente non ha i privilegi di amministratore (root). Ottenerli è la "privilege escalation": la vedremo nei capitoli avanzati.');
+    c.info('💡 Il tuo utente non ha i privilegi di amministratore (root). In questo deck sudo è permesso solo per "ufw".');
     return 1;
+  },
+
+  ufw(c) {
+    return ufw(c, false);
+  },
+
+  id(c) {
+    const sh = c.sh;
+    const gids: Record<string, number> = { users: 100, adm: 4 };
+    const extra = sh.groups.map((g) => `${gids[g] ?? 1001}(${g})`).join(',');
+    c.out(`uid=1000(${sh.user}) gid=1000(${sh.user}) groups=1000(${sh.user})${extra ? ',' + extra : ''}`);
+    return 0;
+  },
+
+  groups(c) {
+    c.out([c.sh.user, ...c.sh.groups].join(' '));
+    return 0;
+  },
+
+  chmod(c) {
+    const [mode, ...files] = c.args;
+    if (!mode || files.length === 0) {
+      c.err(mode ? `chmod: missing operand after '${mode}'` : 'chmod: missing operand');
+      c.info('💡 Sintassi: chmod PERMESSI FILE, es: chmod 600 segreto.txt');
+      return 1;
+    }
+    let code = 0;
+    for (const f of files) {
+      const p = c.sh.abs(f);
+      const node = c.sh.fs.get(p);
+      if (!node) {
+        c.err(`chmod: cannot access '${f}': No such file or directory`);
+        code = 1;
+        continue;
+      }
+      if (node.owner !== c.sh.user) {
+        c.err(`chmod: changing permissions of '${f}': Operation not permitted`);
+        c.info('💡 Solo il proprietario del file (o root) può cambiarne i permessi.');
+        code = 1;
+        continue;
+      }
+      const next = applyMode(node.perms, mode);
+      if (!next) {
+        c.err(`chmod: invalid mode: '${mode}'`);
+        return 1;
+      }
+      node.perms = next;
+      c.emit({ type: 'chmod', path: p, perms: next });
+    }
+    return code;
+  },
+
+  find(c) {
+    let start = '.';
+    let name: RegExp | null = null;
+    let type: string | null = null;
+    let user: string | null = null;
+    for (let i = 0; i < c.args.length; i++) {
+      const a = c.args[i];
+      if (a === '-name' || a === '-iname') {
+        const pat = c.args[++i];
+        if (pat === undefined) {
+          c.err(`find: missing argument to \`${a}'`);
+          return 1;
+        }
+        const rx = pat.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.');
+        name = new RegExp(`^${rx}$`, a === '-iname' ? 'i' : '');
+      } else if (a === '-type') {
+        type = c.args[++i] ?? '';
+        if (type !== 'f' && type !== 'd') {
+          c.err(`find: Unknown argument to -type: ${type}`);
+          return 1;
+        }
+      } else if (a === '-user') {
+        user = c.args[++i] ?? '';
+      } else if (a.startsWith('-')) {
+        c.err(`find: unknown predicate \`${a}'`);
+        c.info('💡 In questo deck find supporta: -name, -iname, -type f|d, -user.');
+        return 1;
+      } else start = a;
+    }
+    const root = c.sh.abs(start);
+    const node = c.sh.fs.get(root);
+    if (!node) {
+      c.err(`find: '${start}': No such file or directory`);
+      return 1;
+    }
+    let denied = false;
+    const walk = (n: VNode, shown: string, base: string) => {
+      const okName = !name || name.test(base);
+      const okType = !type || (type === 'd') === (n.type === 'dir');
+      const okUser = !user || n.owner === user;
+      if (okName && okType && okUser) c.out(shown, n.type === 'dir' ? 'dir' : 'out');
+      if (n.type !== 'dir') return;
+      if (n.locked) {
+        c.err(`find: '${shown}': Permission denied`);
+        denied = true;
+        return;
+      }
+      for (const [k, child] of [...n.children.entries()].sort(([a], [b]) => a.localeCompare(b)))
+        walk(child, shown === '/' ? `/${k}` : `${shown}/${k}`, k);
+    };
+    walk(node, start.length > 1 ? start.replace(/\/$/, '') : start, start === '/' ? '/' : start.split('/').filter(Boolean).pop() ?? start);
+    return denied ? 1 : 0;
+  },
+
+  ps(c) {
+    const full = c.args.some((a) => /^-?(aux|ef|e)$/.test(a));
+    if (!full) {
+      c.out('    PID TTY          TIME CMD');
+      c.out('   1337 pts/0    00:00:00 bash');
+      c.out('   1402 pts/0    00:00:00 ps');
+      return 0;
+    }
+    const u = c.sh.user.padEnd(8).slice(0, 8);
+    const rows = [
+      'USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND',
+      'root           1  0.0  0.3 167744 12020 ?        Ss   21:00   0:01 /sbin/init',
+      'root         402  0.0  0.1  10224  4096 ?        Ss   21:00   0:00 /usr/sbin/cron -f',
+      'root         455  0.0  0.2  15432  8800 ?        Ss   21:00   0:00 sshd: /usr/sbin/sshd -D',
+      'syslog       470  0.0  0.1 222400  5120 ?        Ssl  21:00   0:00 /usr/sbin/rsyslogd -n',
+      `${u}    1337  0.0  0.1   8600  5300 pts/0    Ss   21:04   0:00 -bash`,
+      `${u}    1402  0.0  0.0  10072  3300 pts/0    R+   21:06   0:00 ps aux`,
+    ];
+    for (const r of rows) c.out(r, r.startsWith('USER') ? 'dim' : 'out');
+    return 0;
+  },
+
+  sort(c) {
+    const { flags, rest } = splitShortFlags(c.args);
+    const text = readText(c, rest, 'sort');
+    if (text === null) return 2;
+    let lines = splitLines(text);
+    if (flags.has('n')) lines.sort((a, b) => parseFloat(a) - parseFloat(b) || a.localeCompare(b));
+    else lines.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    if (flags.has('r')) lines = lines.reverse();
+    for (const l of lines) c.out(l);
+    return 0;
+  },
+
+  uniq(c) {
+    const { flags, rest } = splitShortFlags(c.args);
+    const text = readText(c, rest, 'uniq');
+    if (text === null) return 1;
+    const groups: [string, number][] = [];
+    for (const l of splitLines(text)) {
+      const last = groups[groups.length - 1];
+      if (last && last[0] === l) last[1]++;
+      else groups.push([l, 1]);
+    }
+    for (const [l, n] of groups) c.out(flags.has('c') ? `${String(n).padStart(7)} ${l}` : l);
+    return 0;
+  },
+
+  cut(c) {
+    let delim = '\t';
+    let fields: number[] | null = null;
+    const files: string[] = [];
+    for (let i = 0; i < c.args.length; i++) {
+      const a = c.args[i];
+      if (a.startsWith('-d')) delim = a.length > 2 ? a.slice(2) : c.args[++i] ?? '';
+      else if (a.startsWith('-f')) {
+        const spec = a.length > 2 ? a.slice(2) : c.args[++i] ?? '';
+        fields = spec.split(',').map(Number);
+        if (fields.some((n) => !Number.isInteger(n) || n < 1)) {
+          c.err(`cut: invalid field value '${spec}'`);
+          return 1;
+        }
+      } else files.push(a);
+    }
+    if (delim.length !== 1) {
+      c.err('cut: the delimiter must be a single character');
+      return 1;
+    }
+    if (!fields) {
+      c.err('cut: you must specify a list of bytes, characters, or fields');
+      c.info('💡 Esempio: cut -d " " -f 3 file.txt  (terza colonna, separata da spazi)');
+      return 1;
+    }
+    const text = readText(c, files, 'cut');
+    if (text === null) return 1;
+    for (const l of splitLines(text)) {
+      const parts = l.split(delim);
+      c.out(parts.length === 1 ? l : fields.map((f) => parts[f - 1]).filter((x) => x !== undefined).join(delim));
+    }
+    return 0;
   },
 
   flag(c) {
@@ -796,6 +990,67 @@ const COMMANDS: Record<string, Command> = {
     return 0;
   },
 };
+
+function applyMode(perms: string, mode: string): string | null {
+  if (/^[0-7]{3}$/.test(mode)) {
+    return mode
+      .split('')
+      .map((d) => {
+        const n = Number(d);
+        return (n & 4 ? 'r' : '-') + (n & 2 ? 'w' : '-') + (n & 1 ? 'x' : '-');
+      })
+      .join('');
+  }
+  const bits = perms.split('');
+  for (const clause of mode.split(',')) {
+    const m = clause.match(/^([ugoa]*)([+\-=])([rwx]*)$/);
+    if (!m) return null;
+    const who = m[1] === '' || m[1].includes('a') ? 'ugo' : m[1];
+    for (const w of who) {
+      const off = { u: 0, g: 3, o: 6 }[w as 'u' | 'g' | 'o'];
+      ['r', 'w', 'x'].forEach((p, i) => {
+        const has = m[3].includes(p);
+        if (m[2] === '=') bits[off + i] = has ? p : '-';
+        else if (has) bits[off + i] = m[2] === '+' ? p : '-';
+      });
+    }
+  }
+  return bits.join('');
+}
+
+function ufw(c: Ctx, root: boolean): number {
+  if (!root) {
+    c.err('ERROR: You need to be root to run this script');
+    c.info('💡 Il firewall si gestisce come amministratore: prova con sudo davanti.');
+    return 1;
+  }
+  const [sub, ...rest] = c.args;
+  if (sub === 'status') {
+    c.out('Status: active');
+    c.out('');
+    c.out('To                         Action      From');
+    c.out('--                         ------      ----');
+    c.out('22/tcp                     ALLOW       Anywhere');
+    for (const ip of c.sh.firewall) c.out(`Anywhere                   DENY        ${ip}`, 'warn');
+    return 0;
+  }
+  if ((sub === 'deny' || sub === 'allow') && rest[0] === 'from' && rest[1]) {
+    const ip = rest[1];
+    if (!isIp(ip)) {
+      c.err(`ERROR: Bad source address`);
+      return 1;
+    }
+    if (sub === 'deny') {
+      if (!c.sh.firewall.includes(ip)) c.sh.firewall.push(ip);
+    } else c.sh.firewall = c.sh.firewall.filter((x) => x !== ip);
+    c.out('Rule added');
+    c.emit({ type: 'firewall', action: sub, ip });
+    return 0;
+  }
+  c.err(`ERROR: Invalid syntax`);
+  c.info('💡 Esempi: sudo ufw status · sudo ufw deny from 203.0.113.77');
+  return 1;
+}
 
 function headTail(c: Ctx, which: 'head' | 'tail'): number {
   let n = 10;

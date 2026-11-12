@@ -1,23 +1,25 @@
-# Night City Edgerunner
+# Night City Netrunning
 
 Un gioco per Android che insegna **ethical hacking, penetration testing e cyber defense** partendo da zero, in italiano, con ambientazione cyberpunk.
 
 Si gioca in un **terminale Linux simulato**: comandi, file, rete e bersagli sono tutti finti, quindi si può sperimentare senza rischi e senza connessione.
 
-## Contenuti attuali (v0.1)
+## Contenuti attuali (v0.2)
 
 | Capitolo | Missioni | Argomenti |
 |---|---|---|
-| 01 · Jack-in | 5 | cos'è Linux, il terminale, il prompt, `whoami`, `pwd`, `ls`, `cd`, percorsi, `cat`, file nascosti, `man`, `ls -l` e permessi, `echo`, `history`, prima CTF |
-| 02 · Rete di quartiere | 3 | reti, indirizzi IP, `ip a`, `ping`, ICMP, TTL, DNS, firewall, porte, TCP handshake, scope e legge (art. 615-ter c.p.), `nmap -sn`, `nmap`, `nmap -sV`, CVE, report |
+| 01 · Jack-in | 5 | cos'è Linux, il terminale, il prompt, `whoami`, `pwd`, `ls`, `cd`, percorsi, `cat`, file nascosti, `man`, `ls -l`, `echo`, `history`, prima CTF |
+| 02 · Rete di quartiere | 3 | reti, indirizzi IP, `ip a`, `ping`, DNS, firewall, porte, TCP, scope e legge (art. 615-ter c.p.), `nmap`, CVE, report di pentest |
+| 03 · Linux in profondità | 3 | utenti e gruppi, `id`, `/etc/passwd`, `/etc/shadow` e hash, permessi rwx e numerici, `chmod`, audit dei permessi, minimo privilegio, `find`, pipe, `grep`, `wc`, processi e `ps aux` |
+| 04 · Primo turno al SOC | 3 | Blue Team: log e `/var/log`, `head`/`tail`, riconoscere un brute force, `cut \| sort \| uniq -c`, intrusione confermata, cryptominer, timeline, `sudo ufw`, incident response, rapporto d'incidente |
 
-Gli altri capitoli (da Linux avanzato fino a incident response e cloud) sono già nella mappa come "in arrivo". La sezione **Carriera** indica laboratori legali gratuiti e certificazioni per il percorso reale.
+Gli altri capitoli (scripting, reti avanzate, crittografia, web security, Windows, Blue Team avanzato, cloud) sono già nella mappa come "in arrivo". La sezione **Carriera** indica laboratori legali gratuiti e certificazioni per il percorso reale.
 
 ## Scaricare l'APK
 
 A ogni push, GitHub Actions compila l'APK:
 
-- **Release "apk-latest"** del repository: scarica `NightCity-Edgerunner.apk` direttamente dal telefono.
+- **Release "apk-latest"** del repository: scarica `NightCity-Netrunning.apk` direttamente dal telefono.
 - In alternativa, nella scheda **Actions**, apri l'ultima esecuzione di "Build APK" e scarica l'artifact (è uno zip).
 
 Per installarlo su Android devi permettere l'installazione da "origini sconosciute" per il browser o il file manager.
@@ -54,4 +56,4 @@ Per aggiungere un capitolo: crea `src/content/chNN-nome.ts` seguendo i modelli e
 
 ## Nota legale
 
-Tutti i sistemi, le reti e i personaggi del gioco sono simulati o inventati. Le tecniche insegnate vanno usate **solo** su sistemi propri o con un'autorizzazione scritta. L'ambientazione si ispira all'immaginario cyberpunk. "Night City" e "Edgerunners" sono marchi di CD PROJEKT: prima di un'eventuale pubblicazione sul Play Store il nome andrà cambiato.
+Tutti i sistemi, le reti e i personaggi del gioco sono simulati o inventati. Le tecniche insegnate vanno usate **solo** su sistemi propri o con un'autorizzazione scritta. L'ambientazione si ispira all'immaginario cyberpunk. "Night City" è un marchio di CD PROJEKT: prima di un'eventuale pubblicazione sul Play Store il nome andrà cambiato.

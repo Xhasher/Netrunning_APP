@@ -104,9 +104,9 @@ export class App {
         <div class="bg-shade"></div>
         <div class="title-inner">
           <div class="kicker">// corso di ethical hacking</div>
-          <h1 class="logo" aria-label="Night City Edgerunner">
+          <h1 class="logo" aria-label="Night City Netrunning">
             <span class="l1" data-text="NIGHT CITY">NIGHT CITY</span>
-            <span class="l2">EDGERUNNER</span>
+            <span class="l2">NETRUNNING</span>
           </h1>
           <p class="tagline">Impara il penetration testing e la cyber defense partendo da zero, un comando alla volta.</p>
           <button class="cta" type="button">${this.save.handle ? 'CONTINUA' : 'JACK IN'}</button>
@@ -615,7 +615,7 @@ export class App {
       </section>
       <section class="setting">
         <h3>Informazioni</h3>
-        <p class="small">Night City Edgerunner v0.1 · corso di ethical hacking in italiano. Tutti i sistemi, le reti e i personaggi del gioco sono simulati o inventati. Le conoscenze di sicurezza vanno usate solo su sistemi propri o con autorizzazione scritta.</p>
+        <p class="small">Night City Netrunning v0.2 · corso di ethical hacking in italiano. Tutti i sistemi, le reti e i personaggi del gioco sono simulati o inventati. Le conoscenze di sicurezza vanno usate solo su sistemi propri o con autorizzazione scritta.</p>
       </section>`;
     const node = this.page('settings', 'Opzioni', '// impostazioni', content);
     node.addEventListener('click', (e) => {

@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'it.nightcity.edgerunner',
-  appName: 'NC Edgerunner',
+  appId: 'it.nightcity.netrunning',
+  appName: 'Night City Netrunning',
   webDir: 'dist',
   backgroundColor: '#07070c',
   android: {

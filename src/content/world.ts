@@ -12,7 +12,7 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
   const mine = { owner: user, group: user };
 
   // --- struttura di sistema (semplificata, ma con i nomi veri di Linux)
-  for (const d of ['/bin', '/usr/bin', '/usr/share', '/var/log', '/tmp', '/opt', '/dev', '/proc'])
+  for (const d of ['/home', '/bin', '/usr/bin', '/usr/share', '/var/log', '/tmp', '/opt', '/dev', '/proc'])
     fs.mkdirp(d);
   fs.mkdirp('/tmp', { perms: 'rwxrwxrwt' });
   fs.mkdirp('/root', { perms: 'rwx------', locked: true });
@@ -39,9 +39,22 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
       'root:x:0:0:root:/root:/bin/bash',
       'daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin',
       'www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin',
-      `${user}:x:1000:1000:Edgerunner:/home/${user}:/bin/bash`,
+      'syslog:x:104:110::/home/syslog:/usr/sbin/nologin',
+      'sshd:x:105:65534::/run/sshd:/usr/sbin/nologin',
+      `${user}:x:1000:1000:Netrunner:/home/${user}:/bin/bash`,
+      'mama:x:1001:1001:Mama Reyes:/home/mama:/bin/bash',
     ].join('\n'),
   );
+  fs.writeFile(
+    '/etc/group',
+    ['root:x:0:', 'adm:x:4:syslog', 'sudo:x:27:', 'users:x:100:' + user, `${user}:x:1000:`, 'mama:x:1001:'].join('\n'),
+  );
+  fs.writeFile(
+    '/etc/shadow',
+    'root:$y$j9T$...:19700:0:99999:7:::\n',
+    { owner: 'root', group: 'shadow', perms: 'rw-r-----', locked: true },
+  );
+  fs.mkdirp('/home/mama', { owner: 'mama', group: 'mama', perms: 'rwx------', locked: true });
   fs.writeFile(
     '/etc/hosts',
     ['127.0.0.1\tlocalhost', '192.168.1.50\tdeck.lan deck', '192.168.1.1\tgateway.lan gateway'].join('\n'),
@@ -172,5 +185,97 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
     mine,
   );
 
+  // Capitolo 03 — audit dei permessi (copia del vecchio server del bar)
+  const audit = `${home}/audit/scantinato`;
+  fs.writeFile(
+    `${home}/audit/LEGGIMI.txt`,
+    [
+      'Da: Mama Reyes',
+      '',
+      'Ti ho copiato qui i file del vecchio server del bar.',
+      'Un amico di mio nipote li aveva sistemati "alla buona".',
+      'Controlla che nessuno possa leggere o modificare cose che non deve.',
+      '-- Mama',
+    ].join('\n'),
+    mine,
+  );
+  fs.writeFile(`${audit}/menu.txt`, 'Synth-burger ........ 12 €$\nNoodles al neon ...... 9 €$\nBirra Broseph ........ 5 €$\n', mine);
+  fs.writeFile(
+    `${audit}/config.bak`,
+    ['# configurazione del gestionale (copia di backup)', 'db_host=192.168.1.30', 'db_user=cassa', 'db_password=Sc4ntinat0!2077'].join('\n'),
+    { ...mine, perms: 'rw-rw-rw-' },
+  );
+  fs.writeFile(`${audit}/turni.txt`, 'Lun: Mama\nMar: Jackie\nMer: Mama\nGio: chiuso\n', { ...mine, perms: 'rw-r-----' });
+  fs.writeFile(
+    `${audit}/backup.sh`,
+    ['#!/bin/bash', '# copia i dati del gestionale ogni notte', 'cp /var/lib/gestionale/*.db /backup/'].join('\n'),
+    { ...mine, perms: 'rwxrwxrwx' },
+  );
+  fs.writeFile(`${audit}/.old/listino.bak`, 'Listino prezzi 2076 (vecchio)\n', mine);
+
+  // Capitolo 04 — il caso: log del server del bar
+  const caso = `${home}/caso`;
+  fs.writeFile(
+    `${caso}/LEGGIMI.txt`,
+    [
+      'Da: Mama Reyes',
+      'Oggetto: AIUTO, il server è lentissimo',
+      '',
+      'Stamattina il server del bar è lentissimo e la ventola urla.',
+      'Ti ho copiato due file:',
+      '  auth.log     -> il registro degli accessi del server (/var/log/auth.log)',
+      '  processi.txt -> la lista dei programmi in esecuzione (ps aux)',
+      '',
+      'Dimmi cosa sta succedendo. -- Mama',
+    ].join('\n'),
+    mine,
+  );
+  fs.writeFile(`${caso}/auth.log`, buildAuthLog(), mine);
+  fs.writeFile(
+    `${caso}/processi.txt`,
+    [
+      'USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND',
+      'root           1  0.0  0.3 167744 12020 ?        Ss   Nov11   0:02 /sbin/init',
+      'root         402  0.0  0.1  10224  4096 ?        Ss   Nov11   0:00 /usr/sbin/cron -f',
+      'root         455  0.0  0.2  15432  8800 ?        Ss   Nov11   0:00 sshd: /usr/sbin/sshd -D',
+      'syslog       470  0.0  0.1 222400  5120 ?        Ssl  Nov11   0:01 /usr/sbin/rsyslogd -n',
+      'mysql        512  0.4  9.8 1802344 398120 ?      Ssl  Nov11   1:12 /usr/sbin/mysqld',
+      'www-data     601  0.0  0.4  55480 17300 ?        S    Nov11   0:00 nginx: worker process',
+      'mama        6602  0.0  0.1  17000  5200 ?        Ss   03:17   0:00 sshd: mama@pts/1',
+      'mama        6631 97.9 12.1 2489120 491504 ?      Rl   03:20 312:44 /tmp/.cache/kthreadd -o pool.example:3333 --threads 4',
+      'mama        6640  0.0  0.0   6900  1900 ?        S    03:21   0:00 /bin/bash /tmp/.cache/keepalive.sh',
+    ].join('\n'),
+    mine,
+  );
+
   return new Shell({ user, host: HOSTNAME, fs, net: createNetwork(), hint });
+}
+
+/** Registro degli accessi SSH del server del bar, con un attacco "brute force" nascosto dentro. */
+function buildAuthLog(): string {
+  const lines: string[] = [];
+  const pad = (n: number) => String(n).padStart(2, '0');
+  let pid = 1200;
+  let port = 51000;
+  const at = (h: number, m: number, sec: number, msg: string) =>
+    lines.push(`Nov 12 ${pad(h)}:${pad(m)}:${pad(sec)} server ${msg}`);
+
+  at(0, 5, 1, 'CRON[1101]: pam_unix(cron:session): session opened for user root by (uid=0)');
+  at(1, 12, 44, `sshd[${pid++}]: Accepted publickey for mama from 192.168.1.12 port 40122 ssh2`);
+  at(1, 30, 2, `sshd[${pid++}]: pam_unix(sshd:session): session closed for user mama`);
+  for (let i = 0; i < 3; i++)
+    at(2, 2, 10 + i * 7, `sshd[${pid++}]: Failed password for root from 198.51.100.9 port ${port++} ssh2`);
+
+  // l'attacco: tanti tentativi in pochi minuti dallo stesso indirizzo
+  const users = [...Array(20).fill('root'), ...Array(12).fill('admin'), ...Array(5).fill('mama')];
+  let t = 3 * 3600 + 14 * 60;
+  users.forEach((u, i) => {
+    t += 4 + (i % 3);
+    at(Math.floor(t / 3600), Math.floor((t % 3600) / 60), t % 60, `sshd[${pid++}]: Failed password for ${u} from 203.0.113.77 port ${port++} ssh2`);
+  });
+  t += 5;
+  at(Math.floor(t / 3600), Math.floor((t % 3600) / 60), t % 60, `sshd[${pid++}]: Accepted password for mama from 203.0.113.77 port ${port++} ssh2`);
+  at(3, 20, 3, 'CRON[6620]: pam_unix(cron:session): session opened for user mama by (uid=1001)');
+  at(6, 25, 1, 'CRON[7001]: pam_unix(cron:session): session opened for user root by (uid=0)');
+  return lines.join('\n') + '\n';
 }

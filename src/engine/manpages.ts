@@ -233,6 +233,110 @@ export const MANPAGES: Record<string, ManPage> = {
       'Ottenere i privilegi di root su una macchina si chiama "privilege escalation": lo studieremo più avanti.',
     ],
   },
+  id: {
+    name: 'id',
+    short: 'mostra il tuo utente e i tuoi gruppi, con i numeri',
+    synopsis: 'id',
+    description: [
+      'Mostra l\'identità completa dell\'utente: uid (numero utente), gid (gruppo principale) e tutti i gruppi di cui fa parte.',
+      'Linux ragiona con i numeri: l\'uid 0 è sempre root, qualunque nome abbia.',
+    ],
+  },
+  groups: {
+    name: 'groups',
+    short: 'mostra i gruppi di cui fai parte',
+    synopsis: 'groups',
+    description: ['Elenca i gruppi dell\'utente. I gruppi servono a dare gli stessi permessi a più persone insieme.'],
+  },
+  chmod: {
+    name: 'chmod',
+    short: 'cambia i permessi di un file',
+    synopsis: 'chmod PERMESSI FILE...',
+    description: [
+      '"change mode": modifica chi può leggere (r), scrivere (w) ed eseguire (x) un file. Solo il proprietario o root possono farlo.',
+      'Forma numerica: tre cifre per proprietario, gruppo e altri. Ogni cifra è la somma di r=4, w=2, x=1.',
+      'Forma simbolica: u (proprietario), g (gruppo), o (altri), a (tutti), seguiti da + (aggiungi), - (togli) o = (imposta).',
+    ],
+    examples: [
+      ['chmod 600 segreto.txt', 'solo il proprietario legge e scrive (rw-------)'],
+      ['chmod 755 script.sh', 'tutti leggono ed eseguono, solo il proprietario scrive (rwxr-xr-x)'],
+      ['chmod o-r note.txt', 'toglie la lettura agli "altri"'],
+    ],
+  },
+  find: {
+    name: 'find',
+    short: 'cerca file e cartelle',
+    synopsis: 'find [PERCORSO] [-name MODELLO] [-type f|d] [-user UTENTE]',
+    description: [
+      'Cerca dentro una cartella e in tutte le sue sottocartelle. Senza percorso parte dalla cartella attuale.',
+      'Nel modello del nome, * significa "qualsiasi testo" e ? "un carattere qualsiasi". Metti il modello tra virgolette.',
+    ],
+    options: [
+      ['-name', 'cerca per nome (es. "*.txt"); -iname ignora maiuscole/minuscole'],
+      ['-type f', 'solo file; -type d solo cartelle'],
+      ['-user U', 'solo file di proprietà dell\'utente U'],
+    ],
+    examples: [
+      ['find ~ -name "*.bak"', 'tutti i file di backup nella tua home'],
+      ['find / -type d -name log', 'tutte le cartelle chiamate log nel sistema'],
+    ],
+  },
+  ps: {
+    name: 'ps',
+    short: 'mostra i processi (programmi in esecuzione)',
+    synopsis: 'ps [aux]',
+    description: [
+      '"process status". Ogni programma in esecuzione è un processo, con un numero identificativo (PID) e un utente che lo esegue.',
+      'Da solo mostra i tuoi processi nel terminale; "ps aux" mostra tutti i processi del sistema con utente, uso di CPU e memoria, e comando.',
+    ],
+    examples: [['ps aux', 'tutti i processi del sistema']],
+  },
+  sort: {
+    name: 'sort',
+    short: 'ordina le righe',
+    synopsis: 'sort [-n] [-r] [FILE]',
+    description: ['Ordina le righe in ordine alfabetico. Si usa spessissimo dopo una pipe.'],
+    options: [
+      ['-n', 'ordine numerico (10 dopo 9, non dopo 1)'],
+      ['-r', 'ordine inverso (dal più grande)'],
+    ],
+  },
+  uniq: {
+    name: 'uniq',
+    short: 'elimina le righe ripetute consecutive',
+    synopsis: 'uniq [-c] [FILE]',
+    description: [
+      'Unisce le righe uguali che si trovano una dopo l\'altra. Per questo si usa quasi sempre dopo sort.',
+      'Con -c scrive davanti a ogni riga quante volte compariva: perfetto per fare statistiche.',
+    ],
+    examples: [['sort lista.txt | uniq -c', 'conta quante volte compare ogni riga']],
+  },
+  cut: {
+    name: 'cut',
+    short: 'estrae colonne da un testo',
+    synopsis: 'cut -d SEPARATORE -f N [FILE]',
+    description: [
+      'Divide ogni riga in colonne usando un separatore e tiene solo quelle richieste.',
+      'Le colonne si contano da 1. Più colonne si indicano con la virgola: -f 1,3.',
+    ],
+    examples: [
+      ['cut -d ":" -f 1 /etc/passwd', 'i nomi di tutti gli utenti'],
+      ['cut -d " " -f 3 log.txt', 'la terza parola di ogni riga'],
+    ],
+  },
+  ufw: {
+    name: 'ufw',
+    short: 'gestisce il firewall (serve sudo)',
+    synopsis: 'sudo ufw status | sudo ufw deny from IP',
+    description: [
+      '"Uncomplicated FireWall": un modo semplice per configurare il firewall di Linux.',
+      'Un firewall decide quale traffico può entrare o uscire. Bloccare l\'IP di un attaccante è una tipica azione di contenimento.',
+    ],
+    examples: [
+      ['sudo ufw status', 'mostra le regole attive'],
+      ['sudo ufw deny from 203.0.113.77', 'blocca tutto il traffico da quell\'indirizzo'],
+    ],
+  },
   flag: {
     name: 'flag',
     short: 'invia una risposta o una flag trovata',

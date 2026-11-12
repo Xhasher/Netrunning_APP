@@ -94,7 +94,8 @@ export class Vfs {
     for (const seg of normalize(abs).split('/').filter(Boolean)) {
       let next = node.children.get(seg);
       if (!next) {
-        next = this.makeDir(o);
+        // le cartelle intermedie ricevono solo proprietario e gruppo, non permessi speciali
+        next = this.makeDir({ owner: o.owner, group: o.group, mtime: o.mtime });
         node.children.set(seg, next);
       }
       if (next.type !== 'dir') throw new Error(`${abs}: non è una cartella`);

@@ -25,7 +25,9 @@ export type ShellEvent =
   | { type: 'man'; topic: string }
   | { type: 'ping'; target: string; ip: string | null; replies: number }
   | { type: 'scan'; target: string; ip: string | null; flags: string[]; outOfScope: boolean }
-  | { type: 'netinfo' };
+  | { type: 'netinfo' }
+  | { type: 'chmod'; path: string; perms: string }
+  | { type: 'firewall'; action: 'deny' | 'allow'; ip: string };
 
 export interface RunResult {
   lines: Line[];
