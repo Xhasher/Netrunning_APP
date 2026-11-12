@@ -109,6 +109,13 @@ const SOLUTIONS: Record<string, string[][]> = {
     ['grep "Flags [S]," rete/cattura.txt | cut -d " " -f 3 | sort | uniq -c', 'flag 192.168.1.66'],
   ],
   'ch09-m4': [['ssh-keygen', 'ls -l ~/.ssh', 'flag 600']],
+  'ch10-m1': [['whois neonottica.nc', 'flag it@neonottica.nc']],
+  'ch10-m2': [['dig neonottica.nc MX', 'dig neonottica.nc TXT'], ['crtsh neonottica.nc', 'dig dev-old.neonottica.nc A', 'flag dev-old.neonottica.nc']],
+  'ch10-m3': [['exiftool osint/catalogo_2077.pdf', 'flag srv-file01']],
+  'ch10-m4': [
+    ['cat osint/servizi.txt', 'cve apache 2.4.57', 'cve roundcube 1.6.2', 'cve fortivpn 7.0.1', 'cve wordpress 5.2.4'],
+    ['flag dev-old.neonottica.nc'],
+  ],
 };
 
 describe('ogni missione è completabile', () => {

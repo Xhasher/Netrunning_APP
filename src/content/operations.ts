@@ -5,6 +5,7 @@ import type { Host } from '../engine/network';
 import type { RemoteSystem, Shell } from '../engine/shell';
 import { addSite } from '../engine/shell';
 import { sha256 } from '../engine/sha256';
+import { addDomain } from '../engine/osint';
 import { Vfs } from '../engine/vfs';
 import type { Markup } from '../game/types';
 
@@ -691,7 +692,115 @@ Raccomandazioni:
   },
 };
 
-export const OPERATIONS: Operation[] = [OP01, OP02, OP03, OP04, OP05];
+// ---------------------------------------------------------------- OP-06
+
+const OP06: Operation = {
+  id: 'op06',
+  code: 'OP-06',
+  title: 'L\'impronta dello Scantinato',
+  client: 'Mama Reyes, bar "Lo Scantinato"',
+  kind: 'audit',
+  requires: 'ch10-m4',
+  xp: 400,
+  brief: `@rook: Mama ha visto il lavoro che hai fatto per Neon Ottica e ora vuole lo stesso per il bar. Dominio \`scantinato.nc\`. Solo ricognizione passiva: nessuna scansione, nessun accesso.
+
+@nyx: Lavori dal tuo deck. Nella cartella \`~/scantinato\` Mama ti ha lasciato il menu pubblicato sul sito e l'elenco dei servizi che il suo vecchio tecnico ricorda. Usa \`whois\`, \`dig\`, \`crtsh\`, \`exiftool\` e \`cve\`.
+
+Ci sono **4 problemi** da segnalare con \`report\`.`,
+  scope: ['dominio scantinato.nc e sottodomini', 'Solo fonti pubbliche e i file forniti dalla cliente'],
+  findings: [
+    {
+      id: 'spf',
+      title: 'Una configurazione che permette di falsificare le email del bar',
+      answers: ['spf', '+all', 'v=spf1 +all', 'txt'],
+      hints: ['Guarda i record TXT del dominio.', 'dig scantinato.nc TXT', 'report spf'],
+      explain: `\`v=spf1 +all\` autorizza **qualsiasi** server a inviare email come \`@scantinato.nc\`. Un truffatore potrebbe scrivere ai fornitori di Mama "dal bar" chiedendo pagamenti. Correzione: elencare solo il server di posta reale e terminare con \`-all\`, più DKIM e DMARC.`,
+    },
+    {
+      id: 'sub',
+      title: 'Un sottodominio dimenticato ancora attivo',
+      answers: ['old.scantinato.nc'],
+      hints: ['Cerca nei log dei certificati.', 'crtsh scantinato.nc: guarda i nomi e le date', 'report old.scantinato.nc'],
+      explain: `\`old.scantinato.nc\`, certificato del 2073, risolve ancora un IP: è la vecchia webmail che nessuno usa più ma che è ancora accesa.`,
+    },
+    {
+      id: 'cve',
+      title: 'Una vulnerabilità nota su quel sottodominio',
+      answers: ['cve-2077-0901', 'roundcube'],
+      hints: ['L\'elenco dei servizi dice quale software gira su old.scantinato.nc.', 'cat scantinato/servizi.txt e poi cve roundcube 1.4.1', 'report CVE-2077-0901'],
+      explain: `Roundcube 1.4.1 è colpito da **CVE-2077-0901** (CVSS 8.8): una email preparata ad arte può eseguire codice nel browser di chi la apre. Su un server dimenticato, nessuno lo aggiornerà mai. Correzione: spegnere la vecchia webmail.`,
+    },
+    {
+      id: 'meta',
+      title: 'Un segreto nei metadati di un documento pubblicato',
+      answers: ['menu_autunno.pdf', 'scantinato/menu_autunno.pdf', 'wifi', 'password wifi'],
+      hints: ['Leggi i metadati del menu che il bar pubblica sul sito.', 'exiftool scantinato/menu_autunno.pdf', 'report menu_autunno.pdf'],
+      explain: `Nel campo dei commenti del PDF del menu c'è la **password del Wi-Fi dello staff**: chi la legge entra nella rete interna dove stanno cassa e jukebox, la stessa rete non segmentata del capitolo 09. Correzione: ripulire i metadati, cambiare la password del Wi-Fi e separare la rete dello staff da quella dei dispositivi.`,
+    },
+  ],
+  debrief: `@nyx: Mama ha la sua mappa. Senza toccare un solo server, hai trovato quattro problemi veri:
+
+\`\`\`
+[ALTO]  SPF "+all": email false a nome del bar
+        → SPF con i soli server reali e "-all", DKIM e DMARC
+[ALTO]  old.scantinato.nc ancora attivo con Roundcube vulnerabile
+        → spegnerlo e togliere il record DNS
+[ALTO]  password del Wi-Fi staff nei metadati del menu
+        → ripulire il PDF, cambiare la password, segmentare la rete
+[INFO]  contatto whois personale di Mama
+        → usare un indirizzo generico, attivare l'oscuramento
+\`\`\`
+
+È la stessa ricognizione che fa un attaccante prima di colpire: tu l'hai fatta per primo, e per chiudere le porte.`,
+  setup(sh) {
+    addDomain(
+      'scantinato.nc',
+      {
+        A: ['198.51.100.90'],
+        MX: ['10 mail.scantinato.nc.'],
+        NS: ['ns1.nc-hosting.nc.'],
+        TXT: ['"v=spf1 +all"'],
+      },
+      {
+        registrar: 'NC Domini S.p.A.',
+        created: '2069-06-01',
+        expires: '2078-06-01',
+        registrant: 'Lo Scantinato di M. Reyes',
+        techEmail: 'mama.reyes@scantinato.nc',
+        nameServers: ['ns1.nc-hosting.nc'],
+      },
+      [
+        { logged: '2077-06-10', name: 'scantinato.nc' },
+        { logged: '2077-06-10', name: 'www.scantinato.nc' },
+        { logged: '2073-02-11', name: 'old.scantinato.nc' },
+        { logged: '2077-06-10', name: 'mail.scantinato.nc' },
+      ],
+    );
+    addDomain('www.scantinato.nc', { A: ['198.51.100.90'] });
+    addDomain('mail.scantinato.nc', { A: ['198.51.100.91'] });
+    addDomain('old.scantinato.nc', { A: ['198.51.100.95'] });
+    const home = sh.home;
+    const own = { owner: sh.user, group: sh.user };
+    sh.fs.writeFile(
+      `${home}/scantinato/menu_autunno.pdf`,
+      [
+        '%META Title: Menu d\'autunno - Lo Scantinato',
+        '%META Author: Jackie',
+        '%META Creator Tool: LibreOffice 7.4',
+        '%META Comments: x lo staff: wifi "Scantinato-Staff" password Jukebox!77',
+        '%PDF-1.7 (synth-burger, noodles al neon, birra Broseph...)',
+      ].join('\n'),
+      own,
+    );
+    sh.fs.writeFile(
+      `${home}/scantinato/servizi.txt`,
+      ['# servizi ricordati dal vecchio tecnico', 'www.scantinato.nc   sito vetrina (statico)', 'mail.scantinato.nc  posta del provider', 'old.scantinato.nc   webmail roundcube 1.4.1 (la usavamo prima)'].join('\n') + '\n',
+      own,
+    );
+  },
+};
+
+export const OPERATIONS: Operation[] = [OP01, OP02, OP03, OP04, OP05, OP06];
 
 export function normalizeReport(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, ' ').replace(/\/+$/, '');

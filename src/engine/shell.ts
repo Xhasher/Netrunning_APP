@@ -4,6 +4,7 @@
 import { ALIASES, MANPAGES } from './manpages';
 import { displayName, hostsInRange, isIp, lookup, type Host, type Network } from './network';
 import type { Line, LineClass, RunResult, ShellEvent } from './types';
+import { CT, CVES, DNS, WHOIS } from './osint';
 import { base64Decode, base64Encode, sha256 } from './sha256';
 import type { DirNode, Vfs, VNode } from './vfs';
 
@@ -1709,6 +1710,116 @@ const COMMANDS: Record<string, Command> = {
     c.out('The key fingerprint is:');
     c.out(`SHA256:${sha256(pub).slice(0, 43)} ${c.sh.user}@${c.sh.host}`, 'ok');
     c.emit({ type: 'fsop', op: 'touch', paths: [priv, `${priv}.pub`] });
+    return 0;
+  },
+
+  whois(c) {
+    const d = c.args[0]?.toLowerCase().replace(/\.$/, '');
+    if (!d) {
+      c.err('Usage: whois DOMINIO');
+      return 1;
+    }
+    const w = WHOIS[d];
+    if (!w) {
+      c.out(`No match for "${d.toUpperCase()}".`);
+      return 1;
+    }
+    c.out(`Domain Name: ${d.toUpperCase()}`);
+    c.out(`Registrar: ${w.registrar}`);
+    c.out(`Creation Date: ${w.created}`);
+    c.out(`Registry Expiry Date: ${w.expires}`);
+    c.out(`Registrant Organization: ${w.registrant}`);
+    c.out(`Tech Email: ${w.techEmail}`);
+    for (const ns of w.nameServers) c.out(`Name Server: ${ns.toUpperCase()}`);
+    c.emit({ type: 'command', name: 'whois-ok', args: [d], ok: true });
+    return 0;
+  },
+
+  dig(c) {
+    const args = c.args.filter((a) => !a.startsWith('+') && !a.startsWith('@'));
+    const d = args[0]?.toLowerCase().replace(/\.$/, '');
+    const type = (args[1] ?? 'A').toUpperCase() as 'A' | 'MX' | 'TXT' | 'NS';
+    if (!d) {
+      c.err('Usage: dig DOMINIO [A|MX|TXT|NS]');
+      return 1;
+    }
+    if (!['A', 'MX', 'TXT', 'NS'].includes(type)) {
+      c.err(`dig: tipo non supportato in questo deck: ${type} (usa A, MX, TXT o NS)`);
+      return 1;
+    }
+    c.out(`; <<>> DiG 9.18.28 <<>> ${d} ${type}`, 'dim');
+    const zone = DNS[d];
+    if (!zone) {
+      c.out(';; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN', 'dim');
+      c.info('💡 NXDOMAIN: il nome non esiste nel DNS.');
+      return 0;
+    }
+    const recs = zone[type] ?? [];
+    c.out(`;; ->>HEADER<<- opcode: QUERY, status: NOERROR, ANSWER: ${recs.length}`, 'dim');
+    if (recs.length) {
+      c.out(';; ANSWER SECTION:', 'dim');
+      for (const r of recs) c.out(`${d}.\t\t3600\tIN\t${type}\t${r}`);
+    }
+    c.emit({ type: 'command', name: 'dig-ok', args: [d, type], ok: true });
+    return 0;
+  },
+
+  crtsh(c) {
+    const d = c.args[0]?.toLowerCase().replace(/^%\.|^\*\./, '');
+    if (!d) {
+      c.err('Usage: crtsh DOMINIO');
+      c.info('💡 Simula la ricerca sul sito crt.sh: i certificati HTTPS rilasciati per un dominio e i suoi sottodomini.');
+      return 1;
+    }
+    const list = CT[d];
+    if (!list) {
+      c.out('Nessun certificato trovato.');
+      return 0;
+    }
+    c.out('LOGGED_AT   NAME', 'dim');
+    for (const e of list) c.out(`${e.logged}  ${e.name}`);
+    c.emit({ type: 'command', name: 'crtsh-ok', args: [d], ok: true });
+    return 0;
+  },
+
+  exiftool(c) {
+    const f = c.args[0];
+    if (!f) {
+      c.err('Usage: exiftool FILE');
+      return 1;
+    }
+    const text = readText(c, [f], 'exiftool');
+    if (text === null) return 1;
+    const meta = splitLines(text)
+      .filter((l) => l.startsWith('%META '))
+      .map((l) => l.slice(6).split(': '));
+    c.out(`${'File Name'.padEnd(26)}: ${f.split('/').pop()}`);
+    for (const [k, v] of meta) c.out(`${k.padEnd(26)}: ${v}`);
+    if (!meta.length) c.info('Nessun metadato interessante in questo file.');
+    c.emit({ type: 'command', name: 'exiftool-ok', args: [f], ok: true });
+    return 0;
+  },
+
+  cve(c) {
+    const product = c.args[0]?.toLowerCase();
+    const version = c.args[1];
+    if (!product) {
+      c.err('Usage: cve PRODOTTO [VERSIONE]');
+      c.info('💡 Database simulato di vulnerabilità note (come NVD). Esempio: cve apache 2.4.29');
+      return 1;
+    }
+    const hits = CVES.filter((e) => e.product === product && (!version || e.test(version)));
+    if (!hits.length) {
+      c.out(version ? `Nessuna vulnerabilità nota per ${product} ${version} nel database.` : `Nessuna voce per "${product}".`);
+      return 0;
+    }
+    for (const e of hits) {
+      const sev = e.cvss >= 9 ? 'CRITICA' : e.cvss >= 7 ? 'ALTA' : e.cvss >= 4 ? 'MEDIA' : 'BASSA';
+      c.out(`${e.id}  CVSS ${e.cvss.toFixed(1)} (${sev})`, e.cvss >= 7 ? 'warn' : 'out');
+      c.out(`  colpisce: ${e.affects}`, 'dim');
+      c.out(`  ${e.summary}`);
+    }
+    c.emit({ type: 'command', name: 'cve-ok', args: [product, version ?? ''], ok: true });
     return 0;
   },
 

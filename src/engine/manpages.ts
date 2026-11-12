@@ -573,6 +573,58 @@ export const MANPAGES: Record<string, ManPage> = {
       'Il server conserva le chiavi pubbliche autorizzate in ~/.ssh/authorized_keys.',
     ],
   },
+  whois: {
+    name: 'whois',
+    short: 'chi ha registrato un dominio',
+    synopsis: 'whois DOMINIO',
+    description: [
+      'Interroga i registri pubblici dei domini: registrar, date di creazione e scadenza, proprietario, contatti e name server.',
+      'Molti dati personali oggi sono oscurati per privacy (GDPR), ma quelli delle aziende spesso no.',
+    ],
+  },
+  dig: {
+    name: 'dig',
+    short: 'interroga il DNS',
+    synopsis: 'dig DOMINIO [A|MX|TXT|NS]',
+    description: ['Chiede al DNS i record di un dominio.'],
+    options: [
+      ['A', 'l\'indirizzo IP'],
+      ['MX', 'i server di posta'],
+      ['TXT', 'testi liberi: SPF, verifiche di servizi...'],
+      ['NS', 'i server DNS autorevoli'],
+    ],
+    examples: [['dig neonottica.nc MX', 'chi riceve la posta di neonottica.nc']],
+  },
+  crtsh: {
+    name: 'crtsh',
+    short: 'cerca i certificati HTTPS di un dominio (come crt.sh)',
+    synopsis: 'crtsh DOMINIO',
+    description: [
+      'Ogni certificato HTTPS rilasciato viene registrato in log pubblici (certificate transparency). Cercarli rivela i sottodomini di un\'azienda, anche quelli dimenticati.',
+      'Simula la ricerca sul sito pubblico crt.sh.',
+    ],
+    game: true,
+  },
+  exiftool: {
+    name: 'exiftool',
+    short: 'legge i metadati di un file',
+    synopsis: 'exiftool FILE',
+    description: [
+      'Mostra i metadati nascosti dentro documenti, foto e PDF: autore, software usato, date, a volte percorsi interni o coordinate GPS.',
+      'Prima di pubblicare un file, i metadati andrebbero ripuliti.',
+    ],
+  },
+  cve: {
+    name: 'cve',
+    short: 'cerca vulnerabilità note (database simulato)',
+    synopsis: 'cve PRODOTTO [VERSIONE]',
+    description: [
+      'Cerca in un database simulato di vulnerabilità note, come il National Vulnerability Database (NVD). Mostra l\'identificativo CVE, il punteggio CVSS da 0 a 10 e una descrizione.',
+      'Le CVE con anno 2077 sono inventate per il gioco.',
+    ],
+    examples: [['cve apache 2.4.29', 'vulnerabilità note per quella versione di Apache']],
+    game: true,
+  },
   flag: {
     name: 'flag',
     short: 'invia una risposta o una flag trovata',

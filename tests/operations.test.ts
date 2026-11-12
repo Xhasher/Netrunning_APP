@@ -51,6 +51,10 @@ const PLAY: Record<string, { cmds: string[]; reports: string[] }> = {
     ],
     reports: ['10.30.0.99', 'telnet', 'exfil-cdn.top', '203.0.113.250'],
   },
+  op06: {
+    cmds: ['whois scantinato.nc', 'dig scantinato.nc TXT', 'crtsh scantinato.nc', 'cat scantinato/servizi.txt', 'cve roundcube 1.4.1', 'exiftool scantinato/menu_autunno.pdf'],
+    reports: ['spf', 'old.scantinato.nc', 'CVE-2077-0901', 'menu_autunno.pdf'],
+  },
   op03: {
     cmds: ['curl -I http://radio.lan/', 'curl http://radio.lan/robots.txt', 'curl http://radio.lan/.env', 'curl http://radio.lan/staff/ | grep "<!--"'],
     reports: ['nginx/1.14.0', '/.env', '/staff/'],

@@ -51,7 +51,8 @@ describe('shell', () => {
 
   it('autocompletamento', () => {
     const sh = buildWorld('edge');
-    expect(sh.complete('who').line).toBe('whoami ');
+    expect(sh.complete('whoa').line).toBe('whoami ');
+    expect(sh.complete('who').options).toEqual(['whoami', 'whois']);
     expect(sh.complete('cat miss').line).toBe('cat missioni/');
     expect(sh.complete('cat missioni/ben').line).toBe('cat missioni/benvenuto.txt ');
     expect(sh.complete('cat missioni/.n').line).toBe('cat missioni/.nota_segreta ');

@@ -341,6 +341,44 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
   // Capitolo 09 — cattura del traffico della rete del bar
   fs.writeFile(`${home}/rete/cattura.txt`, buildCapture(), mine);
 
+  // Capitolo 10 — OSINT su Neon Ottica (valutazione autorizzata)
+  fs.writeFile(
+    `${home}/osint/LEGGIMI.txt`,
+    [
+      'INCARICO: valutazione dell\'esposizione pubblica',
+      'Cliente: Neon Ottica S.r.l. (dominio neonottica.nc)',
+      'Firmato: S. Neri, amministratore delegato',
+      '',
+      'Obiettivo: scoprire quali informazioni sull\'AZIENDA sono pubbliche',
+      'e potrebbero aiutare un attaccante. Solo fonti pubbliche e passive.',
+      'Esclusi: profili personali dei dipendenti, dati privati.',
+    ].join('\n'),
+    mine,
+  );
+  fs.writeFile(
+    `${home}/osint/catalogo_2077.pdf`,
+    [
+      '%META Title: Catalogo Neon Ottica 2077',
+      '%META Author: m.ferri',
+      '%META Creator Tool: Microsoft Word 2016',
+      '%META Template: \\\\srv-file01\\marketing\\modelli\\catalogo.dotx',
+      '%META Create Date: 2077:09:30 10:12:44',
+      '%PDF-1.7 (contenuto del catalogo: occhiali, lenti, montature...)',
+    ].join('\n'),
+    mine,
+  );
+  fs.writeFile(
+    `${home}/osint/servizi.txt`,
+    [
+      '# risultati della scansione autorizzata (nmap -sV) sugli IP del cliente',
+      'www.neonottica.nc      80/tcp   apache     2.4.57',
+      'mail.neonottica.nc     443/tcp  roundcube  1.6.2',
+      'vpn.neonottica.nc      443/tcp  fortivpn   7.0.1',
+      'dev-old.neonottica.nc  80/tcp   wordpress  5.2.4',
+    ].join('\n') + '\n',
+    mine,
+  );
+
   return new Shell({ user, host: HOSTNAME, fs, net: createNetwork(), hint });
 }
 

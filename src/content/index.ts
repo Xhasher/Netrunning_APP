@@ -8,17 +8,12 @@ import { CH06 } from './ch06-cripto';
 import { CH07 } from './ch07-web';
 import { CH08 } from './ch08-blue';
 import { CH09 } from './ch09-reti';
+import { CH10 } from './ch10-osint';
 
-export const CHAPTERS: Chapter[] = [CH01, CH02, CH03, CH04, CH05, CH06, CH07, CH08, CH09];
+export const CHAPTERS: Chapter[] = [CH01, CH02, CH03, CH04, CH05, CH06, CH07, CH08, CH09, CH10];
 
 /** Il resto del corso: capitoli pianificati, mostrati nella mappa come "in arrivo". */
 export const PLANNED: PlannedChapter[] = [
-  {
-    code: '10',
-    title: 'Ricognizione e OSINT',
-    subtitle: 'Raccogliere informazioni prima di agire',
-    topics: ['OSINT: fonti pubbliche', 'DNS e sottodomini', 'nmap avanzato', 'vulnerabilità note: CVE e CVSS', 'come proteggere la propria impronta pubblica'],
-  },
   {
     code: '11',
     title: 'Dall\'accesso al controllo',
