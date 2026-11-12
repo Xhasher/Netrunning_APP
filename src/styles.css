@@ -1304,3 +1304,150 @@ pre.code {
     grid-template-rows: auto 1fr;
   }
 }
+
+/* ------------------------------------------------------------------ operazioni */
+
+.oplist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.opcard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--cyan);
+  padding: 0.85rem 1rem;
+}
+
+.opcard.done {
+  border-left-color: var(--green);
+}
+
+.opcard.locked {
+  opacity: 0.5;
+  border-left-color: var(--line);
+}
+
+.op-top {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+
+.op-code {
+  color: var(--yellow);
+  font-weight: 700;
+}
+
+.op-kind {
+  padding: 0.05rem 0.4rem;
+  border: 1px solid currentColor;
+  color: var(--cyan);
+}
+
+.op-kind.incident {
+  color: var(--pink);
+}
+
+.op-xp {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.op-title {
+  font-family: var(--display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.op-client,
+.op-lock {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.op-h {
+  font-family: var(--display);
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+  margin: 0.4rem 0 0.5rem;
+}
+
+.findings {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.finding {
+  display: flex;
+  gap: 0.7rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+}
+
+.finding.ok {
+  border-color: rgba(61, 255, 168, 0.5);
+}
+
+.f-mark {
+  flex: none;
+  width: 1.6rem;
+  height: 1.6rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.finding.ok .f-mark {
+  color: var(--green);
+  border-color: var(--green);
+}
+
+.f-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.f-title {
+  font-weight: 600;
+}
+
+.f-explain {
+  font-size: 0.92rem;
+  margin-top: 0.35rem;
+  color: #d3d7e6;
+}
+
+.f-explain p {
+  margin: 0;
+}
+
+.finding .hints {
+  margin: 0.5rem 0 0;
+}
+
+.minimized .op-brief {
+  display: none;
+}
+
+.operation .complete .step-body pre.code {
+  font-size: 0.75rem;
+}

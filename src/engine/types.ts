@@ -32,6 +32,8 @@ export type ShellEvent =
   | { type: 'script'; path: string; ok: boolean }
   | { type: 'edit'; path: string }
   | { type: 'saved'; path: string }
+  | { type: 'ssh'; host: string; ip: string; user: string }
+  | { type: 'report'; value: string }
   | { type: 'http'; host: string; path: string; status: number; head: boolean }
   | { type: 'fsop'; op: 'mkdir' | 'touch' | 'rm' | 'cp' | 'mv'; paths: string[] };
 

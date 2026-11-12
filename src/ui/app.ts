@@ -1,4 +1,5 @@
 import { CAREER, CHAPTERS, PLANNED, allMissions, findMission } from '../content';
+import { OPERATIONS, matchFinding, type Operation } from '../content/operations';
 import { buildWorld } from '../content/world';
 import type { Shell } from '../engine/shell';
 import type { ShellEvent } from '../engine/types';
@@ -44,6 +45,13 @@ export class App {
   private shell: Shell | null = null;
   private term: TerminalView | null = null;
   private run: MissionRun | null = null;
+  private op: {
+    op: Operation;
+    found: Set<string>;
+    hints: Record<string, number>;
+    term: TerminalView;
+    minimized: boolean;
+  } | null = null;
   private screen = 'title';
 
   constructor(private root: HTMLElement) {
@@ -62,6 +70,10 @@ export class App {
       case 'map':
       case 'handle':
         this.showTitle();
+        return true;
+      case 'operation':
+      case 'op-done':
+        this.showOps();
         return true;
       default:
         this.showMap();
@@ -178,6 +190,7 @@ export class App {
           </div>
         </header>
         <nav class="mapnav">
+          <button data-act="ops">Operazioni</button>
           <button data-act="sandbox">Terminale</button>
           <button data-act="train">Allenamento</button>
           <button data-act="codex">Codex</button>
@@ -259,6 +272,7 @@ export class App {
       else if (t.dataset.act === 'codex') this.showCodex();
       else if (t.dataset.act === 'train') this.showTraining();
       else if (t.dataset.act === 'sandbox') this.showSandbox();
+      else if (t.dataset.act === 'ops') this.showOps();
       else if (t.dataset.act === 'career') this.showCareer();
       else if (t.dataset.act === 'settings') this.showSettings();
       else if (t.dataset.act === 'title') this.showTitle();
@@ -267,6 +281,197 @@ export class App {
   }
 
   // ------------------------------------------------------------- missione
+
+  // ------------------------------------------------------------- operazioni
+
+  private showOps(): void {
+    this.op = null;
+    const cards = OPERATIONS.map((op) => {
+      const done = this.save.ops.includes(op.id);
+      const open = this.save.completed.includes(op.requires);
+      const req = findMission(op.requires);
+      const state = done ? 'done' : open ? 'open' : 'locked';
+      return html`
+        <button class="opcard ${state}" data-op="${op.id}" ${open ? '' : 'disabled'}>
+          <span class="op-top">
+            <span class="op-code">${op.code}</span>
+            <span class="op-kind ${op.kind}">${op.kind === 'audit' ? 'AUDIT' : 'INCIDENT RESPONSE'}</span>
+            <span class="op-xp">${done ? '✔ completata' : `${op.xp} XP`}</span>
+          </span>
+          <span class="op-title">${op.title}</span>
+          <span class="op-client">Cliente: ${op.client}</span>
+          ${open ? '' : `<span class="op-lock">🔒 Completa la missione ${req ? `${req.chapter.code}.${req.index + 1} "${req.mission.title}"` : ''} per sbloccarla</span>`}
+        </button>`;
+    }).join('');
+    const node = this.page(
+      'ops',
+      'Operazioni',
+      '// contratti sul campo',
+      html`
+        <div class="prose"><p>Contratti veri, senza guida passo passo. Ti colleghi ai server del cliente con <code>ssh</code>, indaghi con i comandi che conosci e segnali ogni problema con <code>report</code>. Altri contratti si sbloccano man mano che completi i capitoli.</p></div>
+        <div class="oplist">${cards}</div>`,
+    );
+    node.addEventListener('click', (e) => {
+      const id = (e.target as HTMLElement).closest<HTMLElement>('[data-op]')?.dataset.op;
+      if (id) this.showOperation(id);
+    });
+  }
+
+  private showOperation(id: string): void {
+    const op = OPERATIONS.find((o) => o.id === id);
+    if (!op || !this.save.completed.includes(op.requires)) return;
+    this.run = null;
+    const shell = buildWorld(this.save.handle!, () => this.opHint(true));
+    op.setup(shell);
+    const term = new TerminalView(shell, (ev) => this.onOpEvents(ev));
+    this.op = { op, found: new Set(), hints: {}, term, minimized: false };
+    term.system(`── ${op.code} · ${op.title.toUpperCase()} ──`, 'banner');
+    term.system(`Cliente: ${op.client}. Ricorda: solo dentro lo scope.`, 'info');
+    const node = el(html`
+      <div class="screen mission mode-task operation">
+        <header class="topbar">
+          <button class="iconbtn" data-act="back" aria-label="Torna alle operazioni">◂</button>
+          <div class="tb-title">
+            <div class="tb-kicker">${op.code} · ${op.kind === 'audit' ? 'AUDIT' : 'INCIDENT RESPONSE'}</div>
+            <div class="tb-name">${op.title}</div>
+          </div>
+          <div class="tb-xp">${this.save.ops.includes(op.id) ? 'REPLAY' : `+${op.xp} XP`}</div>
+        </header>
+        <div class="stepbar"><span></span></div>
+        <section class="lesson"></section>
+        <section class="term-area"></section>
+      </div>`);
+    node.querySelector('.term-area')!.appendChild(term.el);
+    node.querySelector('[data-act="back"]')!.addEventListener('click', () => this.showOps());
+    this.mount('operation', node);
+    this.renderOp();
+  }
+
+  private renderOp(scrollToEnd = false): void {
+    const o = this.op;
+    const screen = this.root.querySelector<HTMLElement>('.screen.operation');
+    if (!o || !screen) return;
+    const total = o.op.findings.length;
+    screen.querySelector<HTMLElement>('.stepbar span')!.style.width = `${(o.found.size / total) * 100}%`;
+    screen.classList.toggle('minimized', o.minimized);
+    const panel = screen.querySelector<HTMLElement>('.lesson')!;
+    const items = o.op.findings
+      .map((f, i) => {
+        const ok = o.found.has(f.id);
+        const shown = f.hints.slice(0, o.hints[f.id] ?? 0);
+        return html`
+          <li class="finding ${ok ? 'ok' : ''}">
+            <span class="f-mark">${ok ? '✔' : i + 1}</span>
+            <div class="f-body">
+              <div class="f-title">${inline(f.title)}</div>
+              ${ok ? `<div class="f-explain">${renderMarkup(f.explain)}</div>` : ''}
+              ${!ok && shown.length ? `<ol class="hints">${shown.map((h) => `<li>${inline(h)}</li>`).join('')}</ol>` : ''}
+            </div>
+          </li>`;
+      })
+      .join('');
+    panel.innerHTML = html`
+      <div class="step-head">
+        <span class="step-kind k-task">CONTRATTO</span>
+        <span class="step-num">${o.found.size}/${total} problemi</span>
+        <button class="iconbtn small" data-act="minimize" aria-label="Riduci pannello">${o.minimized ? '▾' : '▴'}</button>
+      </div>
+      <div class="op-brief">
+        ${renderMarkup(o.op.brief)}
+        <div class="objective">
+          <span class="o-label">SCOPE AUTORIZZATO</span>
+          ${o.op.scope.map((sc) => `<span class="o-text">${inline(sc)}</span>`).join('')}
+        </div>
+      </div>
+      <h3 class="op-h">Da segnalare con <code>report</code></h3>
+      <ol class="findings">${items}</ol>
+      <div class="step-actions">
+        <button class="ghost" data-act="hint">Suggerimento</button>
+        <button class="ghost" data-act="terminal">Vai al terminale ⌨</button>
+      </div>`;
+    panel.onclick = (e) => {
+      const act = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset.act;
+      if (act === 'hint') {
+        this.opHint(false);
+        this.renderOp(true);
+      } else if (act === 'terminal') {
+        o.minimized = true;
+        this.renderOp();
+        o.term.focus();
+      } else if (act === 'minimize') {
+        o.minimized = !o.minimized;
+        this.renderOp();
+      }
+    };
+    if (scrollToEnd) panel.scrollTo({ top: panel.scrollHeight, behavior: 'smooth' });
+  }
+
+  /** Il prossimo suggerimento per il primo problema non ancora trovato. */
+  private opHint(fromShell: boolean): string | null {
+    const o = this.op;
+    if (!o) return null;
+    const f = o.op.findings.find((x) => !o.found.has(x.id));
+    if (!f) return null;
+    const lvl = o.hints[f.id] ?? 0;
+    const h = f.hints[Math.min(lvl, f.hints.length - 1)];
+    if (lvl < f.hints.length) o.hints[f.id] = lvl + 1;
+    if (fromShell) queueMicrotask(() => this.renderOp());
+    return `${f.title}: ${h}`;
+  }
+
+  private onOpEvents(events: ShellEvent[]): void {
+    const o = this.op;
+    if (!o) return;
+    for (const ev of events) {
+      if (ev.type === 'answer') o.term.system('Nelle operazioni i problemi si segnalano con "report", non con "flag".', 'info');
+      if (ev.type !== 'report') continue;
+      const f = matchFinding(o.op, ev.value);
+      if (!f) {
+        o.term.system('✘ Questo non risulta tra i problemi del contratto. Ricontrolla le prove, o sii più preciso (percorso completo, nome utente, IP).', 'err');
+      } else if (o.found.has(f.id)) {
+        o.term.system(`Già segnalato: ${f.title}.`, 'info');
+      } else {
+        o.found.add(f.id);
+        o.term.system(`✔ PROBLEMA CONFERMATO (${o.found.size}/${o.op.findings.length}): ${f.title}`, 'ok');
+        o.minimized = false;
+        this.renderOp(true);
+        if (o.found.size === o.op.findings.length) setTimeout(() => this.finishOp(), 900);
+      }
+    }
+  }
+
+  private finishOp(): void {
+    const o = this.op;
+    if (!o) return;
+    const first = !this.save.ops.includes(o.op.id);
+    if (first) {
+      this.save.ops.push(o.op.id);
+      this.save.xp += o.op.xp;
+      this.persist();
+    }
+    const rank = rankFor(this.save.xp);
+    const node = el(html`
+      <div class="screen complete">
+        <div class="panel">
+          <div class="kicker">// ${o.op.code} · rapporto consegnato</div>
+          <h2>${o.op.title}</h2>
+          ${first ? `<div class="xp-gain">+${o.op.xp} XP</div>` : '<div class="xp-gain replay">operazione ripetuta</div>'}
+          <div class="rank-now">Rango: <b>${rank.name}</b> · ${this.save.xp} XP</div>
+          <div class="step-body">${renderMarkup(o.op.debrief)}</div>
+          <div class="step-actions">
+            <button class="ghost" data-act="map">Mappa</button>
+            <button class="next" data-act="ops">Operazioni ▸</button>
+          </div>
+        </div>
+      </div>`);
+    node.addEventListener('click', (e) => {
+      const act = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset.act;
+      if (act === 'map') this.showMap();
+      if (act === 'ops') this.showOps();
+    });
+    this.op = null;
+    this.mount('op-done', node);
+  }
 
   // ------------------------------------------------------------- terminale libero
 

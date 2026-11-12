@@ -500,6 +500,37 @@ export const MANPAGES: Record<string, ManPage> = {
       ['curl -I http://jukebox.lan/', 'solo gli header'],
     ],
   },
+  ssh: {
+    name: 'ssh',
+    short: 'collegati a un altro computer',
+    synopsis: 'ssh [UTENTE@]HOST',
+    description: [
+      '"Secure Shell": apre un terminale su un computer remoto, attraverso una connessione cifrata. È il modo standard di amministrare i server Linux.',
+      'Il prompt cambia e mostra il nome del server: da quel momento i comandi girano lì. Con "exit" chiudi la connessione e torni indietro.',
+      'Nelle Operazioni il cliente ha installato la tua chiave SSH sui server dello scope: per questo non ti chiede la password.',
+    ],
+    examples: [['ssh audit@market.lan', 'collegati a market.lan come utente audit']],
+  },
+  report: {
+    name: 'report',
+    short: 'segnala un problema trovato (Operazioni)',
+    synopsis: 'report ELEMENTO',
+    description: [
+      'Comando del gioco: nelle Operazioni registra un problema nel rapporto per il cliente.',
+      'Indica l\'elemento più preciso possibile: il percorso di un file, il nome di un utente, un indirizzo IP, il nome di un\'impostazione.',
+    ],
+    examples: [
+      ['report /var/www/html/backup/db.sql', 'segnala un file esposto'],
+      ['report 203.0.113.9', 'segnala l\'IP di un attaccante'],
+    ],
+    game: true,
+  },
+  exit: {
+    name: 'exit',
+    short: 'chiude la connessione ssh',
+    synopsis: 'exit',
+    description: ['Chiude la sessione attuale: se sei collegato a un server con ssh, torni al tuo deck.'],
+  },
   flag: {
     name: 'flag',
     short: 'invia una risposta o una flag trovata',

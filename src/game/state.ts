@@ -9,10 +9,12 @@ export interface SaveData {
   /** passo raggiunto nelle missioni in corso */
   progress: Record<string, number>;
   fontScale: number;
+  /** operazioni completate */
+  ops: string[];
 }
 
 export function defaultSave(): SaveData {
-  return { handle: null, xp: 0, completed: [], progress: {}, fontScale: 1 };
+  return { handle: null, xp: 0, completed: [], progress: {}, fontScale: 1, ops: [] };
 }
 
 export function loadSave(): SaveData {

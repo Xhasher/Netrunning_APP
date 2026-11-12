@@ -29,6 +29,15 @@ interface Ctx {
 
 type Command = (c: Ctx) => number;
 
+/** Un server remoto simulato. */
+export interface RemoteSystem {
+  hostname: string;
+  fs: Vfs;
+  /** utenti con cui il consulente può collegarsi (accesso concesso dal cliente) */
+  users: string[];
+  banner?: string[];
+}
+
 export interface ShellOptions {
   user: string;
   host: string;
@@ -382,6 +391,32 @@ export class Shell {
 
   vars: Record<string, string> = {};
   private steps = 0;
+  /** server remoti raggiungibili con ssh, per indirizzo IP */
+  remotes = new Map<string, RemoteSystem>();
+  /** sessioni aperte: la shell locale resta "sotto" quelle remote */
+  private sessions: { fs: Vfs; user: string; host: string; home: string; cwd: string; oldPwd: string }[] = [];
+
+  get remoteDepth(): number {
+    return this.sessions.length;
+  }
+
+  connect(r: RemoteSystem, user: string): void {
+    this.sessions.push({ fs: this.fs, user: this.user, host: this.host, home: this.home, cwd: this.cwd, oldPwd: this.oldPwd });
+    this.fs = r.fs;
+    this.user = user;
+    this.host = r.hostname;
+    this.home = user === 'root' ? '/root' : `/home/${user}`;
+    this.cwd = r.fs.get(this.home) ? this.home : '/';
+    this.oldPwd = this.cwd;
+  }
+
+  disconnect(): string | null {
+    const prev = this.sessions.pop();
+    if (!prev) return null;
+    const host = this.host;
+    Object.assign(this, prev);
+    return host;
+  }
 
   getVar(name: string): string {
     switch (name) {
@@ -494,6 +529,16 @@ export class Shell {
       else out.push({ t: t.t });
     }
     return out as T;
+  }
+
+  /** Il percorso passa da una cartella protetta? (il sistema non deve rivelare se il file esiste) */
+  blocked(abs: string): boolean {
+    const parts = abs.split('/').filter(Boolean);
+    for (let i = 1; i < parts.length; i++) {
+      const n = this.fs.get('/' + parts.slice(0, i).join('/'));
+      if (n?.locked) return true;
+    }
+    return false;
   }
 
   /** Si può scrivere in questo percorso? */
@@ -763,8 +808,8 @@ function readText(c: Ctx, files: string[], cmdName: string): string | null {
   for (const f of files) {
     const p = c.sh.abs(f);
     const node = c.sh.fs.get(p);
-    if (!node) {
-      c.err(`${cmdName}: ${f}: No such file or directory`);
+    if (!node || c.sh.blocked(p)) {
+      c.err(`${cmdName}: ${f}: ${c.sh.blocked(p) ? 'Permission denied' : 'No such file or directory'}`);
       return null;
     }
     if (node.type === 'dir') {
@@ -1785,7 +1830,56 @@ const COMMANDS: Record<string, Command> = {
     return 0;
   },
 
+  ssh(c) {
+    const target = c.args.find((a) => !a.startsWith('-'));
+    if (!target) {
+      c.err('usage: ssh [utente@]host');
+      return 255;
+    }
+    const at = target.indexOf('@');
+    const user = at >= 0 ? target.slice(0, at) : c.sh.user;
+    const hostName = at >= 0 ? target.slice(at + 1) : target;
+    const res = lookup(c.sh.net, hostName);
+    if (!res) {
+      c.err(`ssh: Could not resolve hostname ${hostName}: Name or service not known`);
+      return 255;
+    }
+    if (res.host && !res.host.inScope) return outOfScope(c, hostName);
+    const remote = c.sh.remotes.get(res.ip);
+    if (!remote || !res.host?.ports.some((p) => p.port === 22)) {
+      c.err(`ssh: connect to host ${hostName} port 22: Connection refused`);
+      return 255;
+    }
+    if (!remote.users.includes(user)) {
+      c.err(`${user}@${hostName}: Permission denied (publickey).`);
+      c.info(`💡 Il contratto ti dà accesso solo come: ${remote.users.join(', ')}`);
+      c.emit({ type: 'command', name: 'ssh-denied', args: [user, res.ip], ok: false });
+      return 255;
+    }
+    c.sh.connect(remote, user);
+    for (const l of remote.banner ?? [`Welcome to ${remote.hostname}`]) c.out(l, 'dim');
+    c.info(`🔗 Sei collegato a ${remote.hostname}. Scrivi "exit" per tornare al tuo deck.`);
+    c.emit({ type: 'ssh', host: remote.hostname, ip: res.ip, user });
+    return 0;
+  },
+
+  report(c) {
+    const value = c.args.join(' ').trim();
+    if (!value) {
+      c.err('report: indica cosa hai trovato, es: report /percorso/del/file');
+      return 1;
+    }
+    c.emit({ type: 'report', value });
+    return 0;
+  },
+
   exit(c) {
+    const host = c.sh.disconnect();
+    if (host) {
+      c.out('logout');
+      c.out(`Connection to ${host} closed.`, 'dim');
+      return 0;
+    }
     c.info('Per tornare alla mappa usa il pulsante ◂ in alto a sinistra.');
     return 0;
   },
@@ -1958,8 +2052,18 @@ function testExpr(c: Ctx, a: string[]): number {
   return 2;
 }
 
+export interface Site {
+  headers: string[];
+  pages: Record<string, { body: string; type?: string }>;
+}
+
+/** Registra un sito web simulato su un indirizzo IP (usato dalle Operazioni). */
+export function addSite(ip: string, site: Site): void {
+  WEB[ip] = site;
+}
+
 /** Siti web simulati, raggiungibili con curl. */
-const WEB: Record<string, { headers: string[]; pages: Record<string, { body: string; type?: string }> }> = {
+const WEB: Record<string, Site> = {
   '192.168.1.20': {
     headers: ['Server: Apache/2.4.29 (Ubuntu)', 'X-Powered-By: PHP/7.2.24'],
     pages: {
