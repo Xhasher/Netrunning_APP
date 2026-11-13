@@ -1,5 +1,6 @@
 import { CAREER, CHAPTERS, PLANNED, allMissions, findMission } from '../content';
 import { GAMES } from '../content/games';
+import { LEVELS, generateSession, normalizeDrillAnswer, type Drill, type Level } from '../content/drills';
 import { TIPS, randomTip } from '../content/tips';
 import { OPERATIONS, matchFinding, type Operation } from '../content/operations';
 import { buildWorld } from '../content/world';
@@ -20,6 +21,7 @@ import {
   type SaveData,
 } from '../game/state';
 import type { Chapter, Mission, QuizStep, Step } from '../game/types';
+import { ALIASES, MANPAGES } from '../engine/manpages';
 import { inline, renderMarkup } from './markup';
 import { TerminalView } from './terminal';
 
@@ -50,6 +52,19 @@ export class App {
   private shell: Shell | null = null;
   private term: TerminalView | null = null;
   private run: MissionRun | null = null;
+  private sim: {
+    drills: Drill[];
+    idx: number;
+    level: Level;
+    chapters: string[];
+    results: ('ok' | 'skip')[];
+    hinted: boolean[];
+    hintLevel: number;
+    term: TerminalView;
+    shell: Shell;
+    minimized: boolean;
+    solvedNow: boolean;
+  } | null = null;
   private op: {
     op: Operation;
     found: Set<string>;
@@ -82,7 +97,12 @@ export class App {
         return true;
       case 'train':
       case 'game':
+      case 'sim-setup':
+      case 'sim-done':
         this.showGames();
+        return true;
+      case 'sim':
+        this.showSimSetup();
         return true;
       default:
         this.showMap();
@@ -648,6 +668,7 @@ export class App {
         ${r.step > 0 ? `<button class="ghost" data-act="prev">◂</button>` : ''}
         ${actions}
       </div>`;
+    if (step.kind === 'task') this.hideKnownCommands(panel.querySelector('.step-body')!);
 
     panel.onclick = (e) => {
       const t = (e.target as HTMLElement).closest<HTMLElement>('[data-act],[data-opt]');
@@ -744,6 +765,58 @@ export class App {
     this.renderStep(true);
   }
 
+  /** Comando "di base" di una riga: la prima parola, risolta attraverso gli alias. */
+  private baseCommand(line: string): string | null {
+    const w = line.trim().split(/\s+/)[0];
+    if (!w || w.startsWith('#')) return null;
+    if (/^[A-Za-z_]\w*=/.test(w)) return 'assign';
+    if (w.startsWith('./')) return 'script';
+    const lw = w.toLowerCase();
+    return ALIASES[w] ?? ALIASES[lw] ?? (['for', 'if', 'do', 'done', 'then', 'else', 'fi'].includes(w) ? w : w);
+  }
+
+  /** Nei compiti, sfoca i riquadri che contengono solo comandi che il giocatore ha già usato. */
+  private hideKnownCommands(container: HTMLElement): void {
+    if (!this.save.hideKnown) return;
+    const known = new Set(this.save.known);
+    container.querySelectorAll<HTMLElement>(':scope > pre.code').forEach((pre) => {
+      const cmds = pre.textContent!.split('\n').map((l) => this.baseCommand(l)).filter((c): c is string => !!c);
+      // solo veri comandi (con pagina di manuale), tutti già usati almeno una volta
+      if (!cmds.length || !cmds.every((c) => known.has(c) && (MANPAGES[c] || ['assign', 'script', 'for', 'if', 'do', 'done', 'then', 'else', 'fi'].includes(c)))) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'spoiler';
+      wrap.innerHTML = '<span class="spoiler-label">🔒 Comando già visto: prova a ricordarlo<br><small>tocca per vederlo</small></span>';
+      pre.replaceWith(wrap);
+      wrap.prepend(pre);
+      wrap.addEventListener('click', (e) => {
+        e.stopPropagation();
+        wrap.classList.add('revealed');
+      });
+    });
+  }
+
+  /** Registra i comandi usati con successo, per sapere quali nascondere. */
+  private learnCommands(events: ShellEvent[]): void {
+    let changed = false;
+    const known = new Set(this.save.known);
+    for (const ev of events) {
+      if (ev.type !== 'command' || !ev.ok) continue;
+      const name = ev.name === 'assign' ? 'assign' : ev.name;
+      if (!known.has(name)) {
+        known.add(name);
+        changed = true;
+      }
+    }
+    if (events.some((e) => e.type === 'script' && e.ok) && !known.has('script')) {
+      known.add('script');
+      changed = true;
+    }
+    if (changed) {
+      this.save.known = [...known];
+      this.persist();
+    }
+  }
+
   private persistDeck(): void {
     const sh = this.shell;
     if (!sh) return;
@@ -755,6 +828,7 @@ export class App {
     const r = this.run;
     const term = this.term!;
     this.persistDeck();
+    this.learnCommands(events);
     if (!r) {
       if (events.some((e) => e.type === 'answer'))
         term.system('Sei nel terminale libero: le flag si inviano durante le missioni.', 'info');
@@ -841,6 +915,11 @@ export class App {
     const best = (id: string, total: number) =>
       this.save.best[id] !== undefined ? `<span class="op-xp">record: ${this.save.best[id]}/${total}</span>` : '';
     const cards = html`
+      <button class="opcard sim-card" data-g="sim">
+        <span class="op-top"><span class="op-code">SEMPRE DIVERSE</span></span>
+        <span class="op-title">Simulazioni</span>
+        <span class="op-client">Sfide pratiche generate a caso sui capitoli che scegli, con tre livelli di difficoltà. Ogni partita ha dati nuovi.</span>
+      </button>
       <button class="opcard" data-g="train">
         <span class="op-top"><span class="op-code">RIPASSO</span></span>
         <span class="op-title">Allenamento</span>
@@ -858,6 +937,7 @@ export class App {
     node.addEventListener('click', (e) => {
       const id = (e.target as HTMLElement).closest<HTMLElement>('[data-g]')?.dataset.g;
       if (id === 'train') this.showTraining();
+      else if (id === 'sim') this.showSimSetup();
       else if (id) this.showGame(id);
     });
   }
@@ -941,6 +1021,265 @@ export class App {
         <div class="step-actions"><button class="next" data-t="next">${idx + 1 < deck.length ? 'Prossimo ▸' : 'Risultato ▸'}</button></div>`;
     });
     render();
+  }
+
+  // ------------------------------------------------------------- simulazioni
+
+  private showSimSetup(): void {
+    this.sim = null;
+    const avail = CHAPTERS.filter((ch) => ch.missions.some((m) => this.save.completed.includes(m.id)));
+    if (!avail.length) {
+      this.page('sim-setup', 'Simulazioni', '// sfide sempre diverse', '<p class="empty">Le simulazioni ripassano i capitoli che hai iniziato. Completa la prima missione e torna qui.</p>');
+      return;
+    }
+    const prefs = this.save.sim;
+    let chosen = new Set(prefs.chapters.filter((c) => avail.some((a) => a.id === c)));
+    if (!chosen.size) chosen = new Set(avail.map((a) => a.id));
+    let level: Level = prefs.level;
+    const node = this.page(
+      'sim-setup',
+      'Simulazioni',
+      '// sfide sempre diverse',
+      html`
+        <div class="prose"><p>Scegli cosa ripassare e la difficoltà. Il gioco genera sfide nuove ogni volta: indirizzi, nomi, file e risposte cambiano a ogni partita. Si risponde con <code>flag</code>, oppure facendo davvero il lavoro richiesto.</p></div>
+        <h3>Capitoli</h3>
+        <div class="chips">
+          <button class="chip all" data-all="1">Tutti</button>
+          ${avail.map((ch) => `<button class="chip" data-ch="${ch.id}"><b>${ch.code}</b> ${ch.title}</button>`).join('')}
+        </div>
+        <h3>Difficoltà</h3>
+        <div class="levels">
+          ${([1, 2, 3] as Level[])
+            .map((lv) => {
+              const L = LEVELS[lv];
+              const desc = lv === 1 ? 'pochi dati, suggerimenti liberi' : lv === 2 ? 'più rumore, i suggerimenti dimezzano i punti' : 'tanti dati, nessun suggerimento';
+              const best = this.save.best[`sim-${lv}`];
+              return `<button class="level" data-lv="${lv}"><b>${L.name}</b><span>${L.count} sfide · ${desc}</span>${best !== undefined ? `<span class="rec">record: ${best}/${L.count}</span>` : ''}</button>`;
+            })
+            .join('')}
+        </div>
+        <div class="step-actions"><button class="next" data-go="1">Inizia ▸</button></div>`,
+    );
+    const sync = () => {
+      node.querySelectorAll<HTMLElement>('[data-ch]').forEach((b) => b.classList.toggle('on', chosen.has(b.dataset.ch!)));
+      node.querySelectorAll<HTMLElement>('[data-lv]').forEach((b) => b.classList.toggle('on', Number(b.dataset.lv) === level));
+      node.querySelector<HTMLButtonElement>('[data-go]')!.disabled = chosen.size === 0;
+    };
+    node.addEventListener('click', (e) => {
+      const t = (e.target as HTMLElement).closest<HTMLElement>('[data-ch],[data-lv],[data-all],[data-go]');
+      if (!t) return;
+      if (t.dataset.ch) {
+        if (chosen.has(t.dataset.ch)) chosen.delete(t.dataset.ch);
+        else chosen.add(t.dataset.ch);
+      } else if (t.dataset.all) {
+        chosen = chosen.size === avail.length ? new Set() : new Set(avail.map((a) => a.id));
+      } else if (t.dataset.lv) level = Number(t.dataset.lv) as Level;
+      else if (t.dataset.go && chosen.size) {
+        this.save.sim = { chapters: [...chosen], level };
+        this.persist();
+        return this.startSim([...chosen], level);
+      }
+      sync();
+    });
+    sync();
+  }
+
+  private startSim(chapters: string[], level: Level): void {
+    const shell = buildWorld(this.save.handle!, () => this.simHint(true));
+    const seed = (Date.now() ^ Math.floor(Math.random() * 2 ** 31)) >>> 0;
+    const drills = generateSession(shell, chapters, level, seed);
+    const term = new TerminalView(shell, (ev) => this.onSimEvents(ev));
+    this.sim = { drills, idx: 0, level, chapters, results: [], hinted: drills.map(() => false), hintLevel: 0, term, shell, minimized: false, solvedNow: false };
+    term.system(`── SIMULAZIONE · ${LEVELS[level].name.toUpperCase()} · ${drills.length} sfide ──`, 'banner');
+    term.system('I file delle sfide sono nella cartella sim/. Le risposte si inviano con "flag".', 'info');
+    const node = el(html`
+      <div class="screen mission mode-task operation sim">
+        <header class="topbar">
+          <button class="iconbtn" data-act="back" aria-label="Esci dalla simulazione">◂</button>
+          <div class="tb-title">
+            <div class="tb-kicker">SIMULAZIONE · ${LEVELS[level].name.toUpperCase()}</div>
+            <div class="tb-name">Sfide sempre diverse</div>
+          </div>
+          <div class="tb-xp sim-score"></div>
+        </header>
+        <div class="stepbar"><span></span></div>
+        <section class="lesson"></section>
+        <section class="term-area"></section>
+      </div>`);
+    node.querySelector('.term-area')!.appendChild(term.el);
+    node.querySelector('[data-act="back"]')!.addEventListener('click', () => {
+      if (confirm('Uscire dalla simulazione? I progressi di questa partita andranno persi.')) this.showSimSetup();
+    });
+    this.mount('sim', node);
+    this.renderSim();
+  }
+
+  private renderSim(): void {
+    const s = this.sim;
+    const screen = this.root.querySelector<HTMLElement>('.screen.sim');
+    if (!s || !screen) return;
+    const d = s.drills[s.idx];
+    const total = s.drills.length;
+    const ok = s.results.filter((x) => x === 'ok').length;
+    screen.querySelector<HTMLElement>('.stepbar span')!.style.width = `${(s.results.length / total) * 100}%`;
+    screen.querySelector<HTMLElement>('.sim-score')!.textContent = `${ok}/${total}`;
+    screen.classList.toggle('minimized', s.minimized);
+    const chapter = CHAPTERS.find((c) => c.id === d.chapter);
+    const rule = LEVELS[s.level].hints;
+    const shown = d.hints.slice(0, s.hintLevel);
+    const panel = screen.querySelector<HTMLElement>('.lesson')!;
+    panel.innerHTML = html`
+      <div class="step-head">
+        <span class="step-kind k-task">SFIDA ${s.idx + 1}/${total}</span>
+        <span class="step-num">cap ${chapter?.code ?? ''} · ${chapter?.title ?? ''}</span>
+        <button class="iconbtn small" data-act="minimize" aria-label="Riduci pannello">${s.minimized ? '▾' : '▴'}</button>
+      </div>
+      <h2 class="step-title">${d.title}</h2>
+      <div class="step-body">
+        <div class="objective ${s.solvedNow ? 'complete' : ''}">
+          <span class="o-label">${s.solvedNow ? '✔ RISOLTA' : '▶ OBIETTIVO'}</span>
+          <span class="o-text">${renderMarkup(d.prompt)}</span>
+        </div>
+        ${shown.length ? `<ol class="hints">${shown.map((h) => `<li>${inline(h)}</li>`).join('')}</ol>` : ''}
+      </div>
+      <div class="step-actions">
+        ${
+          s.solvedNow
+            ? ''
+            : html`${rule !== 'none'
+                ? `<button class="ghost" data-act="hint" ${s.hintLevel >= d.hints.length ? 'disabled' : ''}>Suggerimento${rule === 'cost' ? ' (−50%)' : ''}</button>`
+                : ''}
+              <button class="ghost" data-act="skip">Salta</button>
+              <button class="ghost" data-act="terminal">Terminale ⌨</button>`
+        }
+      </div>`;
+    panel.onclick = (e) => {
+      const act = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset.act;
+      if (act === 'hint') {
+        this.simHint(false);
+        this.renderSim();
+      } else if (act === 'skip') {
+        s.term.system(`↷ Sfida saltata. La soluzione sarà nel riepilogo finale.`, 'info');
+        this.nextDrill('skip');
+      } else if (act === 'terminal') {
+        s.minimized = true;
+        this.renderSim();
+        s.term.focus();
+      } else if (act === 'minimize') {
+        s.minimized = !s.minimized;
+        this.renderSim();
+      }
+    };
+    if (!s.solvedNow && finePointer()) s.term.focus();
+  }
+
+  private simHint(fromShell: boolean): string | null {
+    const s = this.sim;
+    if (!s || s.solvedNow) return null;
+    const d = s.drills[s.idx];
+    if (LEVELS[s.level].hints === 'none') return 'In modalità Difficile non ci sono suggerimenti. Puoi sempre usare "man" e "cheat".';
+    const h = d.hints[Math.min(s.hintLevel, d.hints.length - 1)];
+    if (s.hintLevel < d.hints.length) s.hintLevel++;
+    s.hinted[s.idx] = true;
+    if (fromShell) queueMicrotask(() => this.renderSim());
+    return h;
+  }
+
+  private onSimEvents(events: ShellEvent[]): void {
+    const s = this.sim;
+    if (!s || s.solvedNow) return;
+    const d = s.drills[s.idx];
+    let solved = false;
+    for (const ev of events) {
+      if (ev.type === 'answer') {
+        if (!d.answer) {
+          s.term.system('Questa sfida non chiede una risposta: va fatto il lavoro richiesto.', 'info');
+          continue;
+        }
+        const v = normalizeDrillAnswer(ev.value);
+        if (d.answer.some((a) => normalizeDrillAnswer(a) === v)) solved = true;
+        else s.term.system('✘ Risposta non corretta, riprova.', 'err');
+      } else if (d.check?.(ev, s.shell)) solved = true;
+    }
+    if (!solved && d.state && events.length) {
+      try {
+        solved = d.state(s.shell);
+      } catch {
+        solved = false;
+      }
+    }
+    if (!solved) return;
+    s.solvedNow = true;
+    s.term.system(`✔ SFIDA RISOLTA (${s.idx + 1}/${s.drills.length})`, 'ok');
+    this.renderSim();
+    setTimeout(() => this.nextDrill('ok'), 1100);
+  }
+
+  private nextDrill(result: 'ok' | 'skip'): void {
+    const s = this.sim;
+    if (!s) return;
+    s.results.push(result);
+    s.idx++;
+    s.hintLevel = 0;
+    s.solvedNow = false;
+    s.minimized = false;
+    if (s.idx >= s.drills.length) return this.finishSim();
+    s.term.system(`── SFIDA ${s.idx + 1}/${s.drills.length}: ${s.drills[s.idx].title.toUpperCase()} ──`, 'banner');
+    this.renderSim();
+  }
+
+  private finishSim(): void {
+    const s = this.sim!;
+    const L = LEVELS[s.level];
+    const ok = s.results.filter((r) => r === 'ok').length;
+    let xp = 0;
+    s.results.forEach((r, i) => {
+      if (r === 'ok') xp += L.hints === 'cost' && s.hinted[i] ? L.xp / 2 : L.xp;
+    });
+    xp = Math.round(xp);
+    const key = `sim-${s.level}`;
+    const record = ok > 0 && (this.save.best[key] === undefined || ok > this.save.best[key]);
+    if (record) this.save.best[key] = ok;
+    this.save.xp += xp;
+    this.persist();
+    const rows = s.drills
+      .map((d, i) => {
+        const res = s.results[i];
+        return html`
+          <li class="finding ${res === 'ok' ? 'ok' : ''}">
+            <span class="f-mark">${res === 'ok' ? '✔' : '✘'}</span>
+            <div class="f-body">
+              <div class="f-title">${d.title}</div>
+              ${res !== 'ok'
+                ? `<div class="f-explain"><p>Una soluzione possibile:</p><pre class="code">${d.solve.map((c) => c.replace(/[&<>]/g, (x) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[x]!)).join('\n')}</pre>${d.answer ? `<p>Risposta: <code>${inline(d.answer[0]).replace(/<\/?code>/g, '')}</code></p>` : ''}</div>`
+                : ''}
+            </div>
+          </li>`;
+      })
+      .join('');
+    const node = el(html`
+      <div class="screen complete">
+        <div class="panel">
+          <div class="kicker">// simulazione · ${L.name}</div>
+          <h2>${ok}/${s.drills.length} sfide risolte</h2>
+          <div class="xp-gain">+${xp} XP</div>
+          <div class="rank-now">${record ? 'Nuovo record personale per questo livello!' : this.save.best[key] !== undefined ? `Record: ${this.save.best[key]}/${s.drills.length}` : 'Riprova: ogni partita è diversa.'}</div>
+          <ol class="findings">${rows}</ol>
+          <div class="step-actions">
+            <button class="ghost" data-act="setup">Impostazioni</button>
+            <button class="next" data-act="again">Nuova partita ▸</button>
+          </div>
+        </div>
+      </div>`);
+    const chapters = s.chapters;
+    const level = s.level;
+    this.sim = null;
+    node.addEventListener('click', (e) => {
+      const act = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset.act;
+      if (act === 'setup') this.showSimSetup();
+      if (act === 'again') this.startSim(chapters, level);
+    });
+    this.mount('sim-done', node);
   }
 
   // ------------------------------------------------------------- allenamento
@@ -1094,17 +1433,30 @@ export class App {
         <p class="sample">Esempio: <code>ls -la ~/missioni</code></p>
       </section>
       <section class="setting">
+        <h3>Allenare la memoria</h3>
+        <label class="toggle">
+          <input type="checkbox" data-act="hideknown" ${this.save.hideKnown ? 'checked' : ''} />
+          <span>Nei compiti, nascondi i comandi che hai già usato (si vedono toccandoli)</span>
+        </label>
+        <p class="small">Comandi che conosci: ${this.save.known.filter((k) => MANPAGES[k]).length}</p>
+      </section>
+      <section class="setting">
         <h3>Profilo</h3>
         <p>Handle: <b>${this.save.handle}</b> · ${this.save.xp} XP · ${this.save.completed.length} missioni completate</p>
         <button class="danger" data-act="reset">Cancella tutti i progressi</button>
       </section>
       <section class="setting">
         <h3>Informazioni</h3>
-        <p class="small">Night City Netrunning v1.0.1 · corso di ethical hacking in italiano. Tutti i sistemi, le reti e i personaggi del gioco sono simulati o inventati. Le conoscenze di sicurezza vanno usate solo su sistemi propri o con autorizzazione scritta.</p>
+        <p class="small">Night City Netrunning v1.1 · corso di ethical hacking in italiano. Tutti i sistemi, le reti e i personaggi del gioco sono simulati o inventati. Le conoscenze di sicurezza vanno usate solo su sistemi propri o con autorizzazione scritta.</p>
       </section>`;
     const node = this.page('settings', 'Opzioni', '// impostazioni', content);
     node.addEventListener('click', (e) => {
       const act = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset.act;
+      if (act === 'hideknown') {
+        this.save.hideKnown = (e.target as HTMLInputElement).checked;
+        this.persist();
+        return;
+      }
       if (act === 'font+' || act === 'font-') {
         const v = Math.round((this.save.fontScale + (act === 'font+' ? 0.1 : -0.1)) * 10) / 10;
         this.save.fontScale = Math.min(1.6, Math.max(0.8, v));

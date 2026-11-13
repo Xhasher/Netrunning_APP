@@ -41,6 +41,7 @@ jobs:
           npx cap add android
           npx cap sync android
           cp -r resources/android/res/. android/app/src/main/res/
+          node scripts/android-config.mjs
 
       - name: Compila APK
         working-directory: android

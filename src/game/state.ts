@@ -13,10 +13,16 @@ export interface SaveData {
   ops: string[];
   /** miglior punteggio nei mini giochi */
   best: Record<string, number>;
+  /** comandi che il giocatore ha già usato con successo */
+  known: string[];
+  /** nasconde nei compiti i comandi già conosciuti (da toccare per vederli) */
+  hideKnown: boolean;
+  /** ultime impostazioni delle simulazioni */
+  sim: { chapters: string[]; level: 1 | 2 | 3 };
 }
 
 export function defaultSave(): SaveData {
-  return { handle: null, xp: 0, completed: [], progress: {}, fontScale: 1, ops: [], best: {} };
+  return { handle: null, xp: 0, completed: [], progress: {}, fontScale: 1, ops: [], best: {}, known: [], hideKnown: true, sim: { chapters: [], level: 1 } };
 }
 
 export function loadSave(): SaveData {

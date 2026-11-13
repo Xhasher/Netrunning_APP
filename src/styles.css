@@ -1546,3 +1546,146 @@ pre.code {
   color: var(--text);
   font-size: 0.92rem;
 }
+
+/* ------------------------------------------------------------------ comandi nascosti */
+
+.spoiler {
+  position: relative;
+  margin: 0 0 0.9rem;
+  cursor: pointer;
+}
+
+.spoiler pre.code {
+  margin: 0;
+  filter: blur(7px);
+  user-select: none;
+  transition: filter 0.2s;
+}
+
+.spoiler-label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--yellow);
+  background: rgba(5, 5, 8, 0.35);
+  border: 1px dashed rgba(252, 238, 10, 0.5);
+  line-height: 1.4;
+  padding: 0.4rem;
+}
+
+.spoiler-label small {
+  color: var(--muted);
+}
+
+.spoiler.revealed pre.code {
+  filter: none;
+  user-select: text;
+}
+
+.spoiler.revealed .spoiler-label {
+  display: none;
+}
+
+.toggle {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.toggle input {
+  width: 1.3rem;
+  height: 1.3rem;
+  accent-color: var(--yellow);
+  flex: none;
+  margin-top: 0.15rem;
+}
+
+/* ------------------------------------------------------------------ simulazioni */
+
+.sim-card {
+  border-left-color: var(--yellow);
+  background: linear-gradient(135deg, rgba(252, 238, 10, 0.08), var(--panel));
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.chip {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.chip b {
+  color: var(--cyan);
+  margin-right: 0.2rem;
+}
+
+.chip.on {
+  border-color: var(--cyan);
+  color: var(--text);
+  background: rgba(0, 240, 255, 0.08);
+}
+
+.chip.all {
+  color: var(--yellow);
+  border-style: dashed;
+}
+
+.levels {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.level {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 0.7rem 0.9rem;
+}
+
+.level b {
+  font-family: var(--display);
+  font-size: 1.15rem;
+}
+
+.level span {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.level .rec {
+  color: var(--yellow);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.level.on {
+  border-color: var(--yellow);
+  background: rgba(252, 238, 10, 0.06);
+}
+
+.sim .objective .o-text p {
+  margin: 0;
+}
+
+.complete .findings pre.code {
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

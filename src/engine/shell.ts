@@ -1241,7 +1241,7 @@ const COMMANDS: Record<string, Command> = {
     if (range) {
       hosts = range;
       rangeSize = 256;
-      if (!target.startsWith('192.168.1.')) {
+      if (!c.sh.net.scopes.some((p) => target.startsWith(p))) {
         c.emit({ type: 'scan', target, ip: null, flags, outOfScope: true });
         return outOfScope(c, target);
       }
@@ -1258,8 +1258,7 @@ const COMMANDS: Record<string, Command> = {
       if (!res.host) unknownIp = res.ip;
     }
 
-    const lanPrefix = '192.168.1.';
-    const outside = hosts.some((h) => !h.inScope) || (unknownIp !== null && !unknownIp.startsWith(lanPrefix));
+    const outside = hosts.some((h) => !h.inScope) || (unknownIp !== null && !c.sh.net.scopes.some((p) => unknownIp!.startsWith(p)));
     if (outside) {
       c.emit({ type: 'scan', target, ip: hosts[0]?.ip ?? unknownIp, flags, outOfScope: true });
       return outOfScope(c, target);

@@ -26,6 +26,8 @@ export interface Network {
   gateway: string;
   cidr: number;
   hosts: Host[];
+  /** prefissi delle reti autorizzate dal contratto (es. "192.168.1.") */
+  scopes: string[];
 }
 
 export function createNetwork(): Network {
@@ -34,6 +36,7 @@ export function createNetwork(): Network {
     myMac: '02:4e:43:00:00:50',
     gateway: '192.168.1.1',
     cidr: 24,
+    scopes: ['192.168.1.'],
     hosts: [
       {
         ip: '192.168.1.1',

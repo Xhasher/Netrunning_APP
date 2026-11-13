@@ -4,7 +4,7 @@ Un gioco per Android che insegna **ethical hacking, penetration testing e cyber 
 
 Si gioca in un **terminale Linux simulato**: comandi, file, rete e bersagli sono tutti finti, quindi si può sperimentare senza rischi e senza connessione.
 
-## Contenuti (v1.0): il corso completo
+## Contenuti (v1.1): il corso completo
 
 | Capitolo | Missioni | Argomenti |
 |---|---|---|
@@ -25,6 +25,7 @@ Si gioca in un **terminale Linux simulato**: comandi, file, rete e bersagli sono
 Altre modalità:
 - **Operazioni**: simulatore in stile console. Ti colleghi con `ssh` ai server simulati dei clienti, indaghi con comandi reali e segnali i problemi con `report`. Nove contratti: audit di un server (OP-01), incident response su un'intrusione (OP-02), audit di un sito web (OP-03), threat hunting a partire da un bollettino di IOC (OP-04), analisi forense di rete (OP-05), impronta pubblica di un'azienda (OP-06), hardening di un server (OP-07), incidente in un dominio Windows (OP-08), audit di una configurazione cloud (OP-09).
 - **Terminale libero**: il Linux simulato senza missioni, con esercizi liberi in `palestra/`.
+- **Simulazioni**: sfide pratiche generate a caso, sempre diverse, sui capitoli scelti, con tre livelli di difficoltà (Facile, Medio, Difficile). Riepilogo finale con le soluzioni.
 - **Giochi**: *Phishing o no?* (riconoscere email e SMS truffa), *Turno al SOC* (triage degli allarmi), *Allenamento* (quiz di ripasso).
 - **Codex** (glossario) e **Carriera** (laboratori legali gratuiti, certificazioni e i **Trucchi del mestiere**: consigli pratici su terminale, metodo, studio e lavoro, uno dei quali compare a caso sulla mappa).
 - Nel terminale: `alias`, `!!`, `cheat` (promemoria rapidi per argomento).
@@ -38,6 +39,11 @@ A ogni push, GitHub Actions compila l'APK:
 
 Per installarlo su Android devi permettere l'installazione da "origini sconosciute" per il browser o il file manager.
 
+## Aggiornare l'app senza perdere i progressi
+
+Ogni APK è firmato con la stessa chiave (`signing/netrunning.keystore`) e ha un numero di versione crescente,
+quindi si installa **sopra** la versione precedente mantenendo i salvataggi.
+
 ## Sviluppo
 
 ```bash
@@ -50,10 +56,7 @@ npm run build    # build web in dist/
 Per compilare l'APK in locale servono Android Studio (SDK) e Java 21:
 
 ```bash
-npm run build
-npx cap add android   # solo la prima volta
-npx cap sync android
-cd android && ./gradlew assembleDebug
+ANDROID_HOME=/percorso/sdk ./scripts/build-apk.sh
 ```
 
 ## Struttura
