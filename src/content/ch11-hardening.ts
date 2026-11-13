@@ -140,8 +140,10 @@ L'altra regola, \`systemctl restart nginx\`, è invece un buon esempio: concede 
 Ma ogni file SUID di root è un **rischio**: se ha un difetto, o se permette di eseguire altri comandi, diventa una scorciatoia verso root. Per questo un audit elenca tutti i file SUID e verifica che siano **solo quelli standard** del sistema.
 
 \`\`\`
-find / -perm -4000 2>/dev/null
-\`\`\``,
+find /usr -perm -4000 2>/dev/null
+\`\`\`
+
+(Con \`/\` al posto di \`/usr\` la ricerca parte dalla radice, cioè da tutto il sistema.)`,
         },
         {
           kind: 'task',

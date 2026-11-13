@@ -1,5 +1,9 @@
 // Il "deck": il computer virtuale del giocatore, con tutti i file usati dalle missioni.
 
+import '../engine/coreutils';
+import '../engine/manual';
+import '../engine/sysinfo';
+import '../engine/textlang';
 import { createNetwork } from '../engine/network';
 import { Shell } from '../engine/shell';
 import type { Host } from '../engine/network';
@@ -289,6 +293,17 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
 
   // Capitolo 07 — sito del jukebox
   fs.writeFile(`${home}/web/access.log`, buildAccessLog(), mine);
+
+  // crontab di sistema e dell'utente (per le schede di cron)
+  fs.writeFile(
+    '/etc/crontab',
+    ['# /etc/crontab: lavori programmati di sistema', '# m h dom mon dow user  command', '17 *  * * *  root  cd / && run-parts --report /etc/cron.hourly', '25 6  * * *  root  test -x /usr/sbin/anacron || run-parts --report /etc/cron.daily'].join('\n') + '\n',
+  );
+  fs.writeFile(
+    `/var/spool/cron/crontabs/${user}`,
+    ['# crontab dell\'utente', '# m h dom mon dow  comando', '*/30 * * * *  /home/' + user + '/script/pulizia.sh', '0 3 * * 1  /home/' + user + '/script/backup.sh'].join('\n') + '\n',
+    { owner: user, group: user, perms: 'rw-------' },
+  );
 
   // Terminale libero — la palestra
   fs.writeFile(

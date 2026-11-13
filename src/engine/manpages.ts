@@ -9,6 +9,18 @@ export interface ManPage {
   options?: [string, string][];
   examples?: [string, string][];
   game?: boolean; // comando del gioco, non esiste nel vero Linux
+  /** categoria per il Manuale */
+  cat?: string;
+  /** consigli d'uso, errori comuni, note di sicurezza */
+  notes?: string[];
+  /** comandi collegati */
+  see?: string[];
+}
+
+/** Aggiunge o completa la scheda di un comando. */
+export function doc(name: string, d: Partial<ManPage>): void {
+  const base: ManPage = MANPAGES[name] ?? { name, short: '', synopsis: name, description: [] };
+  MANPAGES[name] = { ...base, ...d, name };
 }
 
 export const MANPAGES: Record<string, ManPage> = {

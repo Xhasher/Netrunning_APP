@@ -151,19 +151,29 @@ Invia il numero con \`flag\`.`,
         {
           kind: 'lesson',
           title: 'La catena dell\'analista',
-          body: `Per sapere quali IP hanno provato più spesso, usiamo una catena di comandi che ogni analista conosce a memoria:
+          body: `Per sapere quali IP hanno provato più spesso, si usa una catena di comandi che ogni analista conosce a memoria. La spieghiamo su un log DIVERSO da quello del caso: il registro di un server FTP, dove ogni riga ha questa forma:
 
 \`\`\`
-grep "Failed password" caso/auth.log | cut -d " " -f 11 | sort | uniq -c
+Nov 12 08:01:22 files vsftpd[310]: FAIL LOGIN: Client "198.51.100.7"
+\`\`\`
+
+Per trovare il campo che ti serve, **conta le parole** separate da spazi: Nov(1) 12(2) 08:01:22(3) files(4) vsftpd[310]:(5) FAIL(6) LOGIN:(7) Client(8) **"198.51.100.7"(9)**. L'indirizzo è la nona.
+
+La catena per contare i tentativi per IP sarebbe quindi:
+
+\`\`\`
+grep "FAIL LOGIN" ftp.log | cut -d " " -f 9 | sort | uniq -c
 \`\`\`
 
 Passo per passo:
-1. \`grep "Failed password" ...\` → solo le righe dei tentativi falliti
-2. \`cut -d " " -f 11\` → divide ogni riga sugli spazi e tiene l'**11ª parola**, cioè l'indirizzo IP. Contale: Nov(1) 12(2) ora(3) server(4) sshd(5) Failed(6) password(7) for(8) utente(9) from(10) **IP(11)**
+1. \`grep "FAIL LOGIN" ...\` → solo le righe dei tentativi falliti
+2. \`cut -d " " -f 9\` → divide ogni riga sugli spazi e tiene la **9ª parola**, cioè l'IP
 3. \`sort\` → ordina gli IP, così quelli uguali finiscono vicini
 4. \`uniq -c\` → li raggruppa e scrive quante volte compare ciascuno
 
-Il risultato è una piccola **statistica**: quante volte ha provato ogni indirizzo.`,
+Il risultato è una piccola **statistica**: quante volte ha provato ogni indirizzo.
+
+Per il log del caso dovrai ripetere il ragionamento: guarda com'è fatta UNA riga di \`caso/auth.log\`, conta le parole e trova la posizione dell'IP. È la stessa tecnica, con un numero diverso.`,
         },
         {
           kind: 'task',

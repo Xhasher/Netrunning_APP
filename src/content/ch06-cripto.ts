@@ -162,7 +162,7 @@ Cambia solo una lettera maiuscola... guarda quanto è diverso il risultato.`,
 
 Tu calcoli l'impronta di quello che hai scaricato e la confronti. Se è identica, il file è integro. Se è diversa, **qualcuno l'ha modificato**.
 
-Il comando \`sha256sum -c SHA256SUMS\` fa il confronto in automatico per tutti i file della lista.
+Il comando \`sha256sum -c ELENCO.sha256\` (il nome della lista cambia da progetto a progetto) fa il confronto in automatico per tutti i file indicati.
 
 ?? I difensori usano lo stesso principio per sorvegliare i server: si salvano le impronte dei file di sistema, e un programma (come AIDE o Tripwire) avvisa se qualcosa cambia. Si chiama **FIM**, *File Integrity Monitoring*.`,
         },

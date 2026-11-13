@@ -10,9 +10,14 @@ function escapeHtml(s: string): string {
 }
 
 export function inline(s: string): string {
-  return escapeHtml(s)
+  const html = escapeHtml(s)
     .replace(/`([^`]+)`/g, '<code>$1</code>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  // *corsivo*: solo fuori dal codice e solo se gli asterischi sono attaccati alle parole
+  return html
+    .split(/(<code>.*?<\/code>)/)
+    .map((part) => (part.startsWith('<code>') ? part : part.replace(/(^|[\s(])\*([^\s*](?:[^*\n]*[^\s*])?)\*(?=[\s).,;:!?]|$)/g, '$1<em>$2</em>')))
+    .join('');
 }
 
 export function renderMarkup(src: string): string {

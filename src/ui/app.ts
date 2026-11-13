@@ -24,7 +24,9 @@ import {
   type SaveData,
 } from '../game/state';
 import type { Chapter, Mission, QuizStep, Step } from '../game/types';
-import { ALIASES, MANPAGES } from '../engine/manpages';
+import { MANPAGES } from '../engine/manpages';
+import { PROSE_SKIP, cmdName, commandsInLine, commandsInMarkup, taughtBefore } from '../game/commands';
+import { openManual } from './manual';
 import { inline, renderMarkup } from './markup';
 import { TerminalView } from './terminal';
 
@@ -231,6 +233,7 @@ export class App {
         </header>
         <nav class="mapnav">
           <button data-act="ops">Operazioni</button>
+          <button data-act="manual">Manuale</button>
           <button data-act="sandbox">Terminale</button>
           <button data-act="games">Giochi</button>
           <button data-act="codex">Codex</button>
@@ -317,6 +320,7 @@ export class App {
       else if (t.dataset.act === 'train') this.showTraining();
       else if (t.dataset.act === 'sandbox') this.showSandbox();
       else if (t.dataset.act === 'ops') this.showOps();
+      else if (t.dataset.act === 'manual') openManual();
       else if (t.dataset.act === 'games') this.showGames();
       else if (t.dataset.act === 'career') this.showCareer();
       else if (t.dataset.act === 'settings') this.showSettings();
@@ -393,6 +397,7 @@ export class App {
       </div>`);
     node.querySelector('.term-area')!.appendChild(term.el);
     node.querySelector('[data-act="back"]')!.addEventListener('click', () => this.showOps());
+    this.addManualButton(node);
     this.mount('operation', node);
     this.renderOp();
   }
@@ -545,6 +550,7 @@ export class App {
       </div>`);
     node.querySelector('.term-area')!.appendChild(term.el);
     node.querySelector('[data-act="map"]')!.addEventListener('click', () => this.showMap());
+    this.addManualButton(node);
     this.mount('sandbox', node);
     if (finePointer()) term.focus();
   }
@@ -590,6 +596,7 @@ export class App {
       </div>`);
     node.querySelector('.term-area')!.appendChild(term.el);
     node.querySelector('[data-act="map"]')!.addEventListener('click', () => this.showMap());
+    this.addManualButton(node);
     this.mount('mission', node);
     this.renderStep();
   }
@@ -623,6 +630,8 @@ export class App {
 
     if (step.kind === 'lesson') {
       body = renderMarkup(step.body);
+      const refs = commandsInMarkup(step.body).filter((c) => MANPAGES[c]?.description?.length && c !== 'assign' && c !== 'script');
+      if (refs.length) body += `<div class="refs">📖 Schede complete:${refs.map((c) => `<button class="chip" data-ref="${c}">${c}</button>`).join('')}</div>`;
       actions = `<button class="next" data-act="next">Avanti ▸</button>`;
     } else if (step.kind === 'task') {
       const hints = step.hints.slice(0, r.hintLevel);
@@ -674,11 +683,12 @@ export class App {
         ${r.step > 0 ? `<button class="ghost" data-act="prev">◂</button>` : ''}
         ${actions}
       </div>`;
-    if (step.kind === 'task') this.hideKnownCommands(panel.querySelector('.step-body')!);
+    if (step.kind === 'task' && !done) this.hideTaskCommands(panel.querySelector('.step-body')!, r.mission.id, r.step);
 
     panel.onclick = (e) => {
-      const t = (e.target as HTMLElement).closest<HTMLElement>('[data-act],[data-opt]');
+      const t = (e.target as HTMLElement).closest<HTMLElement>('[data-act],[data-opt],[data-ref]');
       if (!t) return;
+      if (t.dataset.ref) return openManual(t.dataset.ref);
       if (t.dataset.opt !== undefined) return this.pickOption(Number(t.dataset.opt));
       switch (t.dataset.act) {
         case 'next':
@@ -771,33 +781,63 @@ export class App {
     this.renderStep(true);
   }
 
-  /** Comando "di base" di una riga: la prima parola, risolta attraverso gli alias. */
-  private baseCommand(line: string): string | null {
-    const w = line.trim().split(/\s+/)[0];
-    if (!w || w.startsWith('#')) return null;
-    if (/^[A-Za-z_]\w*=/.test(w)) return 'assign';
-    if (w.startsWith('./')) return 'script';
-    const lw = w.toLowerCase();
-    return ALIASES[w] ?? ALIASES[lw] ?? (['for', 'if', 'do', 'done', 'then', 'else', 'fi'].includes(w) ? w : w);
-  }
-
-  /** Nei compiti, sfoca i riquadri che contengono solo comandi che il giocatore ha già usato. */
-  private hideKnownCommands(container: HTMLElement): void {
+  /**
+   * Nei compiti sfoca i comandi che il giocatore ha già visto in una lezione o usato
+   * con successo: blocchi di codice, codice nel testo e parole-comando negli obiettivi.
+   * Si aprono con un tocco, così deve sforzarsi di ricordarli.
+   */
+  private hideTaskCommands(container: HTMLElement, missionId: string, stepIdx: number): void {
     if (!this.save.hideKnown) return;
-    const known = new Set(this.save.known);
+    const hideable = new Set([...this.save.known, ...taughtBefore(missionId, stepIdx)]);
+    const ok = (cmds: string[]) => cmds.length > 0 && cmds.every((c) => hideable.has(c));
+    const makeReveal = (el: HTMLElement) =>
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        el.classList.add('revealed');
+      });
+
+    // 1) blocchi di codice
     container.querySelectorAll<HTMLElement>(':scope > pre.code').forEach((pre) => {
-      const cmds = pre.textContent!.split('\n').map((l) => this.baseCommand(l)).filter((c): c is string => !!c);
-      // solo veri comandi (con pagina di manuale), tutti già usati almeno una volta
-      if (!cmds.length || !cmds.every((c) => known.has(c) && (MANPAGES[c] || ['assign', 'script', 'for', 'if', 'do', 'done', 'then', 'else', 'fi'].includes(c)))) return;
+      const cmds = pre.textContent!.split('\n').flatMap((l) => commandsInLine(l.replace(/^[$#]\s*/, '')));
+      if (!ok(cmds)) return;
       const wrap = document.createElement('div');
       wrap.className = 'spoiler';
       wrap.innerHTML = '<span class="spoiler-label">🔒 Comando già visto: prova a ricordarlo<br><small>tocca per vederlo</small></span>';
       pre.replaceWith(wrap);
       wrap.prepend(pre);
-      wrap.addEventListener('click', (e) => {
-        e.stopPropagation();
-        wrap.classList.add('revealed');
-      });
+      makeReveal(wrap);
+    });
+
+    // 2) codice nel testo (es. "controlla con `ls` che ci sia")
+    container.querySelectorAll<HTMLElement>('code').forEach((code) => {
+      if (code.closest('pre, .spoiler, .hints, .ispoiler')) return;
+      if (!ok(commandsInLine(code.textContent ?? ''))) return;
+      code.classList.add('ispoiler');
+      makeReveal(code);
+    });
+
+    // 3) parole-comando negli obiettivi ("Leggi il file con cat")
+    container.querySelectorAll<HTMLElement>('.objective .o-text').forEach((box) => {
+      const walker = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
+      const nodes: Text[] = [];
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) nodes.push(n as Text);
+      for (const node of nodes) {
+        if (node.parentElement?.closest('.ispoiler')) continue;
+        const parts = node.data.split(/(\b[a-z][a-z0-9_-]*\b)/);
+        if (parts.length < 2 || !parts.some((w) => w && w === w.toLowerCase() && !PROSE_SKIP.has(w) && cmdName(w) && hideable.has(cmdName(w)!))) continue;
+        const frag = document.createDocumentFragment();
+        for (const part of parts) {
+          const c = cmdName(part);
+          if (part && /^[a-z]/.test(part) && c && !PROSE_SKIP.has(part) && hideable.has(c)) {
+            const sp = document.createElement('span');
+            sp.className = 'ispoiler';
+            sp.textContent = part;
+            makeReveal(sp);
+            frag.appendChild(sp);
+          } else frag.appendChild(document.createTextNode(part));
+        }
+        node.replaceWith(frag);
+      }
     });
   }
 
@@ -837,6 +877,18 @@ export class App {
     if (!sh) return null;
     const diff = sh.localFs.diffFrom(this.pristineHome(), `/home/${this.save.handle}`);
     return { home: diff.tree, deleted: diff.deleted, aliases: sh.userAliases };
+  }
+
+  /** Aggiunge alla barra in alto il pulsante che apre il Manuale. */
+  private addManualButton(node: HTMLElement): void {
+    const bar = node.querySelector('.topbar');
+    if (!bar) return;
+    const b = document.createElement('button');
+    b.className = 'iconbtn';
+    b.setAttribute('aria-label', 'Apri il manuale');
+    b.textContent = '📖';
+    b.addEventListener('click', () => openManual());
+    bar.appendChild(b);
   }
 
   private persistDeck(): void {
@@ -1130,6 +1182,7 @@ export class App {
     node.querySelector('[data-act="back"]')!.addEventListener('click', () => {
       if (confirm('Uscire dalla simulazione? I progressi di questa partita andranno persi.')) this.showSimSetup();
     });
+    this.addManualButton(node);
     this.mount('sim', node);
     this.renderSim();
   }
@@ -1487,7 +1540,7 @@ export class App {
       </section>
       <section class="setting">
         <h3>Informazioni</h3>
-        <p class="small">Night City Netrunning v1.1.1 · corso di ethical hacking in italiano. Tutti i sistemi, le reti e i personaggi del gioco sono simulati o inventati. Le conoscenze di sicurezza vanno usate solo su sistemi propri o con autorizzazione scritta.</p>
+        <p class="small">Night City Netrunning v1.2 · corso di ethical hacking in italiano. Tutti i sistemi, le reti e i personaggi del gioco sono simulati o inventati. Le conoscenze di sicurezza vanno usate solo su sistemi propri o con autorizzazione scritta.</p>
       </section>`;
     const node = this.page('settings', 'Opzioni', '// impostazioni', content);
     node.addEventListener('click', (e) => {

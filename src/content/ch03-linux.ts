@@ -360,12 +360,12 @@ find ~ -name "*.bak"
           body: `Ecco l'idea più potente di Linux. Ogni comando fa **una cosa sola**, ma si possono **collegare** con il simbolo \`|\` (si chiama *pipe*, "tubo"): l'output del primo comando diventa l'input del secondo.
 
 \`\`\`
-cat /etc/passwd | grep bash | wc -l
+cat /etc/group | grep sudo | wc -l
 \`\`\`
 
 Si legge da sinistra a destra:
-1. \`cat /etc/passwd\` → stampa tutti gli utenti
-2. \`| grep bash\` → tiene solo le righe che contengono "bash"
+1. \`cat /etc/group\` → stampa tutti i gruppi del sistema
+2. \`| grep sudo\` → tiene solo le righe che contengono "sudo"
 3. \`| wc -l\` → conta quante righe sono rimaste
 
 Altri comandi utili da mettere nei tubi:

@@ -13,7 +13,7 @@ interface OutLine extends Line {
   stream: Stream;
 }
 
-interface Ctx {
+export interface Ctx {
   sh: Shell;
   name: string;
   args: string[];
@@ -28,7 +28,7 @@ interface Ctx {
   sink: Sink;
 }
 
-type Command = (c: Ctx) => number;
+export type Command = (c: Ctx) => number;
 
 /** Un server remoto simulato. */
 export interface RemoteSystem {
@@ -133,7 +133,7 @@ function tokenize(line: string, ex?: Expander): Token[] | { error: string } {
     const ch = line[i];
     if (quote) {
       if (ch === quote) quote = null;
-      else if (ch === '\\' && quote === '"' && i + 1 < line.length) cur += line[++i];
+      else if (ch === '\\' && quote === '"' && i + 1 < line.length && '"\\$`'.includes(line[i + 1])) cur += line[++i];
       else if (ch === '$' && quote === '"') {
         const r = expand(i);
         if (r) {
@@ -224,7 +224,9 @@ function splitStatements(src: string): Stmt[] {
       cur += ch;
       continue;
     }
-    if (ch === '"' || ch === "'") {
+    if (ch === '\\' && i + 1 < src.length) {
+      cur += ch + src[++i];
+    } else if (ch === '"' || ch === "'") {
       q = ch;
       cur += ch;
     } else if (ch === '$' && src[i + 1] === '(') {
@@ -319,7 +321,7 @@ function globToRegex(pat: string): RegExp {
 }
 
 /** Separa le opzioni brevi (-la → l, a) dagli argomenti. */
-function splitShortFlags(args: string[]): { flags: Set<string>; rest: string[] } {
+export function splitShortFlags(args: string[]): { flags: Set<string>; rest: string[] } {
   const flags = new Set<string>();
   const rest: string[] = [];
   for (const a of args) {
@@ -338,12 +340,12 @@ function levenshtein(a: string, b: string): number {
   return d[a.length][b.length];
 }
 
-function dirnameOf(p: string): string {
+export function dirnameOf(p: string): string {
   const i = p.lastIndexOf('/');
   return i <= 0 ? '/' : p.slice(0, i);
 }
 
-function splitLines(s: string): string[] {
+export function splitLines(s: string): string[] {
   const lines = s.split('\n');
   if (lines.length && lines[lines.length - 1] === '') lines.pop();
   return lines;
@@ -833,7 +835,7 @@ export class Shell {
 
 // ---------------------------------------------------------------- helpers
 
-function readText(c: Ctx, files: string[], cmdName: string): string | null {
+export function readText(c: Ctx, files: string[], cmdName: string): string | null {
   if (files.length === 0) {
     if (c.stdin !== null) return c.stdin;
     c.err(`${cmdName}: manca il nome del file`);
@@ -861,7 +863,7 @@ function readText(c: Ctx, files: string[], cmdName: string): string | null {
   return text;
 }
 
-function longEntry(sh: Shell, name: string, node: VNode): Line {
+export function longEntry(sh: Shell, name: string, node: VNode): Line {
   const type = node.type === 'dir' ? 'd' : '-';
   const links = node.type === 'dir' ? 2 + [...node.children.values()].filter((n) => n.type === 'dir').length : 1;
   const size = String(sh.fs.size(node)).padStart(5);
@@ -874,7 +876,7 @@ function longEntry(sh: Shell, name: string, node: VNode): Line {
 
 // ---------------------------------------------------------------- comandi
 
-const COMMANDS: Record<string, Command> = {
+export const COMMANDS: Record<string, Command> = {
   help(c) {
     c.out('Comandi disponibili in questo deck:', 'dim');
     const pages = Object.values(MANPAGES);
@@ -908,7 +910,7 @@ const COMMANDS: Record<string, Command> = {
     for (const d of page.description) c.out(`    ${d}`);
     if (page.options?.length) {
       c.out('OPZIONI', 'ok');
-      for (const [o, d] of page.options) c.out(`    ${o.padEnd(6)} ${d}`);
+      for (const [o, d] of page.options) c.out(`    ${o.padEnd(12)} ${d}`);
     }
     if (page.examples?.length) {
       c.out('ESEMPI', 'ok');
@@ -916,6 +918,14 @@ const COMMANDS: Record<string, Command> = {
         c.out(`    $ ${e}`, 'dir');
         c.out(`      ${d}`, 'dim');
       }
+    }
+    if (page.notes?.length) {
+      c.out('NOTE', 'ok');
+      for (const n of page.notes) c.out(`    • ${n}`);
+    }
+    if (page.see?.length) {
+      c.out('VEDI ANCHE', 'ok');
+      c.out(`    ${page.see.join(', ')}`, 'dim');
     }
     return 0;
   },
@@ -2263,7 +2273,7 @@ const COMMANDS: Record<string, Command> = {
   },
 };
 
-function applyMode(perms: string, mode: string): string | null {
+export function applyMode(perms: string, mode: string): string | null {
   if (/^[0-7]{3}$/.test(mode)) {
     return mode
       .split('')

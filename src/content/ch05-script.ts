@@ -328,10 +328,10 @@ for i in $(seq 1 5); do echo "Giro $i"; done
 \`\`\`
 
 \`\`\`
-for f in caso/*; do echo "== $f"; wc -l $f; done
+for f in missioni/*.txt; do echo "== $f"; wc -w $f; done
 \`\`\`
 
-L'ultimo usa un **carattere jolly**: \`caso/*\` diventa la lista di tutti i file nella cartella caso. Nel terminale puoi scrivere tutto su una riga separando con \`;\`.`,
+L'ultimo usa un **carattere jolly**: \`missioni/*.txt\` diventa la lista di tutti i file di testo nella cartella missioni. Nel terminale puoi scrivere tutto su una riga separando con \`;\`.`,
         },
         {
           kind: 'task',

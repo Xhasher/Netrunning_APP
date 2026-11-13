@@ -1726,3 +1726,197 @@ pre.code {
   padding: 0.6rem;
   font-size: 0.9rem;
 }
+
+.ispoiler {
+  filter: blur(5px);
+  cursor: pointer;
+  user-select: none;
+  transition: filter 0.2s;
+  border-radius: 3px;
+  background: rgba(252, 238, 10, 0.1);
+}
+
+.ispoiler.revealed {
+  filter: none;
+  background: transparent;
+  user-select: text;
+}
+
+/* ------------------------------------------------------------------ manuale */
+
+.manual-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  padding-top: var(--safe-top);
+}
+
+.man-search {
+  padding: 0.6rem 0.9rem 0.2rem;
+}
+
+.man-search input {
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 1rem;
+  padding: 0.7rem 0.9rem;
+}
+
+.man-search input:focus {
+  outline: none;
+  border-color: var(--cyan);
+}
+
+.man-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.4rem 0.9rem calc(2rem + var(--safe-bottom));
+}
+
+.man-cat h3,
+.man-body h3 {
+  font-family: var(--display);
+  font-size: 1.05rem;
+  letter-spacing: 0.06em;
+  color: var(--cyan);
+  text-transform: uppercase;
+  margin: 1.2rem 0 0.5rem;
+}
+
+.man-body h3 small {
+  color: var(--muted);
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: var(--sans);
+  font-size: 0.75rem;
+}
+
+.man-item {
+  display: flex;
+  gap: 0.8rem;
+  align-items: baseline;
+  width: 100%;
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--cyan-dim);
+  padding: 0.55rem 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.man-item b {
+  font-family: var(--mono);
+  color: var(--green);
+  min-width: 5.5rem;
+  flex: none;
+}
+
+.man-item span {
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.man-title {
+  font-family: var(--mono);
+  font-size: 1.6rem;
+  color: var(--green);
+  margin: 0.8rem 0 0.1rem;
+}
+
+.man-short {
+  margin: 0 0 0.8rem;
+  color: var(--muted);
+}
+
+.man-opts > div {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, 34%) 1fr;
+  gap: 0.7rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.man-opts dt code {
+  white-space: normal;
+}
+
+.man-opts dd {
+  margin: 0;
+  font-size: 0.92rem;
+  color: #d3d7e6;
+}
+
+.man-ex,
+.man-notes {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.man-ex li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.7rem;
+}
+
+.man-cmd {
+  text-align: left;
+  background: #050508;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--cyan);
+  padding: 0.55rem 0.7rem;
+}
+
+.man-cmd code {
+  background: none;
+  border: 0;
+  color: var(--green);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 0;
+  font-size: 0.84rem;
+}
+
+.man-cmd.copied {
+  border-left-color: var(--yellow);
+}
+
+.man-ex li > span {
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.man-notes li {
+  padding: 0.55rem 0.75rem;
+  margin-bottom: 0.45rem;
+  border: 1px solid rgba(252, 238, 10, 0.3);
+  background: rgba(252, 238, 10, 0.04);
+  font-size: 0.92rem;
+}
+
+.refs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.8rem 0 0.2rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.refs .chip {
+  padding: 0.3rem 0.65rem;
+  font-family: var(--mono);
+  color: var(--green);
+}
+
+.mapnav button:last-child:nth-child(odd) {
+  grid-column: span 3;
+}

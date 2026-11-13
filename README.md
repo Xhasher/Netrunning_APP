@@ -4,7 +4,7 @@ Un gioco per Android che insegna **ethical hacking, penetration testing e cyber 
 
 Si gioca in un **terminale Linux simulato**: comandi, file, rete e bersagli sono tutti finti, quindi si può sperimentare senza rischi e senza connessione.
 
-## Contenuti (v1.1): il corso completo
+## Contenuti (v1.2)
 
 | Capitolo | Missioni | Argomenti |
 |---|---|---|
@@ -25,6 +25,8 @@ Si gioca in un **terminale Linux simulato**: comandi, file, rete e bersagli sono
 Altre modalità:
 - **Operazioni**: simulatore in stile console. Ti colleghi con `ssh` ai server simulati dei clienti, indaghi con comandi reali e segnali i problemi con `report`. Nove contratti: audit di un server (OP-01), incident response su un'intrusione (OP-02), audit di un sito web (OP-03), threat hunting a partire da un bollettino di IOC (OP-04), analisi forense di rete (OP-05), impronta pubblica di un'azienda (OP-06), hardening di un server (OP-07), incidente in un dominio Windows (OP-08), audit di una configurazione cloud (OP-09).
 - **Terminale libero**: il Linux simulato senza missioni, con esercizi liberi in `palestra/`.
+- **Manuale**: ~85 schede di comandi e concetti della shell (pipe, redirezioni, variabili, cicli, regex), con tutte le opzioni, esempi diversi dagli esercizi (verificati da un test automatico) e note sull'uso professionale. Si apre dal pulsante in mappa e dal libro 📖 in ogni schermata; le lezioni linkano le schede dei comandi che spiegano. `man COMANDO` mostra la stessa scheda nel terminale.
+- **Comandi nascosti nei compiti**: i comandi spiegati in una lezione o già usati compaiono sfocati e si aprono al tocco, per costringerti a ricordarli (si disattiva in Opzioni).
 - **Simulazioni**: sfide pratiche generate a caso, sempre diverse, sui capitoli scelti, con tre livelli di difficoltà (Facile, Medio, Difficile). Riepilogo finale con le soluzioni.
 - **Giochi**: *Phishing o no?* (riconoscere email e SMS truffa), *Turno al SOC* (triage degli allarmi), *Allenamento* (quiz di ripasso).
 - **Codex** (glossario) e **Carriera** (laboratori legali gratuiti, certificazioni e i **Trucchi del mestiere**: consigli pratici su terminale, metodo, studio e lavoro, uno dei quali compare a caso sulla mappa).
@@ -48,6 +50,10 @@ precedente mantenendo i salvataggi.
 Se un aggiornamento viene rifiutato (di solito perché la copia installata è firmata con un'altra chiave),
 Android non permette di forzarlo: in **Opzioni → Backup dei progressi** c'è un codice da copiare prima di reinstallare,
 e **Recupera progressi** permette di ripartire da un capitolo.
+
+## Piano del corso
+
+`COURSE.md` elenca cosa è coperto e cosa manca per arrivare a un livello junior.
 
 ## Sviluppo
 
