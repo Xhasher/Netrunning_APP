@@ -5,9 +5,12 @@ import { TIPS, randomTip } from '../content/tips';
 import { OPERATIONS, matchFinding, type Operation } from '../content/operations';
 import { buildWorld } from '../content/world';
 import type { Shell } from '../engine/shell';
+import type { Vfs } from '../engine/vfs';
 import type { ShellEvent } from '../engine/types';
 import { evaluate, stateOk } from '../game/logic';
 import {
+  makeBackup,
+  parseBackup,
   clearDeck,
   clearSave,
   loadDeck,
@@ -50,6 +53,8 @@ const finePointer = () => window.matchMedia?.('(pointer: fine)').matches ?? fals
 export class App {
   private save: SaveData = loadSave();
   private shell: Shell | null = null;
+  private pristine: Vfs | null = null;
+  private pristineFor: string | null = null;
   private term: TerminalView | null = null;
   private run: MissionRun | null = null;
   private sim: {
@@ -132,6 +137,7 @@ export class App {
       // ripristina i file e gli alias della sessione precedente
       const saved = loadDeck();
       if (saved?.home) this.shell.fs.overlay(this.shell.home, saved.home);
+      if (saved?.deleted?.length) this.shell.fs.removePaths(saved.deleted);
       if (saved?.aliases) this.shell.userAliases = { ...saved.aliases };
       this.term = new TerminalView(this.shell, (ev) => this.onShellEvents(ev));
       this.term.system('NightOS 2077 · deck di addestramento', 'banner');
@@ -817,11 +823,25 @@ export class App {
     }
   }
 
-  private persistDeck(): void {
+  /** La home "pulita", per sapere cosa ha modificato il giocatore. */
+  private pristineHome(): Vfs {
+    if (!this.pristine || this.pristineFor !== this.save.handle) {
+      this.pristine = buildWorld(this.save.handle!).localFs;
+      this.pristineFor = this.save.handle;
+    }
+    return this.pristine;
+  }
+
+  private deckData(): { home: unknown; deleted: string[]; aliases: Record<string, string> } | null {
     const sh = this.shell;
-    if (!sh) return;
-    const home = `/home/${this.save.handle}`;
-    saveDeck({ home: sh.localFs.serialize(home), aliases: sh.userAliases });
+    if (!sh) return null;
+    const diff = sh.localFs.diffFrom(this.pristineHome(), `/home/${this.save.handle}`);
+    return { home: diff.tree, deleted: diff.deleted, aliases: sh.userAliases };
+  }
+
+  private persistDeck(): void {
+    const d = this.deckData();
+    if (d) saveDeck(d);
   }
 
   private onShellEvents(events: ShellEvent[]): void {
@@ -1441,13 +1461,33 @@ export class App {
         <p class="small">Comandi che conosci: ${this.save.known.filter((k) => MANPAGES[k]).length}</p>
       </section>
       <section class="setting">
+        <h3>Backup dei progressi</h3>
+        <p class="small">Il codice contiene i tuoi progressi e i file del deck. Copialo e conservalo (un messaggio a te stesso, un file di note): se dovrai reinstallare l'app, lo incolli qui e riparti da dove eri.</p>
+        <div class="step-actions">
+          <button class="ghost" data-act="backup-show">Mostra codice</button>
+          <button class="ghost" data-act="backup-restore">Ripristina da codice</button>
+        </div>
+        <textarea class="backup-box" rows="5" placeholder="Il codice appare qui. Per ripristinare, incollalo qui e tocca «Ripristina da codice»." spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+        <div class="backup-msg small" aria-live="polite"></div>
+      </section>
+      <section class="setting">
+        <h3>Recupera progressi</h3>
+        <p class="small">Hai cambiato versione dell'app e riparti da zero? Segna come già svolti i capitoli che hai completato prima. Ricevi gli XP corrispondenti e le Operazioni collegate si sbloccano.</p>
+        <div class="font-row">
+          <select class="skip-select" aria-label="Capitoli già completati">
+            ${CHAPTERS.map((ch) => `<option value="${ch.id}">Fino al capitolo ${ch.code} · ${ch.title}</option>`).join('')}
+          </select>
+          <button class="ghost" data-act="skip-to">Segna</button>
+        </div>
+      </section>
+      <section class="setting">
         <h3>Profilo</h3>
         <p>Handle: <b>${this.save.handle}</b> · ${this.save.xp} XP · ${this.save.completed.length} missioni completate</p>
         <button class="danger" data-act="reset">Cancella tutti i progressi</button>
       </section>
       <section class="setting">
         <h3>Informazioni</h3>
-        <p class="small">Night City Netrunning v1.1 · corso di ethical hacking in italiano. Tutti i sistemi, le reti e i personaggi del gioco sono simulati o inventati. Le conoscenze di sicurezza vanno usate solo su sistemi propri o con autorizzazione scritta.</p>
+        <p class="small">Night City Netrunning v1.1.1 · corso di ethical hacking in italiano. Tutti i sistemi, le reti e i personaggi del gioco sono simulati o inventati. Le conoscenze di sicurezza vanno usate solo su sistemi propri o con autorizzazione scritta.</p>
       </section>`;
     const node = this.page('settings', 'Opzioni', '// impostazioni', content);
     node.addEventListener('click', (e) => {
@@ -1455,6 +1495,57 @@ export class App {
       if (act === 'hideknown') {
         this.save.hideKnown = (e.target as HTMLInputElement).checked;
         this.persist();
+        return;
+      }
+      const box = node.querySelector<HTMLTextAreaElement>('.backup-box')!;
+      const msg = node.querySelector<HTMLElement>('.backup-msg')!;
+      if (act === 'backup-show') {
+        this.persistDeck();
+        const code = makeBackup(this.save, this.deckData() ?? loadDeck());
+        box.value = code;
+        box.select();
+        let copied = false;
+        try {
+          void navigator.clipboard?.writeText(code);
+          copied = !!navigator.clipboard;
+        } catch {
+          copied = false;
+        }
+        msg.textContent = copied ? 'Codice copiato negli appunti. Incollalo in un posto sicuro.' : 'Seleziona tutto il testo e copialo in un posto sicuro.';
+        return;
+      }
+      if (act === 'backup-restore') {
+        const parsed = parseBackup(box.value);
+        if (!parsed) {
+          msg.textContent = 'Codice non valido: incollalo per intero, deve iniziare con NCB1:';
+          return;
+        }
+        if (!confirm(`Ripristinare il backup di «${parsed.save.handle ?? '?'}» (${parsed.save.xp} XP, ${parsed.save.completed.length} missioni)? I progressi attuali verranno sostituiti.`)) return;
+        this.save = parsed.save;
+        this.persist();
+        if (parsed.deck && typeof parsed.deck === 'object') saveDeck(parsed.deck);
+        this.shell = null;
+        this.term = null;
+        this.applyFont();
+        this.showMap();
+        return;
+      }
+      if (act === 'skip-to') {
+        const upTo = node.querySelector<HTMLSelectElement>('.skip-select')!.value;
+        const idx = CHAPTERS.findIndex((c) => c.id === upTo);
+        const missions = CHAPTERS.slice(0, idx + 1).flatMap((c) => c.missions).filter((m) => !this.save.completed.includes(m.id));
+        if (!missions.length) {
+          msg.textContent = 'Quei capitoli risultano già completati.';
+          return;
+        }
+        if (!confirm(`Segnare come completate ${missions.length} missioni? Riceverai ${missions.reduce((a, m) => a + m.xp, 0)} XP.`)) return;
+        for (const m of missions) {
+          this.save.completed.push(m.id);
+          this.save.xp += m.xp;
+          delete this.save.progress[m.id];
+        }
+        this.persist();
+        this.showMap();
         return;
       }
       if (act === 'font+' || act === 'font-') {

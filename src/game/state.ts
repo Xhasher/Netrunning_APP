@@ -97,7 +97,7 @@ export function saveDeck(data: unknown): void {
   }
 }
 
-export function loadDeck(): { home?: unknown; aliases?: Record<string, string> } | null {
+export function loadDeck(): { home?: unknown; deleted?: string[]; aliases?: Record<string, string> } | null {
   try {
     const raw = localStorage.getItem(FS_KEY);
     return raw ? JSON.parse(raw) : null;
@@ -111,5 +111,43 @@ export function clearDeck(): void {
     localStorage.removeItem(FS_KEY);
   } catch {
     /* ignora */
+  }
+}
+
+// ---------------------------------------------------------------- backup dei progressi
+
+const BACKUP_PREFIX = 'NCB1:';
+
+function utf8ToB64(text: string): string {
+  const bytes = new TextEncoder().encode(text);
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+
+function b64ToUtf8(b64: string): string {
+  const bin = atob(b64);
+  return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
+}
+
+/** Trasforma salvataggio e file del deck in un codice di testo da copiare. */
+export function makeBackup(save: SaveData, deck: unknown): string {
+  return BACKUP_PREFIX + utf8ToB64(JSON.stringify({ v: 1, save, deck }));
+}
+
+/** Legge un codice di backup; restituisce null se non è valido. */
+export function parseBackup(code: string): { save: SaveData; deck: unknown } | null {
+  try {
+    const clean = code.trim().replace(/\s+/g, '');
+    if (!clean.startsWith(BACKUP_PREFIX)) return null;
+    const data = JSON.parse(b64ToUtf8(clean.slice(BACKUP_PREFIX.length)));
+    const s = data?.save;
+    if (!s || typeof s !== 'object' || (s.handle !== null && typeof s.handle !== 'string')) return null;
+    if (typeof s.xp !== 'number' || !Array.isArray(s.completed) || !s.completed.every((x: unknown) => typeof x === 'string')) return null;
+    const save: SaveData = { ...defaultSave(), ...s };
+    save.completed = [...new Set(save.completed)];
+    return { save, deck: data.deck ?? null };
+  } catch {
+    return null;
   }
 }

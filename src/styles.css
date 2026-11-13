@@ -1689,3 +1689,40 @@ pre.code {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* ------------------------------------------------------------------ backup */
+
+.backup-box {
+  width: 100%;
+  margin-top: 0.6rem;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--green);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  padding: 0.6rem;
+  resize: vertical;
+}
+
+.backup-box:focus {
+  outline: none;
+  border-color: var(--cyan);
+}
+
+.backup-msg {
+  min-height: 1.3em;
+  margin-top: 0.4rem;
+  color: var(--cyan);
+}
+
+.skip-select {
+  flex: 1;
+  min-width: 0;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.6rem;
+  font-size: 0.9rem;
+}

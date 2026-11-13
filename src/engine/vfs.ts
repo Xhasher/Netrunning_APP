@@ -156,4 +156,52 @@ export class Vfs {
     };
     if (data && typeof data === 'object') apply(normalize(abs), data as Enc);
   }
+
+  /**
+   * Differenze rispetto a un filesystem "pulito": solo ciò che è nuovo o modificato,
+   * più l'elenco dei percorsi cancellati. Serve a salvare il lavoro del giocatore
+   * senza copiare tutti i file del gioco.
+   */
+  diffFrom(pristine: Vfs, abs: string): { tree: unknown; deleted: string[] } {
+    const deleted: string[] = [];
+    const encFull = (n: VNode): unknown => {
+      const tmp = new Vfs();
+      tmp.root = { type: 'dir', owner: 'x', group: 'x', perms: '', mtime: '', children: new Map([['n', n]]) };
+      return (tmp.serialize('/n') as unknown) ?? null;
+    };
+    const walk = (cur: VNode, base: VNode | undefined, path: string): unknown => {
+      if (!base || base.type !== cur.type) return encFull(cur);
+      if (cur.type === 'file' && base.type === 'file') {
+        const same = cur.content === base.content && cur.perms === base.perms && cur.owner === base.owner && !!cur.locked === !!base.locked;
+        return same ? undefined : encFull(cur);
+      }
+      if (cur.type === 'dir' && base.type === 'dir') {
+        const k: Record<string, unknown> = {};
+        for (const [name, child] of cur.children) {
+          const d = walk(child, base.children.get(name), `${path}/${name}`);
+          if (d !== undefined) k[name] = d;
+        }
+        for (const name of base.children.keys()) if (!cur.children.has(name)) deleted.push(`${path}/${name}`);
+        const metaChanged = cur.perms !== base.perms || cur.owner !== base.owner;
+        if (!Object.keys(k).length && !metaChanged) return undefined;
+        return { t: 'd', o: cur.owner, g: cur.group, p: cur.perms, m: cur.mtime, l: cur.locked ? 1 : 0, k };
+      }
+      return undefined;
+    };
+    const norm = normalize(abs);
+    const cur = this.get(norm);
+    if (!cur) return { tree: null, deleted };
+    const tree = walk(cur, pristine.get(norm), norm === '/' ? '' : norm);
+    return { tree: tree ?? null, deleted };
+  }
+
+  /** Cancella i percorsi indicati, se esistono ancora. */
+  removePaths(paths: string[]): void {
+    for (const p of paths) {
+      const n = normalize(p);
+      if (n === '/') continue;
+      const parent = this.get(dirname(n));
+      if (parent && parent.type === 'dir') parent.children.delete(basename(n));
+    }
+  }
 }

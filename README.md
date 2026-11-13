@@ -41,8 +41,13 @@ Per installarlo su Android devi permettere l'installazione da "origini sconosciu
 
 ## Aggiornare l'app senza perdere i progressi
 
-Ogni APK è firmato con la stessa chiave (`signing/netrunning.keystore`) e ha un numero di versione crescente,
-quindi si installa **sopra** la versione precedente mantenendo i salvataggi.
+Dalla versione 1.1.1 l'app ha l'identificativo `it.nightcity.netrunningapp`. Ogni APK è firmato con la stessa chiave
+(`signing/netrunning.keystore`) e ha un numero di versione crescente, quindi si installa **sopra** la versione
+precedente mantenendo i salvataggi.
+
+Se un aggiornamento viene rifiutato (di solito perché la copia installata è firmata con un'altra chiave),
+Android non permette di forzarlo: in **Opzioni → Backup dei progressi** c'è un codice da copiare prima di reinstallare,
+e **Recupera progressi** permette di ripartire da un capitolo.
 
 ## Sviluppo
 
