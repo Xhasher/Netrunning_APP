@@ -17,6 +17,28 @@ export interface FactDeck {
 
 export const FACT_DECKS: FactDeck[] = [
   {
+    id: 'python',
+    title: 'Python essenziale',
+    unlock: 'chPY-m3',
+    ask: (q) => `In Python, cosa usi per ${q}?`,
+    items: [
+      { q: 'sapere quanti elementi ha una lista', a: 'len()' },
+      { q: 'dividere una riga in parole', a: 'split()' },
+      { q: 'togliere spazi e a capo ai bordi di un testo', a: 'strip()' },
+      { q: 'aggiungere un elemento in fondo a una lista', a: 'append()' },
+      { q: 'contare quante volte compare ogni valore', a: 'Counter', note: 'from collections import Counter' },
+      { q: 'leggere un file e chiuderlo automaticamente', a: 'with open()' },
+      { q: 'leggere gli argomenti passati allo script', a: 'sys.argv' },
+      { q: 'trovare tutte le corrispondenze di una regex', a: 're.findall()' },
+      { q: 'calcolare un\'impronta SHA-256', a: 'hashlib.sha256()' },
+      { q: 'trasformare un testo JSON in dizionario', a: 'json.loads()' },
+      { q: 'gestire un errore senza fermare lo script', a: 'try / except' },
+      { q: 'leggere un valore da un dizionario senza errore se manca', a: 'get()' },
+      { q: 'ottenere i valori distinti di una lista', a: 'set()' },
+      { q: 'elencare i file di una cartella', a: 'os.listdir()' },
+    ],
+  },
+  {
     id: 'ir',
     title: 'Incidenti e forense',
     unlock: 'ch08-m5',

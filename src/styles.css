@@ -66,7 +66,11 @@ code {
   border: 1px solid rgba(252, 238, 10, 0.18);
   padding: 0.05em 0.35em;
   border-radius: 4px;
-  white-space: nowrap;
+  /* i comandi lunghi vanno a capo invece di uscire dallo schermo */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 b,

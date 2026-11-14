@@ -113,6 +113,26 @@ const SOLUTIONS: Record<string, string[][]> = {
     ['grep -c "fattura scaduta" posta/consegne.log', 'flag 6'],
     ['grep pagamenti-sicuri.nc posta/proxy.log', 'flag t.okafor'],
   ],
+  'chPY-m1': [
+    ['python3 -c "print(\'Jack-in completato\')"'],
+    ['python3 -c "print(86400 * 90)"', 'flag 7776000'],
+    ['@nano py/saluto.py|nome = "V"\nprint(f"Benvenuto nel deck, {nome}")\n', 'python3 py/saluto.py'],
+    ['python3 py/rotto.py', '@nano py/rotto.py|frase = "chi controlla i computer controlla la citta"\nparole = frase.split()\nif len(parole) > 5:\n    print("Frase lunga")\nprint("Parole:", len(parole))\n', 'python3 py/rotto.py'],
+  ],
+  'chPY-m2': [
+    ['@nano py/porte.py|aperte = [22, 80, 443, 21, 3389, 23, 8080]\nrischiose = {21: "FTP", 23: "Telnet", 445: "SMB", 3389: "RDP"}\nfor p in aperte:\n    if p in rischiose:\n        print(f"ATTENZIONE: porta {p} ({rischiose[p]})")\n', 'python3 py/porte.py'],
+    ['@nano py/cvss.py|def gravita(punteggio):\n    if punteggio >= 9.0:\n        return "critica"\n    elif punteggio >= 7.0:\n        return "alta"\n    elif punteggio >= 4.0:\n        return "media"\n    elif punteggio > 0:\n        return "bassa"\n    return "nessuna"\n\nfor p in [9.8, 7.5, 5.3, 2.1, 0.0, 9.0, 7.0, 4.0]:\n    print(p, gravita(p))\n', 'python3 py/cvss.py'],
+  ],
+  'chPY-m3': [
+    ['@nano py/falliti.py|conta = 0\nwith open("caso/auth.log") as f:\n    for riga in f:\n        if "Failed password" in riga:\n            conta += 1\nprint(conta)\n', 'python3 py/falliti.py'],
+    ['@nano py/top_ip.py|from collections import Counter\nconta = Counter()\nwith open("caso/auth.log") as f:\n    for riga in f:\n        if "Failed password" in riga:\n            parti = riga.split()\n            conta[parti[parti.index("from") + 1]] += 1\nfor ip, n in conta.most_common(3):\n    print(ip, n)\n', 'python3 py/top_ip.py', 'flag 203.0.113.77'],
+    ['@nano py/ip_unici.py|import re, sys\nwith open(sys.argv[1]) as f:\n    testo = f.read()\nprint(len(set(re.findall(r"\\d+\\.\\d+\\.\\d+\\.\\d+", testo))))\n', 'python3 py/ip_unici.py web/negozio.log'],
+  ],
+  'chPY-m4': [
+    ['@nano py/verifica.py|import hashlib\nwith open("py/manifesto.txt") as m:\n    for riga in m:\n        atteso, nome = riga.split()\n        with open("py/aggiornamenti/" + nome, "rb") as f:\n            vero = hashlib.sha256(f.read()).hexdigest()\n        print(nome, "OK" if vero == atteso else "MANOMESSO")\n', 'python3 py/verifica.py'],
+    ['@nano py/pubblici.py|import json\nwith open("py/storage.json") as f:\n    elenco = json.load(f)\nfor s in elenco:\n    if "*" in s["lettori"]:\n        print(s["nome"])\n', 'python3 py/pubblici.py'],
+    ['@nano py/controlla.py|with open("py/da_controllare.txt") as e:\n    for p in e:\n        p = p.strip()\n        try:\n            with open(p) as f:\n                print(p, len(f.readlines()))\n        except FileNotFoundError:\n            print(p, "non trovato")\n        except PermissionError:\n            print(p, "permesso negato")\n', 'python3 py/controlla.py'],
+  ],
   'ch08-m5': [
     ['cat ir/allarme.txt'],
     ['cat ir/*.log | sort | grep 198.51.100.23', 'flag 02:09:41'],
@@ -210,7 +230,7 @@ describe('ogni missione è completabile', () => {
               const res = sh.run(cmd);
               events = res.events;
               const errs = res.lines.filter((l) => l.cls === 'err').map((l) => l.text);
-              expect(errs, `"${cmd}" ha prodotto errori inattesi`).toEqual(errs.filter((e) => /Permission denied|command not found|not in the sudoers|need to be root/.test(e) || ['cat /etc/shadow', 'cd /root', 'Whoami', 'sha256sum -c SHA256SUMS', 'find / -name passwd 2>/dev/null', 'nmap helix.corp'].includes(cmd)));
+              expect(errs, `"${cmd}" ha prodotto errori inattesi`).toEqual(errs.filter((e) => /Permission denied|command not found|not in the sudoers|need to be root/.test(e) || ['cat /etc/shadow', 'cd /root', 'Whoami', 'sha256sum -c SHA256SUMS', 'find / -name passwd 2>/dev/null', 'nmap helix.corp', 'python3 py/rotto.py'].includes(cmd)));
             }
             const out = evaluate(step, events, sh);
             expect(out, `"${cmd}" non dovrebbe dare risposta errata (${step.title})`).not.toBe('wrong-answer');

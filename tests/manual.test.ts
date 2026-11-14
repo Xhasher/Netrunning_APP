@@ -4,7 +4,7 @@ import { COMMANDS } from '../src/engine/shell';
 import { MANPAGES } from '../src/engine/manpages';
 
 // comandi interni o alias che non hanno bisogno di una scheda propria
-const NO_DOC = new Set(['[', 'true', 'false', 'w', 'ls-', 'groups-']);
+const NO_DOC = new Set(['[', 'true', 'false', 'w', 'ls-', 'groups-', 'python']);
 // esempi che richiedono interazione o un contesto speciale
 const SKIP = [/^!!/, /^nano\b/, /^ssh\b/, /^exit\b/, /^flag\b/, /^report\b/, /^hint\b/];
 

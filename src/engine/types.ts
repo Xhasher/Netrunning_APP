@@ -35,6 +35,7 @@ export type ShellEvent =
   | { type: 'ssh'; host: string; ip: string; user: string }
   | { type: 'report'; value: string }
   | { type: 'http'; host: string; path: string; status: number; head: boolean }
+  | { type: 'python'; path: string; ok: boolean; out: string[]; src: string; args: string[] }
   | { type: 'fsop'; op: 'mkdir' | 'touch' | 'rm' | 'cp' | 'mv'; paths: string[] };
 
 export interface RunResult {

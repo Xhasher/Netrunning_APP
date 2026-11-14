@@ -1,6 +1,7 @@
 // Il "deck": il computer virtuale del giocatore, con tutti i file usati dalle missioni.
 
 import '../engine/coreutils';
+import '../engine/pycmd';
 import '../engine/manual';
 import '../engine/sysinfo';
 import '../engine/textlang';
@@ -522,6 +523,7 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
   addLab(shell);
   addShopAndMail(shell, home, mine);
   addIncident(shell, home, mine);
+  addPython(shell, home, mine);
   return shell;
 }
 
@@ -1066,6 +1068,84 @@ function addIncident(sh: Shell, home: string, mine: { owner: string; group: stri
       'sudo touch -d 2071-06-02 /etc/cron.d/php-sess',
       'history -c',
     ].join('\n') + '\n',
+    mine,
+  );
+}
+
+/** Capitolo PY: script da completare o riparare, firmware, storage cloud. */
+function addPython(sh: Shell, home: string, mine: { owner: string; group: string }): void {
+  const fs = sh.fs;
+  const py = `${home}/py`;
+  fs.writeFile(
+    `${py}/rotto.py`,
+    [
+      '# Conta quante parole ci sono in una frase.',
+      'frase = "chi controlla i computer controlla la citta"',
+      'parole = frase.split()',
+      'if len(parole) > 5',
+      '    print("Frase lunga")',
+      'print("Parole:", len(parola))',
+    ].join('\n') + '\n',
+    mine,
+  );
+  fs.writeFile(
+    `${py}/porte.py`,
+    [
+      '# Porte aperte trovate da nmap sul server del cliente',
+      'aperte = [22, 80, 443, 21, 3389, 23, 8080]',
+      '',
+      '# Porte che non dovrebbero MAI essere esposte a Internet',
+      'rischiose = {21: "FTP", 23: "Telnet", 445: "SMB", 3389: "RDP"}',
+      '',
+      '# TODO: per ogni porta aperta, se è tra le rischiose stampa una riga così:',
+      '#   ATTENZIONE: porta 21 (FTP)',
+      '',
+    ].join('\n'),
+    mine,
+  );
+  fs.writeFile(
+    `${py}/cvss.py`,
+    [
+      'def gravita(punteggio):',
+      '    # TODO: restituisci "critica" (9.0-10), "alta" (7.0-8.9), "media" (4.0-6.9),',
+      '    # "bassa" (0.1-3.9) oppure "nessuna" (0.0)',
+      '    return "?"',
+      '',
+      '',
+      'for p in [9.8, 7.5, 5.3, 2.1, 0.0, 9.0, 7.0, 4.0]:',
+      '    print(p, gravita(p))',
+    ].join('\n') + '\n',
+    mine,
+  );
+  const fw: Record<string, string> = {
+    'router.bin': 'FWIMG router-nc 4.2.1\nsezione kernel ok\nsezione rootfs ok\n',
+    'switch.bin': 'FWIMG switch-nc 2.0.9\nsezione kernel ok\nsezione rootfs ok\n',
+    'camera.bin': 'FWIMG camera-nc 1.7.3\nsezione kernel ok\nsezione rootfs ok\n',
+  };
+  const manifest: string[] = [];
+  for (const [n, c] of Object.entries(fw)) {
+    // la telecamera è stata alterata dopo la pubblicazione dell'impronta ufficiale
+    fs.writeFile(`${py}/aggiornamenti/${n}`, n === 'camera.bin' ? c + 'telnetd -p 2323 &\n' : c, mine);
+    manifest.push(`${sha256(c)}  ${n}`);
+  }
+  fs.writeFile(`${py}/manifesto.txt`, manifest.join('\n') + '\n', mine);
+  fs.writeFile(
+    `${py}/storage.json`,
+    JSON.stringify(
+      [
+        { nome: 'neon-promo-2077', lettori: ['*'], note: 'immagini del sito, pubbliche per scelta' },
+        { nome: 'neon-fatture', lettori: ['ruolo-amministrazione'] },
+        { nome: 'neon-backup-clienti', lettori: ['ruolo-backup', '*'] },
+        { nome: 'neon-log', lettori: ['ruolo-sicurezza'] },
+      ],
+      null,
+      2,
+    ) + '\n',
+    mine,
+  );
+  fs.writeFile(
+    `${py}/da_controllare.txt`,
+    ['missioni/benvenuto.txt', 'caso/sparito.log', 'caso/auth.log', '/etc/shadow', 'web/vecchio.log'].join('\n') + '\n',
     mine,
   );
 }

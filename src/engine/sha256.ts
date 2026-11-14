@@ -12,7 +12,11 @@ const K = new Uint32Array([
 ]);
 
 export function sha256(text: string): string {
-  const data = new TextEncoder().encode(text);
+  return sha256Bytes(new TextEncoder().encode(text));
+}
+
+/** SHA-256 di una sequenza di byte qualsiasi. */
+export function sha256Bytes(data: Uint8Array): string {
   const bitLen = data.length * 8;
   const padded = new Uint8Array(((data.length + 9 + 63) >> 6) << 6);
   padded.set(data);

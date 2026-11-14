@@ -75,4 +75,12 @@ Restano da fare: riscrittura narrativa a mano delle lezioni 01–04, OWASP Top 1
 - `file` riconosce anche JPEG, eseguibili Windows e immagini disco.
 - Mazzo di Memoria: incidenti e forense.
 
-Restano: Python per la sicurezza, reti avanzate (VLAN, VPN, proxy, IDS/IPS), pentest guidato in laboratorio, esami simulati a tempo.
+
+## Aggiunto nella 1.8
+
+- **Python nel terminale** (`src/engine/pyparse.ts`, `python.ts`, `pycmd.ts`): mini interprete Python 3 vero. Variabili, if/elif/else, for/while, funzioni e lambda, liste, tuple, dizionari, insiemi, comprehension, f-string con formato, slicing, try/except/finally, with open() in lettura e scrittura, sys.argv e stdin; moduli sys, os, os.path, re, hashlib (sha256), base64, json, collections (Counter, defaultdict), math, random, string, time. Errori e traceback come nel vero Python (con il suggerimento "Did you mean"). Niente classi né rete.
+- **Capitolo PY · Python per la sicurezza** (dopo il 06): primo script e lettura degli errori; decisioni, liste, cicli, dizionari, funzioni (porte rischiose, scala CVSS); log con open, split, Counter, re, set, sys.argv; hashlib e verifica di firmware, os, JSON di configurazioni cloud, try/except.
+- Sfide Python nelle Simulazioni (sempre diverse) e mazzo di Memoria "Python essenziale".
+- Il codice in linea lungo va a capo invece di uscire dallo schermo.
+
+Restano: reti avanzate (proxy, IDS/IPS, VPN), pentest guidato in laboratorio, esami simulati a tempo.

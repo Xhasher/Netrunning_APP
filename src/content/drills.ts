@@ -787,6 +787,14 @@ const G13: Gen[] = [
  * Più varianti per generatore, così la stessa sfida non si presenta sempre uguale.
  */
 export const STORIES: Record<string, string[]> = {
+  'py-conta': [
+    `@nyx: Il SOC ti passa un'esportazione degli accessi della notte. Domani te ne passeranno un'altra, e dopodomani un'altra ancora: scrivi lo script una volta e riusalo.`,
+    `@rook: Un cliente vuole sapere chi ha fallito più accessi stanotte. Non contare a mano: fallo fare a Python.`,
+  ],
+  'py-impronte': [
+    `@rook: Il fornitore di un cliente ha pubblicato le impronte dei suoi aggiornamenti. Uno dei file che ci hanno mandato non torna. Quale?`,
+    `@nyx: Controllo di integrità prima dell'installazione. Con Python lo fai su tre file come su tremila.`,
+  ],
   'flag-nascosta': [
     `@nyx: Riscaldamento. Ho nascosto una cosa nel tuo deck come farebbe chi non vuole farsi trovare. Un analista guarda anche dove gli altri non guardano.`,
     `@rook: Un cliente ha ereditato il portatile di un ex socio e giura che "non c'è niente". Io non mi fido delle cartelle che sembrano vuote. Tu?`,
@@ -885,6 +893,60 @@ export const STORIES: Record<string, string[]> = {
   ],
 };
 
+// ---------------------------------------------------------------- capitolo PY: Python
+
+const GPY: Gen[] = [
+  {
+    id: 'py-conta',
+    dirName: 'pylog',
+    make: (c) => {
+      const { r, lv } = c;
+      const ips = Array.from({ length: 3 + lv * 2 }, () => pubIp(r));
+      const top = ips[0];
+      const lines: string[] = [];
+      let t = r.int(3600, 7000);
+      const counts = new Map<string, number>();
+      // l'IP "top" ha sempre più KO di tutti gli altri
+      for (const ip of ips) counts.set(ip, ip === top ? 9 + lv * 3 : r.int(1, 6 + lv));
+      for (const [ip, n] of counts) for (let i = 0; i < n; i++) lines.push(`${ip} KO`);
+      for (let i = 0; i < 10 + lv * 6; i++) lines.push(`${r.pick(ips)} OK`);
+      const shuffled = r.shuffle(lines).map((l) => `${time((t += r.int(1, 40)))} ${l.split(' ')[0]} esito=${l.split(' ')[1]}`);
+      write(c, 'accessi.txt', shuffled.join('\n') + '\n');
+      const field = lv === 1 ? 'il secondo campo è l\'IP' : 'l\'IP è uno dei campi: trovalo';
+      return {
+        title: 'Lo script del turno',
+        prompt: `Scrivi uno script Python (o usa \`python3 -c\`) che legge \`${c.dir}/accessi.txt\` e stampa l'IP con più righe \`esito=KO\` (${field}).`,
+        hints: ['Counter dal modulo collections, un for sulle righe, un if "esito=KO" in riga.', `python3 -c "from collections import Counter; c = Counter(r.split()[1] for r in open('${c.dir}/accessi.txt') if 'esito=KO' in r); print(c.most_common(1))"`],
+        check: (ev) => ev.type === 'python' && ev.ok && ev.out.some((l) => l.includes(top)) && ev.src.includes('accessi.txt'),
+        solve: [`python3 -c "from collections import Counter; c = Counter(r.split()[1] for r in open('${c.dir}/accessi.txt') if 'esito=KO' in r); print(c.most_common(1))"`],
+      };
+    },
+  },
+  {
+    id: 'py-impronte',
+    dirName: 'pyhash',
+    make: (c) => {
+      const { r, lv } = c;
+      const files = r.shuffle(['kernel.img', 'driver.bin', 'config.ini', 'boot.cfg', 'agent.bin', 'update.pkg', 'modem.fw']).slice(0, 3 + lv);
+      const bad = r.pick(files);
+      const man: string[] = [];
+      for (const f of files) {
+        const body = `${f} build ${r.hex(8)}\n`;
+        write(c, `file/${f}`, f === bad ? body + `${r.hex(6)}\n` : body);
+        man.push(`${sha256(body)}  ${f}`);
+      }
+      write(c, 'impronte.txt', man.join('\n') + '\n');
+      return {
+        title: 'L\'impronta che non torna',
+        prompt: `In \`${c.dir}/file/\` ci sono ${files.length} file e in \`${c.dir}/impronte.txt\` le loro impronte ufficiali. Con Python (\`hashlib\`) trova il file alterato e invia il suo nome con \`flag\`.`,
+        hints: ['Per ogni riga di impronte.txt: atteso, nome = riga.split(); apri il file in "rb" e confronta hashlib.sha256(...).hexdigest().', `Oppure, per verificare: sha256sum ${c.dir}/file/* e confronta.`],
+        answer: [bad],
+        solve: [`sha256sum ${c.dir}/file/*`, `flag ${bad}`],
+      };
+    },
+  },
+];
+
 export const GENERATORS: Record<string, Gen[]> = {
   ch01: G01,
   ch02: G02,
@@ -899,6 +961,7 @@ export const GENERATORS: Record<string, Gen[]> = {
   ch11: G11,
   ch12: G12,
   ch13: G13,
+  chPY: GPY,
 };
 
 export const LEVELS: Record<Level, { name: string; count: number; hints: 'free' | 'cost' | 'none'; xp: number }> = {
