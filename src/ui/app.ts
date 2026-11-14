@@ -27,6 +27,9 @@ import type { Chapter, Mission, QuizStep, Step } from '../game/types';
 import { MANPAGES } from '../engine/manpages';
 import { PROSE_SKIP, cmdName, commandsInLine, commandsInMarkup, taughtBefore } from '../game/commands';
 import { analyze, type Analysis, type LogEntry } from '../game/coach';
+import { EXAMS } from '../game/exam';
+import { today } from '../game/cards';
+import { recordExam, renderExamsHome } from './exam';
 import { openManual } from './manual';
 import { dueCount, renderMemoryHome } from './memory';
 import { inline, renderMarkup } from './markup';
@@ -88,7 +91,11 @@ export class App {
     minimized: boolean;
     solvedNow: boolean;
     log: LogEntry[];
+    /** prova pratica a tempo */
+    exam: { started: number; deadline: number } | null;
   } | null = null;
+  /** timer da fermare quando si cambia schermata */
+  private timers: number[] = [];
   private op: {
     op: Operation;
     found: Set<string>;
@@ -132,6 +139,12 @@ export class App {
       case 'memory-run':
         this.showMemory();
         return true;
+      case 'exam-run':
+        if (confirm('Uscire dall\'esame? Le risposte date finora andranno perse.')) this.showExams();
+        return true;
+      case 'exams':
+        this.showGames();
+        return true;
       default:
         this.showMap();
         return true;
@@ -149,6 +162,8 @@ export class App {
   }
 
   private mount(screen: string, node: HTMLElement): void {
+    for (const t of this.timers) window.clearInterval(t);
+    this.timers = [];
     this.screen = screen;
     this.root.replaceChildren(node);
     this.root.scrollTop = 0;
@@ -259,6 +274,7 @@ export class App {
           <button data-act="manual">Manuale</button>
           <button data-act="sandbox">Terminale</button>
           <button data-act="games">Giochi</button>
+          <button data-act="exams">Esami</button>
           <button data-act="codex">Codex</button>
           <button data-act="career">Carriera</button>
           <button data-act="settings">Opzioni</button>
@@ -348,6 +364,7 @@ export class App {
       else if (t.dataset.act === 'manual') openManual();
       else if (t.dataset.act === 'games') this.showGames();
       else if (t.dataset.act === 'memory') this.showMemory();
+      else if (t.dataset.act === 'exams') this.showExams();
       else if (t.dataset.act === 'career') this.showCareer();
       else if (t.dataset.act === 'settings') this.showSettings();
       else if (t.dataset.act === 'title') this.showTitle();
@@ -1128,6 +1145,11 @@ export class App {
         <span class="op-title">Simulazioni</span>
         <span class="op-client">Sfide pratiche generate a caso sui capitoli che scegli, con tre livelli di difficoltà. Ogni partita ha dati nuovi.</span>
       </button>
+      <button class="opcard sim-card" data-g="exams">
+        <span class="op-top"><span class="op-code">A TEMPO · STILE CERTIFICAZIONE</span></span>
+        <span class="op-title">Esami simulati</span>
+        <span class="op-client">Teorico sui capitoli completati, finale su tutto il corso, prova pratica nel terminale. Punteggio, soglia di superamento e analisi degli errori.</span>
+      </button>
       <button class="opcard" data-g="memory">
         <span class="op-top"><span class="op-code">OGNI GIORNO · 5 MINUTI</span></span>
         <span class="op-title">Memoria</span>
@@ -1149,7 +1171,8 @@ export class App {
     const node = this.page('games', 'Giochi', '// allenarsi giocando', `<div class="oplist">${cards}</div>`);
     node.addEventListener('click', (e) => {
       const id = (e.target as HTMLElement).closest<HTMLElement>('[data-g]')?.dataset.g;
-      if (id === 'memory') this.showMemory();
+      if (id === 'exams') this.showExams();
+      else if (id === 'memory') this.showMemory();
       else if (id === 'train') this.showTraining();
       else if (id === 'sim') this.showSimSetup();
       else if (id) this.showGame(id);
@@ -1237,6 +1260,27 @@ export class App {
     render();
   }
 
+  // ------------------------------------------------------------- esami simulati
+
+  private showExams(): void {
+    const node = this.page('exams', 'Esami simulati', '// metti alla prova ciò che sai', '<div class="train exams"></div>');
+    renderExamsHome(node.querySelector<HTMLElement>('.exams')!, {
+      save: this.save,
+      persist: () => this.persist(),
+      home: () => this.showExams(),
+      map: () => this.showMap(),
+      startPractical: () => {
+        const chapters = CHAPTERS.filter((ch) => GENERATORS[ch.id]?.length && ch.missions.some((m) => this.save.completed.includes(m.id))).map((c) => c.id);
+        if (chapters.length) this.startSim(chapters, 3, true);
+      },
+      timer: (id) => this.timers.push(id),
+      enter: () => {
+        this.screen = 'exam-run';
+        this.root.scrollTop = 0;
+      },
+    });
+  }
+
   // ------------------------------------------------------------- palestra della memoria
 
   private showMemory(): void {
@@ -1313,21 +1357,21 @@ export class App {
     sync();
   }
 
-  private startSim(chapters: string[], level: Level): void {
+  private startSim(chapters: string[], level: Level, exam = false): void {
     const shell = buildWorld(this.save.handle!, () => this.simHint(true));
     const seed = (Date.now() ^ Math.floor(Math.random() * 2 ** 31)) >>> 0;
     const drills = generateSession(shell, chapters, level, seed);
     const term = new TerminalView(shell, (ev) => this.onSimEvents(ev));
-    this.sim = { drills, idx: 0, level, chapters, results: [], hinted: drills.map(() => false), hintLevel: 0, term, shell, minimized: false, solvedNow: false, log: [] };
-    term.system(`── SIMULAZIONE · ${LEVELS[level].name.toUpperCase()} · ${drills.length} sfide ──`, 'banner');
+    this.sim = { drills, idx: 0, level, chapters, results: [], hinted: drills.map(() => false), hintLevel: 0, term, shell, minimized: false, solvedNow: false, log: [], exam: exam ? { started: Date.now(), deadline: Date.now() + EXAMS.pratico.minutes * 60_000 } : null };
+    term.system(exam ? `── ESAME · PROVA PRATICA · ${drills.length} sfide ──` : `── SIMULAZIONE · ${LEVELS[level].name.toUpperCase()} · ${drills.length} sfide ──`, 'banner');
     term.system('I file delle sfide sono nella cartella sim/. Le risposte si inviano con "flag".', 'info');
     const node = el(html`
       <div class="screen mission mode-task operation sim">
         <header class="topbar">
           <button class="iconbtn" data-act="back" aria-label="Esci dalla simulazione">◂</button>
           <div class="tb-title">
-            <div class="tb-kicker">SIMULAZIONE · ${LEVELS[level].name.toUpperCase()}</div>
-            <div class="tb-name">Sfide sempre diverse</div>
+            <div class="tb-kicker">${exam ? 'ESAME · PROVA PRATICA' : `SIMULAZIONE · ${LEVELS[level].name.toUpperCase()}`}</div>
+            <div class="tb-name">${exam ? `${EXAMS.pratico.count} sfide, ${EXAMS.pratico.minutes} minuti` : 'Sfide sempre diverse'}</div>
           </div>
           <div class="tb-xp sim-score"></div>
         </header>
@@ -1342,6 +1386,21 @@ export class App {
     this.addManualButton(node);
     this.mount('sim', node);
     this.renderSim();
+    if (exam) {
+      term.system(`⏱ Prova d'esame: ${EXAMS.pratico.minutes} minuti, nessun suggerimento. Puoi saltare una sfida e andare avanti.`, 'info');
+      this.timers.push(
+        window.setInterval(() => {
+          const st = this.sim;
+          if (!st?.exam) return;
+          this.updateSimScore();
+          if (Date.now() >= st.exam.deadline) {
+            st.term.system('⏱ Tempo scaduto.', 'err');
+            while (st.results.length < st.drills.length) st.results.push('skip');
+            this.finishSim();
+          }
+        }, 1000),
+      );
+    }
   }
 
   private renderSim(): void {
@@ -1352,7 +1411,8 @@ export class App {
     const total = s.drills.length;
     const ok = s.results.filter((x) => x === 'ok').length;
     screen.querySelector<HTMLElement>('.stepbar span')!.style.width = `${(s.results.length / total) * 100}%`;
-    screen.querySelector<HTMLElement>('.sim-score')!.textContent = `${ok}/${total}`;
+    void ok;
+    this.updateSimScore();
     screen.classList.toggle('minimized', s.minimized);
     const chapter = CHAPTERS.find((c) => c.id === d.chapter);
     const rule = LEVELS[s.level].hints;
@@ -1402,6 +1462,20 @@ export class App {
       }
     };
     if (!s.solvedNow && finePointer()) s.term.focus();
+  }
+
+  private updateSimScore(): void {
+    const s = this.sim;
+    const el = this.root.querySelector<HTMLElement>('.screen.sim .sim-score');
+    if (!s || !el) return;
+    const ok = s.results.filter((x) => x === 'ok').length;
+    if (!s.exam) {
+      el.textContent = `${ok}/${s.drills.length}`;
+      return;
+    }
+    const left = Math.max(0, Math.round((s.exam.deadline - Date.now()) / 1000));
+    el.textContent = `⏱ ${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`;
+    el.classList.toggle('low', left <= 300);
   }
 
   private simHint(fromShell: boolean): string | null {
@@ -1474,7 +1548,15 @@ export class App {
     xp = Math.round(xp);
     const key = `sim-${s.level}`;
     const record = ok > 0 && (this.save.best[key] === undefined || ok > this.save.best[key]);
-    if (record) this.save.best[key] = ok;
+    if (record && !s.exam) this.save.best[key] = ok;
+    const ex = s.exam;
+    const pct = Math.round((ok / s.drills.length) * 100);
+    const passed = pct >= EXAMS.pratico.pass;
+    if (ex) {
+      const secs = Math.min(EXAMS.pratico.minutes * 60, Math.round((Date.now() - ex.started) / 1000));
+      recordExam(this.save, { kind: 'pratico', day: today(), score: ok, total: s.drills.length, pct, passed, secs });
+      if (passed) xp += 50;
+    }
     this.save.xp += xp;
     this.persist();
     const rows = s.drills
@@ -1496,15 +1578,16 @@ export class App {
     const node = el(html`
       <div class="screen complete">
         <div class="panel">
-          <div class="kicker">// simulazione · ${L.name}</div>
-          <h2>${ok}/${s.drills.length} sfide risolte</h2>
+          <div class="kicker">${ex ? '// esame · prova pratica' : `// simulazione · ${L.name}`}</div>
+          ${ex ? `<div class="ex-verdict ${passed ? 'ok' : 'ko'}">${passed ? 'SUPERATA' : 'NON SUPERATA'}</div>` : ''}
+          <h2>${ok}/${s.drills.length} sfide risolte${ex ? ` · ${pct}%` : ''}</h2>
           <div class="xp-gain">+${xp} XP</div>
-          <div class="rank-now">${record ? 'Nuovo record personale per questo livello!' : this.save.best[key] !== undefined ? `Record: ${this.save.best[key]}/${s.drills.length}` : 'Riprova: ogni partita è diversa.'}</div>
+          <div class="rank-now">${ex ? `Soglia ${EXAMS.pratico.pass}%. Le sfide non risolte hanno la soluzione qui sotto: provale di nuovo nelle Simulazioni.` : record ? 'Nuovo record personale per questo livello!' : this.save.best[key] !== undefined ? `Record: ${this.save.best[key]}/${s.drills.length}` : 'Riprova: ogni partita è diversa.'}</div>
           <ol class="findings">${rows}</ol>
           ${coach ? `<h3>Il parere di Nyx sul tuo lavoro</h3>${this.statsHtml(coach)}<div class="coach">${this.coachHtml(coach, 4)}</div>` : ''}
           <div class="step-actions">
-            <button class="ghost" data-act="setup">Impostazioni</button>
-            <button class="next" data-act="again">Nuova partita ▸</button>
+            <button class="ghost" data-act="setup">${ex ? 'Esami' : 'Impostazioni'}</button>
+            <button class="next" data-act="again">${ex ? 'Un\'altra prova ▸' : 'Nuova partita ▸'}</button>
           </div>
         </div>
       </div>`);
@@ -1513,8 +1596,8 @@ export class App {
     this.sim = null;
     node.addEventListener('click', (e) => {
       const act = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset.act;
-      if (act === 'setup') this.showSimSetup();
-      if (act === 'again') this.startSim(chapters, level);
+      if (act === 'setup') (ex ? this.showExams() : this.showSimSetup());
+      if (act === 'again') this.startSim(chapters, level, !!ex);
     });
     this.fillCoachCode(node);
     this.mount('sim-done', node);

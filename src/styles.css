@@ -2387,3 +2387,165 @@ pre.code {
   font-size: 0.9rem;
   cursor: pointer;
 }
+
+/* ---------------------------------------------------------------- esami simulati */
+
+.ex-hist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+  margin-top: 0.35rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+
+.ex-none {
+  color: var(--muted);
+}
+
+.ex-best {
+  color: var(--cyan);
+  margin-right: 0.3rem;
+}
+
+.ex-chip {
+  padding: 0.05rem 0.35rem;
+  border: 1px solid var(--line);
+}
+
+.ex-chip.ok {
+  color: var(--green);
+  border-color: rgba(61, 255, 168, 0.4);
+}
+
+.ex-chip.ko {
+  color: var(--red, #ff5468);
+  border-color: rgba(255, 84, 104, 0.4);
+}
+
+.ex-bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: var(--bg);
+  padding: 0.4rem 0;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.ex-timer {
+  color: var(--cyan);
+  font-weight: 700;
+}
+
+.ex-timer.low,
+.sim-score.low {
+  color: var(--red, #ff5468);
+}
+
+.ex-submit {
+  padding: 0.35rem 0.7rem;
+}
+
+.ex-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0.6rem 0 0.8rem;
+}
+
+.ex-n {
+  width: 2rem;
+  height: 2rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.ex-n.done {
+  color: var(--text, #e8eaf2);
+  border-color: var(--cyan-dim);
+  background: rgba(0, 240, 255, 0.08);
+}
+
+.ex-n.flag {
+  border-color: var(--yellow);
+  color: var(--yellow);
+}
+
+.ex-n.cur {
+  outline: 2px solid var(--cyan);
+  outline-offset: 1px;
+}
+
+.opt.picked {
+  border-color: var(--cyan);
+  background: rgba(0, 240, 255, 0.1);
+}
+
+.ex-nav {
+  justify-content: space-between;
+}
+
+.ex-nav .on {
+  color: var(--yellow);
+  border-color: var(--yellow);
+}
+
+.ex-verdict {
+  font-family: var(--display);
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin: 0.3rem 0;
+}
+
+.ex-verdict.ok {
+  color: var(--green);
+}
+
+.ex-verdict.ko {
+  color: var(--red, #ff5468);
+}
+
+.ex-areas li.weak .md-name {
+  color: var(--yellow);
+}
+
+.ex-areas li.weak .md-bar i {
+  background: var(--yellow);
+}
+
+.ex-wrong {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--red, #ff5468);
+  padding: 0.5rem 0.7rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.93rem;
+}
+
+.ex-wrong summary {
+  cursor: pointer;
+}
+
+.ex-a.ko {
+  color: var(--red, #ff5468);
+}
+
+.ex-a.ok {
+  color: var(--green);
+}
+
+.exam-ready {
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.8rem;
+}

@@ -89,4 +89,9 @@ Restano da fare: riscrittura narrativa a mano delle lezioni 01–04, OWASP Top 1
 - **Capitolo PT · Pentest guidato** (dopo l'11): incarico completo su un server di laboratorio (range.lan). Fasi PTES/NIST 800-115, black/grey/white box, regole d'ingaggio ed esclusioni; ricognizione con `nmap -sV`, robots.txt, directory listing e file di configurazione dimenticato; vulnerabilità note (`cve`), una sola prova di accesso con riuso della password, `sudo -l`, script di root modificabile, senza mai sfruttare né modificare; report con gravità; riverifica su range2.lan (risolto / parziale / aperto). Percorso di allenamento e certificazioni.
 - Nuove voci CVE (Jenkins, MySQL) e mazzo di Memoria "Pentest".
 
-Restano: reti avanzate (proxy, IDS/IPS, VPN), esami simulati a tempo.
+
+## Aggiunto nella 1.10
+
+- **Esami simulati** (pulsante Esami nella mappa e in Giochi): esame sui capitoli completati (30 domande, 30 minuti), esame finale junior (60 domande, 60 minuti), prova pratica nel terminale (8 sfide Difficile, 40 minuti, senza suggerimenti). Soglia 75%. Domande bilanciate per capitolo da quiz delle missioni, banca di 38 scenari in stile certificazione (`src/content/exam-bank.ts`) e carte di Memoria. Durante l'esame niente correzioni: griglia delle domande, "rivedi dopo", consegna o tempo scaduto; poi punteggio, dettaglio per capitolo, aree da ripassare e spiegazione di ogni errore. Storico degli ultimi tentativi e indicatore "pronto" dopo tre finali superati.
+
+Restano: reti avanzate (proxy, IDS/IPS, VPN).
