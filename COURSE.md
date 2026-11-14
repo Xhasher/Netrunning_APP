@@ -94,4 +94,11 @@ Restano da fare: riscrittura narrativa a mano delle lezioni 01–04, OWASP Top 1
 
 - **Esami simulati** (pulsante Esami nella mappa e in Giochi): esame sui capitoli completati (30 domande, 30 minuti), esame finale junior (60 domande, 60 minuti), prova pratica nel terminale (8 sfide Difficile, 40 minuti, senza suggerimenti). Soglia 75%. Domande bilanciate per capitolo da quiz delle missioni, banca di 38 scenari in stile certificazione (`src/content/exam-bank.ts`) e carte di Memoria. Durante l'esame niente correzioni: griglia delle domande, "rivedi dopo", consegna o tempo scaduto; poi punteggio, dettaglio per capitolo, aree da ripassare e spiegazione di ogni errore. Storico degli ultimi tentativi e indicatore "pronto" dopo tre finali superati.
 
-Restano: reti avanzate (proxy, IDS/IPS, VPN).
+
+## Aggiunto nella 1.11
+
+- **9.5 I guardiani della rete**: firewall (filtro, stateful, NGFW, WAF), DMZ, NAT, forward e reverse proxy, ispezione TLS, IDS/IPS (NIDS/HIDS, firme e anomalie, falsi positivi e negativi), lettura di una regola Suricata, Sigma, VPN (accesso remoto, sito-sito, split/full tunnel), ZTNA. Esercizi su log del proxy, allarmi Suricata e una regola locale.
+- **Revisione per principianti** dei capitoli 01-04: definiti server, distribuzione, kernel, byte, log, sudo, CPU e RAM, router, cifrato e in chiaro, database, ARP, TTL, pool di mining; struttura comando/opzioni/argomenti con un esempio; distinzione tra opzioni ("flag") e flag delle CTF; spiegato il conteggio dei campi per `cut -f 11`; parole chiave do/done/then/else/fi. Corretti i rimandi a capitoli successivi presentati come già visti.
+- **Glossario attivo**: 190 termini spiegati in parole semplici (`src/content/glossary.ts`). Nelle lezioni e nelle sfide la prima occorrenza di ogni termine è sottolineata e si tocca per leggere la definizione; nel Codex c'è il glossario completo con ricerca.
+
+Il programma previsto in questo documento è completo. Prossimi passi possibili: approfondire i punti deboli che emergono dagli esami simulati.

@@ -146,6 +146,11 @@ const SOLUTIONS: Record<string, string[][]> = {
     ['nmap -sV range2.lan', 'curl http://range2.lan/old/', 'flag 3306'],
     ['ssh verifica@range2.lan', 'cat /etc/sudoers.d/webapp', 'ls -l /opt/backup/backup.sh', 'flag /opt/backup/backup.sh', 'exit'],
   ],
+  'ch09-m5': [
+    ['grep BLOCK rete/difese/proxy.log | grep malware', 'flag 10.0.3.44'],
+    ['grep -c "Priority: 1" rete/difese/ids.log', 'flag 3'],
+    ['cat rete/difese/locale.rules', 'flag 8443'],
+  ],
   'ch08-m5': [
     ['cat ir/allarme.txt'],
     ['cat ir/*.log | sort | grep 198.51.100.23', 'flag 02:09:41'],

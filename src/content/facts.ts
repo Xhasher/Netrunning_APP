@@ -17,6 +17,25 @@ export interface FactDeck {
 
 export const FACT_DECKS: FactDeck[] = [
   {
+    id: 'difese',
+    title: 'Difese di rete',
+    unlock: 'ch09-m5',
+    typeFwd: true,
+    ask: (q) => `Come si chiama ${q}?`,
+    items: [
+      { q: 'la rete separata per i server raggiungibili da Internet', a: 'DMZ' },
+      { q: 'il sistema che segnala attacchi lavorando su una copia del traffico', a: 'IDS' },
+      { q: 'il sistema in linea che può bloccare gli attacchi', a: 'IPS' },
+      { q: 'il firewall specializzato nelle richieste web', a: 'WAF' },
+      { q: 'il proxy che sta davanti ai server, dal lato di Internet', a: 'reverse proxy' },
+      { q: 'un allarme su qualcosa di innocuo', a: 'falso positivo' },
+      { q: 'un attacco vero che non genera allarme', a: 'falso negativo' },
+      { q: 'la VPN che fa passare nel tunnel solo il traffico verso l\'azienda', a: 'split tunneling', accept: ['split tunnel'] },
+      { q: 'il meccanismo che fa uscire tanti indirizzi privati con un solo indirizzo pubblico', a: 'NAT' },
+      { q: 'il formato di regole per i SIEM indipendente dal prodotto', a: 'Sigma' },
+    ],
+  },
+  {
     id: 'pentest',
     title: 'Pentest',
     unlock: 'chPT-m4',

@@ -342,7 +342,7 @@ Sono le due impostazioni che avrebbero impedito gli attacchi del capitolo 04 e d
 - **reti piatte**, senza segmentazione: dalla prima macchina si raggiungono tutte le altre
 - **account con troppi privilegi** su molte macchine, come un amministratore che usa lo stesso account ovunque
 
-Ricordi la catena del tram fantasma? E il dispositivo sconosciuto nella rete del bar? Sono esempi di attaccanti che cercano di allargarsi.`,
+Se hai giocato l'Operazione "Il tram fantasma", ne hai visto un esempio completo. E ricordi il dispositivo sconosciuto nella rete del bar? Sono esempi di attaccanti che cercano di allargarsi.`,
         },
         {
           kind: 'task',

@@ -20,7 +20,7 @@ export const CH04: Chapter = {
         {
           kind: 'lesson',
           title: 'Chiamata d\'emergenza',
-          body: `@rook: Svegliati, choom. Mama Reyes ha un problema serio: il server del bar è impazzito stanotte. Stavolta non ti paga per attaccare. Ti paga per **capire cosa è successo**.
+          body: `@rook: Svegliati, choom. (A Night City "choom" vuol dire "amico".) Mama Reyes ha un problema serio: il server del bar è impazzito stanotte. Stavolta non ti paga per attaccare. Ti paga per **capire cosa è successo**.
 
 @nyx: Benvenuto dall'altra parte della barricata. Il **Blue Team** difende: sorveglia i sistemi, rileva gli attacchi e risponde. Molti lavorano in un **SOC** (*Security Operations Center*), una sala dove gli analisti controllano gli allarmi 24 ore su 24.
 
@@ -178,11 +178,19 @@ Per il log del caso dovrai ripetere il ragionamento: guarda com'è fatta UNA rig
         {
           kind: 'task',
           title: 'Chi è stato?',
-          body: `Esegui la catena:
+          body: `Ora applica il ragionamento al log del caso. Riprendi la riga di \`auth.log\` della lezione sui log e conta le parole separate da spazi:
+
+\`\`\`
+Nov(1) 12(2) 03:14:05(3) server(4) sshd[1206]:(5) Failed(6) password(7) for(8) root(9) from(10) 203.0.113.77(11) ...
+\`\`\`
+
+L'indirizzo è l'**undicesima** parola, quindi in \`cut\` userai \`-f 11\`. Esegui la catena:
 
 \`\`\`
 grep "Failed password" caso/auth.log | cut -d " " -f 11 | sort | uniq -c
 \`\`\`
+
+Il risultato ha due colonne: a sinistra **quante volte**, a destra **quale indirizzo**.
 
 Poi invia con \`flag\` l'indirizzo IP che ha fatto **più** tentativi.`,
           objective: 'Trova l\'IP con più tentativi falliti e invialo con flag.',
@@ -277,9 +285,9 @@ Invia con \`flag\` il **PID** del processo sospetto.`,
           success: `Il processo **6631** è il colpevole:
 - usa il **97.9% della CPU** → ecco perché il server è lento e la ventola urla
 - parte da \`/tmp/.cache/\`, una cartella **nascosta** dentro \`/tmp\`, dove chiunque può scrivere
-- si chiama \`kthreadd\`, come un vero processo del kernel Linux: un **travestimento**
+- si chiama \`kthreadd\`, come un vero processo del kernel (il cuore di Linux): un **travestimento** per non dare nell'occhio
 - gira come \`mama\` ed è partito alle **03:20**, tre minuti dopo il login dell'attaccante
-- si collega a un "pool": è un **cryptominer**, un programma che usa il server di Mama per generare criptovalute per l'attaccante
+- si collega a un "pool": è un **cryptominer**, un programma che usa il processore del server di Mama per produrre criptovalute (monete digitali come Monero) per l'attaccante. Il *pool* è il server che raccoglie il lavoro di migliaia di computer infetti e paga chi li controlla
 
 C'è anche \`keepalive.sh\`, che probabilmente lo fa ripartire se viene chiuso.`,
         },
@@ -302,7 +310,7 @@ Ora è il momento del **contenimento**: chiudere la porta all'attaccante.`,
         {
           kind: 'task',
           title: 'Chiudi la porta',
-          body: `Blocchiamo l'indirizzo dell'attaccante sul firewall. Su Ubuntu si usa \`ufw\`, e servono i privilegi di amministratore. Mama ti ha autorizzato a usare \`sudo\` **solo** per il firewall:
+          body: `Blocchiamo l'indirizzo dell'attaccante sul firewall. Su Ubuntu (una delle distribuzioni Linux più diffuse) si usa \`ufw\` (*uncomplicated firewall*, "firewall semplice"), e servono i privilegi di amministratore. Per questo il comando inizia con \`sudo\`: esegue ciò che segue con i poteri di root. Mama ti ha autorizzato a usare \`sudo\` **solo** per il firewall:
 
 \`\`\`
 sudo ufw deny from 203.0.113.77
@@ -333,7 +341,7 @@ sudo ufw status
           body: `Ecco cosa si fa dopo, sul server vero (con i permessi di amministratore):
 
 **Eradicazione**
-- salvare una copia dei file sospetti come prova, poi fermare i processi (\`kill\`) e cancellare \`/tmp/.cache/\`
+- salvare una copia dei file sospetti come prova, poi fermare i processi (con il comando \`kill PID\`, che chiude un processo dato il suo numero) e cancellare \`/tmp/.cache/\`
 - cercare la **persistenza**: l'attaccante potrebbe aver lasciato altri modi per tornare. Si controllano i lavori programmati (\`crontab\`), le chiavi SSH aggiunte in \`~/.ssh/authorized_keys\`, gli utenti nuovi in \`/etc/passwd\`, i servizi all'avvio
 
 **Ripristino**

@@ -2549,3 +2549,89 @@ pre.code {
   padding: 0.6rem 0.8rem;
   margin-bottom: 0.8rem;
 }
+
+/* ---------------------------------------------------------------- glossario attivo */
+
+.gl {
+  text-decoration: underline dotted var(--cyan);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+.gl:hover,
+.gl:focus {
+  color: var(--cyan);
+  outline: none;
+}
+
+.gl-pop {
+  position: fixed;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+  z-index: 50;
+  max-width: 34rem;
+  margin: 0 auto;
+  background: var(--panel-2);
+  border: 1px solid var(--cyan-dim);
+  border-left: 3px solid var(--cyan);
+  padding: 0.8rem 2.4rem 0.6rem 0.9rem;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+}
+
+.gl-term {
+  font-family: var(--mono);
+  color: var(--cyan);
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+}
+
+.gl-pop p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.gl-x {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  width: 2rem;
+  height: 2rem;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.codex-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.8rem;
+}
+
+.codex-tabs button {
+  padding: 0.6rem 0.4rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.codex-tabs button.on {
+  color: var(--cyan);
+  border-color: var(--cyan-dim);
+}
+
+.codex-note {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.gl-search {
+  margin-bottom: 0.8rem;
+}

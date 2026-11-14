@@ -25,7 +25,7 @@ export const CH02: Chapter = {
           title: 'Cos\'è una rete',
           body: `Una **rete** è un insieme di dispositivi collegati che si scambiano dati: computer, telefoni, stampanti, telecamere, il router di casa.
 
-- **LAN** (*Local Area Network*): la rete locale, per esempio quella di casa tua o del bar. Di solito è creata dal **router**.
+- **LAN** (*Local Area Network*): la rete locale, per esempio quella di casa tua o del bar. Di solito è creata dal **router**: la scatoletta con le lucine che ti dà il wifi. Il router collega la rete di casa a Internet e smista i dati verso il dispositivo giusto, come un ufficio postale di quartiere.
 - **Internet**: la rete delle reti, che collega tra loro milioni di LAN in tutto il mondo.
 
 I dati non viaggiano tutti insieme: vengono divisi in piccoli **pacchetti**, come lettere spedite per posta. Ogni pacchetto ha un **mittente** e un **destinatario**.
@@ -124,7 +124,7 @@ flag 192.168.x.x
         {
           kind: 'task',
           title: 'Ping al router',
-          body: `Il **router** (o *gateway*) è il dispositivo che collega la LAN del bar a Internet. Nelle reti di casa ha quasi sempre l'indirizzo che finisce con \`.1\`.
+          body: `Il **router** (in questo ruolo si chiama anche *gateway*, "porta d'uscita") è il dispositivo che collega la LAN del bar a Internet. Nelle reti di casa ha quasi sempre l'indirizzo che finisce con \`.1\`.
 
 \`\`\`
 ping 192.168.1.1
@@ -135,7 +135,7 @@ ping 192.168.1.1
           success: `Il router risponde! Leggiamo l'output:
 - \`64 bytes from 192.168.1.1\` → è arrivata una risposta di 64 byte
 - \`icmp_seq=1\` → il numero del pacchetto
-- \`ttl=64\` → *Time To Live*, un contatore anti-loop. Il valore iniziale dipende dal sistema operativo: **64** di solito è Linux, **128** Windows. È un primo indizio per capire che sistema c'è dall'altra parte!
+- \`ttl=64\` → *Time To Live*, "tempo di vita". È un numero che parte da un valore iniziale e diminuisce di 1 ogni volta che il pacchetto attraversa un router; se arriva a 0 il pacchetto viene buttato. Serve a evitare che un pacchetto finito in un giro sbagliato circoli per sempre. Il valore iniziale dipende dal sistema operativo: **64** di solito è Linux, **128** Windows. È un primo indizio per capire che sistema c'è dall'altra parte!
 - \`time=1.2 ms\` → il tempo di andata e ritorno
 - in fondo, il riepilogo: \`0% packet loss\` vuol dire nessun pacchetto perso.`,
         },
@@ -144,7 +144,7 @@ ping 192.168.1.1
           title: 'Il DNS: la rubrica di Internet',
           body: `Ricordare numeri come \`142.250.180.14\` è scomodo. Per questo esistono i **nomi**: \`google.com\`, \`wikipedia.org\`...
 
-Il **DNS** (*Domain Name System*) è la "rubrica telefonica" della rete: trasforma un nome nel suo indirizzo IP. Quando scrivi un nome, il tuo computer chiede prima al server DNS "che IP ha questo nome?", e poi contatta quell'IP.
+Il **DNS** (*Domain Name System*) è la "rubrica telefonica" della rete: trasforma un nome nel suo indirizzo IP. Quando scrivi un nome, il tuo computer chiede prima a un **server DNS** (un computer che fa da rubrica) "che IP ha questo nome?", e poi contatta quell'IP.
 
 Nella LAN del bar il router fa anche da DNS: i dispositivi hanno nomi che finiscono con \`.lan\`.
 
@@ -217,7 +217,11 @@ Non rispondere al ping **non vuol dire essere spenti**. Molti sistemi hanno un *
           title: 'Le porte',
           body: `Un indirizzo IP identifica un **dispositivo**. Ma su un dispositivo girano molti programmi che usano la rete nello stesso momento: un sito web, la posta, l'accesso remoto...
 
-Per distinguerli si usano le **porte**: numeri da **0 a 65535**. Se l'IP è l'indirizzo di un **palazzo**, la porta è il **numero dell'appartamento**.
+Per distinguerli si usano le **porte**: numeri da **0 a 65535**. Se l'IP è l'indirizzo di un **palazzo**, la porta è il **numero dell'appartamento**. (Non sono porte fisiche: sono solo numeri scritti dentro ogni pacchetto.)
+
+Prima di guardare l'elenco, due parole che incontrerai ovunque:
+- **cifrato**: i dati vengono trasformati con una chiave segreta, in modo che solo chi ha la chiave possa leggerli. Chi li intercetta lungo la strada vede solo caratteri senza senso
+- **in chiaro**: i dati viaggiano così come sono. Chiunque riesca a intercettarli (per esempio sullo stesso wifi pubblico) li legge, password comprese
 
 Un programma che resta in ascolto su una porta si chiama **servizio**. Alcune porte sono famose e vanno imparate a memoria:
 
@@ -229,7 +233,7 @@ Un programma che resta in ascolto su una porta si chiama **servizio**. Alcune po
 53   DNS      risoluzione dei nomi
 80   HTTP     siti web (non cifrato)
 443  HTTPS    siti web cifrati (il lucchetto)
-3306 MySQL    database
+3306 MySQL    database (un archivio organizzato di dati, per esempio i clienti e gli ordini di un negozio)
 3389 RDP      desktop remoto di Windows
 \`\`\`
 
@@ -293,7 +297,7 @@ La sintassi base è:
 nmap [opzioni] bersaglio
 \`\`\`
 
-Il bersaglio può essere un IP, un nome, o un'intera rete in notazione **CIDR**, come \`192.168.1.0/24\`.`,
+Il bersaglio può essere un IP, un nome, o un'intera rete in notazione **CIDR**, come \`192.168.1.0/24\`: è la stessa scrittura con la barra che hai visto in \`ip a\`, e vuol dire "tutti gli indirizzi da 192.168.1.0 a 192.168.1.255".`,
         },
         {
           kind: 'task',
@@ -306,7 +310,7 @@ nmap -sn 192.168.1.0/24
           objective: 'Scopri gli host accesi con nmap -sn 192.168.1.0/24',
           hints: ['Scrivi: nmap -sn 192.168.1.0/24'],
           check: (ev) => ev.type === 'scan' && ev.flags.includes('-sn') && ev.target.endsWith('/24') && !ev.outOfScope,
-          success: `nmap ha trovato anche \`cassa.lan\`, che al ping non rispondeva! Perché nmap non si affida solo al ping: prova anche a contattare porte comuni (come la 80 e la 443) e, nelle reti locali, usa il protocollo **ARP**. **Un solo metodo non basta mai.**`,
+          success: `nmap ha trovato anche \`cassa.lan\`, che al ping non rispondeva! Perché nmap non si affida solo al ping: prova anche a contattare porte comuni (come la 80 e la 443) e, nelle reti locali, usa il protocollo **ARP**: la domanda "chi ha questo indirizzo IP?" gridata a tutta la rete locale, a cui ogni dispositivo acceso deve rispondere per poter comunicare. Lo studierai nel capitolo sulle reti avanzate. **Un solo metodo non basta mai.**`,
         },
         {
           kind: 'task',

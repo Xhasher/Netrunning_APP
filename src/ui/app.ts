@@ -30,6 +30,7 @@ import { analyze, type Analysis, type LogEntry } from '../game/coach';
 import { EXAMS } from '../game/exam';
 import { today } from '../game/cards';
 import { recordExam, renderExamsHome } from './exam';
+import { annotateGlossary, bindGlossarySearch, glossaryHtml, installGlossary } from './glossary';
 import { openManual } from './manual';
 import { dueCount, renderMemoryHome } from './memory';
 import { inline, renderMarkup } from './markup';
@@ -45,6 +46,8 @@ interface MissionRun {
   hintLevel: number;
   quizPicked: number | null;
   minimized: boolean;
+  /** termini del glossario già evidenziati, per passo */
+  glByStep: Map<number, Set<string>>;
 }
 
 const html = String.raw;
@@ -108,6 +111,7 @@ export class App {
 
   constructor(private root: HTMLElement) {
     this.applyFont();
+    installGlossary();
   }
 
   start(): void {
@@ -628,6 +632,7 @@ export class App {
       hintLevel: 0,
       quizPicked: null,
       minimized: false,
+      glByStep: new Map(),
     };
 
     // il diario dei comandi riparte quando la missione ricomincia da capo
@@ -742,6 +747,14 @@ export class App {
         ${actions}
       </div>`;
     if (step.kind === 'task' && !done) this.hideTaskCommands(panel.querySelector('.step-body')!, r.mission.id, r.step);
+    {
+      // glossario: ogni termine evidenziato solo la prima volta che compare nella missione
+      const before = new Set<string>();
+      for (const [k, set] of r.glByStep) if (k < r.step) set.forEach((t) => before.add(t));
+      const seen = new Set(before);
+      annotateGlossary(panel.querySelector<HTMLElement>('.step-body')!, seen);
+      r.glByStep.set(r.step, new Set([...seen].filter((t) => !before.has(t))));
+    }
 
     panel.onclick = (e) => {
       const t = (e.target as HTMLElement).closest<HTMLElement>('[data-act],[data-opt],[data-ref]');
@@ -1444,6 +1457,7 @@ export class App {
               <button class="ghost" data-act="terminal">Terminale ⌨</button>`
         }
       </div>`;
+    annotateGlossary(panel.querySelector<HTMLElement>('.step-body')!, new Set());
     panel.onclick = (e) => {
       const act = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset.act;
       if (act === 'hint') {
@@ -1690,9 +1704,9 @@ export class App {
     render();
   }
 
-  private showCodex(): void {
+  private showCodex(tab: 'glossario' | 'riepiloghi' = 'glossario'): void {
     const done = allMissions().filter((m) => this.save.completed.includes(m.id));
-    const content = done.length
+    const recaps = done.length
       ? done
           .map(
             (m) => html`
@@ -1704,8 +1718,21 @@ export class App {
               </section>`,
           )
           .join('')
-      : `<p class="empty">Il Codex raccoglie tutti i comandi e i concetti che impari. Completa la prima missione per sbloccare le prime voci.</p>`;
-    this.page('codex', 'Codex', '// glossario e comandi', content);
+      : `<p class="empty">Qui trovi il riepilogo di ogni missione completata: comandi e concetti. Completa la prima missione per sbloccare le prime voci.</p>`;
+    const content = html`
+      <div class="codex-tabs">
+        <button class="${tab === 'glossario' ? 'on' : ''}" data-tab="glossario">Glossario</button>
+        <button class="${tab === 'riepiloghi' ? 'on' : ''}" data-tab="riepiloghi">Riepiloghi delle missioni</button>
+      </div>
+      ${tab === 'glossario'
+        ? `<p class="codex-note">Tutti i termini tecnici del corso, spiegati in parole semplici. Nelle lezioni i termini <span class="gl">sottolineati così</span> si possono toccare per leggere la spiegazione al volo.</p>${glossaryHtml()}`
+        : recaps}`;
+    const node = this.page('codex', 'Codex', '// glossario e comandi', content);
+    bindGlossarySearch(node);
+    node.querySelector('.codex-tabs')!.addEventListener('click', (e) => {
+      const t = (e.target as HTMLElement).closest<HTMLElement>('[data-tab]')?.dataset.tab as 'glossario' | 'riepiloghi' | undefined;
+      if (t && t !== tab) this.showCodex(t);
+    });
   }
 
   private showCareer(): void {

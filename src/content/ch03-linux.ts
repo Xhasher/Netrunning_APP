@@ -29,9 +29,9 @@ Ogni **utente** ha:
 - una cartella **home**
 - una **shell** che parte quando entra
 
-Gli utenti si organizzano in **gruppi**, così si possono dare gli stessi permessi a più persone insieme (es. il gruppo \`sudo\` può diventare amministratore).
+Gli utenti si organizzano in **gruppi**, così si possono dare gli stessi permessi a più persone insieme. Per esempio chi fa parte del gruppo \`sudo\` può usare il comando \`sudo\` (*superuser do*), che esegue un singolo comando con i poteri di root dopo aver chiesto la propria password. È il modo corretto di fare l'amministratore: si lavora da utente normale e si chiedono i pieni poteri solo quando servono.
 
-Non tutti gli utenti sono persone: molti programmi girano con un utente dedicato (\`www-data\` per il server web, \`syslog\` per i log...). Si chiamano **utenti di servizio**. È una misura di sicurezza: se qualcuno buca il server web, si ritrova con i poteri limitati di \`www-data\`, non con quelli di root.
+Non tutti gli utenti sono persone: molti programmi girano con un utente dedicato (\`www-data\` per il *server web*, cioè il programma che mostra le pagine di un sito; \`syslog\` per i *log*, i file in cui il sistema annota ciò che succede...). Si chiamano **utenti di servizio**. È una misura di sicurezza: se qualcuno buca il server web, si ritrova con i poteri limitati di \`www-data\`, non con quelli di root.
 
 ?? L'utente con UID **0** è sempre root, qualunque nome abbia.`,
         },
@@ -210,7 +210,7 @@ cat audit/LEGGIMI.txt
           objective: 'Leggi audit/LEGGIMI.txt.',
           hints: ['Dalla home: cat audit/LEGGIMI.txt'],
           check: (ev, sh) => ev.type === 'read' && ev.path === `${sh.home}/audit/LEGGIMI.txt`,
-          success: `Un **audit dei permessi**: controllare che ogni file sia accessibile solo da chi ne ha bisogno. È un lavoro tipico sia del pentester sia del sistemista.`,
+          success: `Un **audit dei permessi**: controllare che ogni file sia accessibile solo da chi ne ha bisogno. È un lavoro tipico sia del pentester sia del *sistemista* (chi installa e mantiene i server di un'azienda).`,
         },
         {
           kind: 'task',
@@ -398,7 +398,7 @@ Invia il risultato con \`flag\`.`,
           body: `Un programma salvato sul disco è solo un file. Quando lo avvii diventa un **processo**: un programma in esecuzione, con:
 - un numero identificativo, il **PID**
 - un **utente** che lo esegue (e di cui ha i permessi)
-- un consumo di **CPU** e **memoria**
+- un consumo di **CPU** e **memoria**. La **CPU** (il processore) è il "cervello" che esegue i calcoli: un processo che la usa al 100% rallenta tutto il resto. La **memoria** (RAM) è lo spazio di lavoro temporaneo dei programmi, che si svuota allo spegnimento
 
 Il comando \`ps aux\` mostra tutti i processi del sistema. Le colonne più importanti:
 - \`USER\` → chi lo esegue

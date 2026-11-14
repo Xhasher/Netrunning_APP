@@ -525,6 +525,7 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
   addIncident(shell, home, mine);
   addPython(shell, home, mine);
   addRange(shell, home, mine);
+  addNetDefense(shell, home, mine);
   return shell;
 }
 
@@ -1294,3 +1295,52 @@ function addRange(sh: Shell, home: string, mine: { owner: string; group: string 
 }
 
 const fs = (sh: Shell) => sh.fs;
+
+/** Capitolo 09, missione 5: log del proxy, allarmi IDS e una regola Suricata. */
+function addNetDefense(sh: Shell, home: string, mine: { owner: string; group: string }): void {
+  const d = `${home}/rete/difese`;
+  const P: string[] = [];
+  const add = (t: string, ip: string, user: string, act: string, cat: string, url: string) => P.push(`2077-11-13 ${t} ${ip} ${user} ${act} ${cat} ${url}`);
+  add('08:58:12', '10.0.3.12', 'a.berg', 'ALLOW', 'news', 'https://nightcity-today.nc/');
+  add('09:01:40', '10.0.3.21', 'k.tanaka', 'ALLOW', 'business', 'https://intranet.arasaka-logistics.nc/');
+  add('09:03:02', '10.0.3.44', 'r.costa', 'BLOCK', 'malware', 'http://cdn-upd4te.nc:8443/beacon?id=7f3a');
+  add('09:05:10', '10.0.3.33', 'l.moreau', 'BLOCK', 'gambling', 'https://casino-afterlife.nc/');
+  add('09:08:02', '10.0.3.44', 'r.costa', 'BLOCK', 'malware', 'http://cdn-upd4te.nc:8443/beacon?id=7f3a');
+  add('09:09:55', '10.0.3.21', 'k.tanaka', 'ALLOW', 'webmail', 'https://mail.arasaka-logistics.nc/');
+  add('09:13:02', '10.0.3.44', 'r.costa', 'BLOCK', 'malware', 'http://cdn-upd4te.nc:8443/beacon?id=7f3a');
+  add('09:14:30', '10.0.3.17', 'p.ivanova', 'BLOCK', 'malware', 'http://free-braindance.nc/player.exe');
+  add('09:18:02', '10.0.3.44', 'r.costa', 'BLOCK', 'malware', 'http://cdn-upd4te.nc:8443/beacon?id=7f3a');
+  add('09:20:44', '10.0.3.12', 'a.berg', 'ALLOW', 'shopping', 'https://judy-bd.nc/');
+  add('09:23:02', '10.0.3.44', 'r.costa', 'BLOCK', 'malware', 'http://cdn-upd4te.nc:8443/beacon?id=7f3a');
+  add('09:28:02', '10.0.3.44', 'r.costa', 'BLOCK', 'malware', 'http://cdn-upd4te.nc:8443/beacon?id=7f3a');
+  add('09:30:10', '10.0.3.33', 'l.moreau', 'ALLOW', 'business', 'https://intranet.arasaka-logistics.nc/turni');
+  sh.fs.writeFile(`${d}/proxy.log`, P.join('\n') + '\n', mine);
+
+  const A: string[] = [];
+  const al = (t: string, sid: number, msg: string, cls: string, pr: number, proto: string, src: string, dst: string) =>
+    A.push(`11/13/2077-${t}  [**] [1:${sid}:2] ${msg} [**] [Classification: ${cls}] [Priority: ${pr}] {${proto}} ${src} -> ${dst}`);
+  al('02:11:04.221', 2010935, 'ET SCAN Suspicious inbound to MSSQL port 1433', 'Potentially Bad Traffic', 2, 'TCP', '198.51.100.71:44120', '203.0.113.10:1433');
+  al('02:11:05.017', 2010936, 'ET SCAN Suspicious inbound to Oracle SQL port 1521', 'Potentially Bad Traffic', 2, 'TCP', '198.51.100.71:44121', '203.0.113.10:1521');
+  al('02:13:44.902', 2001219, 'ET SCAN Potential SSH Scan', 'Attempted Information Leak', 2, 'TCP', '198.51.100.71:44150', '203.0.113.10:22');
+  al('03:02:10.411', 1000042, 'LOCALE Beacon verso cdn-upd4te.nc', 'A Network Trojan was detected', 1, 'TCP', '10.0.3.44:51220', '192.0.2.200:8443');
+  al('03:07:10.398', 1000042, 'LOCALE Beacon verso cdn-upd4te.nc', 'A Network Trojan was detected', 1, 'TCP', '10.0.3.44:51244', '192.0.2.200:8443');
+  al('03:30:55.120', 2013028, 'ET POLICY curl User-Agent Outbound', 'Attempted Information Leak', 3, 'TCP', '10.0.3.21:50110', '192.0.2.10:80');
+  al('04:01:12.664', 2019401, 'ET POLICY Vulnerable Java Version Detected', 'Potential Corporate Privacy Violation', 3, 'TCP', '10.0.3.12:50300', '192.0.2.30:80');
+  al('04:44:01.090', 2024792, 'ET WEB_SERVER Possible SQL Injection Attempt UNION SELECT', 'Web Application Attack', 1, 'TCP', '203.0.113.200:51800', '203.0.113.10:80');
+  al('05:10:22.310', 2027865, 'ET INFO Observed DNS Query to .nc TLD', 'Potentially Bad Traffic', 3, 'UDP', '10.0.3.17:53001', '10.0.0.53:53');
+  al('05:12:40.778', 2008578, 'ET SCAN Sipvicious Scan', 'Attempted Information Leak', 2, 'UDP', '198.51.100.90:5060', '203.0.113.10:5060');
+  al('06:00:01.001', 2210044, 'SURICATA STREAM Packet with invalid timestamp', 'Generic Protocol Command Decode', 3, 'TCP', '10.0.3.33:51002', '192.0.2.44:443');
+  al('06:20:12.554', 2013504, 'ET POLICY GNU/Linux APT User-Agent Outbound', 'Not Suspicious Traffic', 3, 'TCP', '10.0.0.20:40102', '192.0.2.80:80');
+  al('06:31:47.302', 2010937, 'ET SCAN Suspicious inbound to mySQL port 3306', 'Potentially Bad Traffic', 2, 'TCP', '198.51.100.71:44400', '203.0.113.10:3306');
+  al('06:45:09.881', 2016141, 'ET INFO Executable Download from dotted-quad Host', 'Potentially Bad Traffic', 2, 'TCP', '10.0.3.17:51900', '192.0.2.66:80');
+  sh.fs.writeFile(`${d}/ids.log`, A.join('\n') + '\n', mine);
+  sh.fs.writeFile(
+    `${d}/locale.rules`,
+    [
+      '# Regole locali scritte dal SOC di Arasaka Logistics',
+      '# 1000042: il malware di 10.0.3.44 chiama il suo server ogni 5 minuti',
+      'alert tcp $HOME_NET any -> $EXTERNAL_NET 8443 (msg:"LOCALE Beacon verso cdn-upd4te.nc"; flow:to_server,established; content:"/beacon?id="; http_uri; sid:1000042; rev:1;)',
+    ].join('\n') + '\n',
+    mine,
+  );
+}

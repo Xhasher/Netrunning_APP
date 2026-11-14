@@ -35,10 +35,12 @@ Ne conosci già alcuni:
 - **Android** sul tuo telefono
 - **macOS / iOS** sui prodotti Apple
 
-**Linux** è un sistema operativo gratuito e open source (il codice è pubblico). Lo trovi in posti che magari non immagini:
-- la grande maggioranza dei **server** di Internet (i siti che visiti girano quasi tutti su Linux)
+**Linux** è un sistema operativo gratuito e open source (il codice è pubblico: chiunque può leggerlo e controllarlo). Lo trovi in posti che magari non immagini:
+- la grande maggioranza dei **server** di Internet. Un *server* è semplicemente un computer che offre un servizio ad altri computer: mostra un sito, conserva la posta, custodisce un database. Di solito resta acceso giorno e notte, spesso senza schermo né tastiera. I siti che visiti girano quasi tutti su server Linux
 - **Android**, che è costruito proprio sopra Linux
 - router, smart TV, auto, telecamere...
+
+Linux esiste in tante versioni, chiamate **distribuzioni**: Ubuntu, Debian, Kali, Red Hat... Hanno tutte lo stesso cuore, il **kernel** (la parte del sistema operativo che comanda direttamente l'hardware), ma programmi e impostazioni un po' diversi. I comandi che impari qui funzionano su tutte.
 
 ?? Per questo chi lavora in sicurezza informatica DEVE conoscere Linux: è quello che troverai sia quando attacchi (in un test autorizzato) sia quando difendi.`,
         },
@@ -60,6 +62,18 @@ Nella parte bassa dello schermo c'è il tuo terminale. Ogni comando segue questo
 \`\`\`
 comando [opzioni] [argomenti]
 \`\`\`
+
+Vediamolo con un esempio che userai presto:
+
+\`\`\`
+ls -l /etc
+\`\`\`
+
+- \`ls\` è il **comando**: il nome del programma da eseguire (qui: "elenca i file")
+- \`-l\` è un'**opzione**: cambia il modo in cui il comando lavora. Le opzioni iniziano quasi sempre con un trattino \`-\` (qui: "mostra i dettagli")
+- \`/etc\` è un **argomento**: dice al comando **su cosa** lavorare (qui: la cartella \`/etc\`)
+
+Le parentesi quadre \`[ ]\` nello schema vogliono dire "facoltativo": molti comandi funzionano anche senza opzioni e senza argomenti. Comando, opzioni e argomenti sono separati da **spazi**: lo spazio è importante, \`ls-l\` tutto attaccato non funziona.
 
 Scrivi il comando e premi **Invio**. La shell lo esegue e ti mostra il risultato.`,
         },
@@ -93,7 +107,9 @@ whoami
           objective: 'Scrivi whoami nel terminale e premi Invio.',
           hints: ['Scrivi esattamente: whoami (tutto minuscolo, attaccato) e premi Invio.'],
           check: isCmd('whoami'),
-          success: `Il terminale ha risposto con il tuo nome utente. È proprio il primo comando che un pentester lancia quando entra in una macchina: **sapere chi sei ti dice cosa puoi fare**.`,
+          success: `Il terminale ha risposto con il tuo nome utente. È proprio il primo comando che un *pentester* lancia quando entra in una macchina: **sapere chi sei ti dice cosa puoi fare**.
+
+?? Un *pentester* (da *penetration tester*) è un professionista pagato per attaccare un sistema **con il permesso del proprietario**, per scoprirne i punti deboli prima che lo faccia un criminale. Lo diventerai anche tu, un passo alla volta.`,
         },
         {
           kind: 'task',
@@ -394,7 +410,9 @@ Sul telefono trovi **TAB**, **↑** e **↓** nella barra sopra la tastiera, ins
         {
           kind: 'task',
           title: 'Opzioni',
-          body: `I comandi accettano **opzioni** (dette anche *flag*) che ne cambiano il comportamento. Di solito iniziano con un trattino \`-\`.
+          body: `I comandi accettano **opzioni** che ne cambiano il comportamento: le hai viste nello schema \`comando [opzioni] [argomenti]\`. Di solito iniziano con un trattino \`-\`.
+
+?? In inglese le opzioni si chiamano anche *flag*. Non confonderle con le **flag** delle gare di hacking, che incontrerai tra un attimo: sono due cose diverse con lo stesso nome.
 
 Su Linux i file il cui nome **inizia con un punto** (es. \`.config\`) sono **nascosti**: \`ls\` normalmente non li mostra. L'opzione \`-a\` (*all*, "tutti") li fa comparire:
 
@@ -526,7 +544,7 @@ Da sinistra a destra:
 - \`1\` → numero di collegamenti (per ora ignoralo)
 - \`edge\` → il **proprietario** del file
 - \`edge\` → il **gruppo** proprietario
-- \`244\` → la **dimensione** in byte
+- \`244\` → la **dimensione** in byte. Un **byte** è l'unità di misura dei dati: in un file di testo semplice, un byte corrisponde più o meno a un carattere. 1 KB (kilobyte) sono circa mille byte, 1 MB (megabyte) circa un milione
 - \`Nov 11 21:04\` → data dell'ultima **modifica**
 - \`README.txt\` → il **nome**
 
@@ -702,7 +720,7 @@ cp appunti/comandi.txt appunti/comandi.bak
           check: (ev) => ev.type === 'fsop' && ev.op === 'cp' && ev.paths[1].endsWith('comandi.bak'),
           success: `Copia fatta.
 
-?? Ricordi l'audit del capitolo 03? I file \`.bak\` dimenticati in giro sono una miniera per gli attaccanti. Fai i backup, ma poi mettili al sicuro.`,
+?? Nei prossimi capitoli scoprirai che i file \`.bak\` dimenticati in giro sono una miniera d'oro per gli attaccanti: spesso contengono password. Fai i backup, ma poi mettili al sicuro.`,
         },
         {
           kind: 'task',
@@ -731,7 +749,7 @@ mv bozza.txt idee.txt
 
 !! \`rm -rf\` sul percorso sbagliato è uno degli errori più catastrofici che si possano fare: c'è chi ha cancellato server interi così. Regola d'oro: **rileggi il comando prima di premere Invio**, e non lanciare mai \`rm -rf\` copiato da Internet senza capirlo.
 
-?? Un attaccante che entra in un sistema spesso usa \`rm\` per cancellare le proprie tracce. Per questo i log vanno copiati altrove in tempo reale (ricordi il SIEM?).`,
+?? Un attaccante che entra in un sistema spesso usa \`rm\` per cancellare le proprie tracce, per esempio i **log** (i file in cui il sistema annota ciò che succede). Per questo le aziende copiano i log su un altro sistema in tempo reale: lo vedrai nel capitolo sul lavoro al SOC.`,
         },
         {
           kind: 'task',

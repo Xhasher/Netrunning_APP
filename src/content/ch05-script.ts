@@ -315,7 +315,7 @@ for NOME in ELEMENTO1 ELEMENTO2 ELEMENTO3; do
 done
 \`\`\`
 
-Ad ogni giro la variabile prende il valore successivo. Esempi:
+Le parole \`do\` ("fai") e \`done\` ("fatto") racchiudono i comandi da ripetere. Ad ogni giro la variabile prende il valore successivo della lista. Esempi:
 
 \`\`\`
 for host in gateway.lan jukebox.lan cassa.lan; do
@@ -358,6 +358,8 @@ else
   comandi se falsa
 fi
 \`\`\`
+
+\`then\` vuol dire "allora", \`else\` "altrimenti", e \`fi\` (cioè *if* scritto al contrario) chiude il blocco. La parte \`else\` è facoltativa.
 
 La condizione più comune si scrive tra parentesi quadre (con gli **spazi** dentro!):
 - \`[ -f file ]\` → il file esiste
