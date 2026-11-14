@@ -17,6 +17,26 @@ export interface FactDeck {
 
 export const FACT_DECKS: FactDeck[] = [
   {
+    id: 'ir',
+    title: 'Incidenti e forense',
+    unlock: 'ch08-m5',
+    typeFwd: true,
+    ask: (q) => `Come si chiama ${q}?`,
+    items: [
+      { q: 'la fase NIST in cui si decide se un allarme è un incidente e quanto è grave', a: 'rilevamento e analisi', accept: ['detection and analysis', 'analisi', 'triage'] },
+      { q: 'la riunione dopo un incidente, senza cercare colpevoli', a: 'lezioni apprese', accept: ['lessons learned'] },
+      { q: 'un file caricato su un sito che esegue i comandi passati nell\'indirizzo', a: 'web shell', accept: ['webshell'] },
+      { q: 'il meccanismo con cui un attaccante si assicura di poter rientrare', a: 'persistenza', accept: ['persistence'] },
+      { q: 'la sequenza di tutti gli eventi di più fonti in ordine di tempo', a: 'timeline', accept: ['linea del tempo'] },
+      { q: 'il registro di ogni passaggio di mano di una prova', a: 'catena di custodia', accept: ['chain of custody'] },
+      { q: 'il dispositivo che impedisce di scrivere sul disco originale', a: 'write blocker' },
+      { q: 'l\'ordine con cui raccogliere le prove, dalla più fragile alla più stabile', a: 'ordine di volatilità', accept: ['volatilità', 'order of volatility'] },
+      { q: 'la sequenza di byte iniziale che identifica il tipo di file', a: 'magic bytes', accept: ['firma', 'magic number', 'signature'] },
+      { q: 'la falsificazione delle date di un file', a: 'timestomping' },
+      { q: 'guardare dentro un programma senza eseguirlo', a: 'analisi statica', accept: ['static analysis'] },
+    ],
+  },
+  {
     id: 'owasp',
     title: 'OWASP Top 10',
     unlock: 'ch07-m4',

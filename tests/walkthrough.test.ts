@@ -113,6 +113,24 @@ const SOLUTIONS: Record<string, string[][]> = {
     ['grep -c "fattura scaduta" posta/consegne.log', 'flag 6'],
     ['grep pagamenti-sicuri.nc posta/proxy.log', 'flag t.okafor'],
   ],
+  'ch08-m5': [
+    ['cat ir/allarme.txt'],
+    ['cat ir/*.log | sort | grep 198.51.100.23', 'flag 02:09:41'],
+    ['grep 198.51.100.23 ir/web.log', 'flag /uploads/avatar.php'],
+    ['grep -i cron ir/processi.log', 'flag /etc/cron.d/php-sess'],
+    ['@nano ir/report.md|# Report\n## Causa\nIl modulo di upload della foto profilo accettava file PHP.\n'],
+  ],
+  'chDF-m1': [['cat forense/custodia.txt'], ['sha256sum forense/copie/*.img', 'flag copia-b.img']],
+  'chDF-m2': [
+    ['file forense/estratti/*', 'flag sfondo_mare.jpg'],
+    ['strings forense/estratti/sfondo_mare.jpg', 'flag sync.kiroshi-cdn.nc'],
+    ['sha256sum forense/estratti/sfondo_mare.jpg', 'flag NightCrawler'],
+  ],
+  'chDF-m3': [
+    ['sort forense/timeline.csv | grep www-data', 'flag /tmp/.x/kworker'],
+    ['grep php-sess forense/timeline.csv', 'flag 2077'],
+    ['cat forense/www-data/.bash_history', 'flag files.pastebox.nc'],
+  ],
   'ch08-m1': [
     ['head -n 5 siem/eventi.log'],
     ['grep LOGIN_FAIL siem/eventi.log | cut -d " " -f 5 | sort | uniq -c', 'flag 192.0.2.44'],

@@ -67,4 +67,12 @@ Restano da fare: riscrittura narrativa a mano delle lezioni 01–04, OWASP Top 1
 - Mazzi di Memoria: OWASP Top 10, analisi delle email.
 - Le missioni già completate restano rigiocabili anche se ne vengono aggiunte di nuove prima.
 
-Restano: ciclo di vita del SOC e gestione degli incidenti (NIST 800-61), reti avanzate, pentest in laboratorio, forensics, Python, esami a tempo.
+
+## Aggiunto nella 1.7
+
+- **8.5 L'incidente, dall'inizio alla fine**: ciclo NIST SP 800-61, evento/allarme/incidente, triage e gravità, timeline da più fonti (`cat *.log | sort`), web shell, persistenza via cron, contenimento senza spegnere, eradicazione, ripristino, report e lezioni apprese.
+- **Capitolo DF · Analisi forense** (dopo il 12): copie forensi, write blocker, impronte e catena di custodia, ordine di volatilità; firme dei file (`file`, `xxd`), `strings`, IOC e bollettini; date MACB, timeline del filesystem, timestomping, `.bash_history`. Lo stesso caso (Kiroshi) collega incidente e forense.
+- `file` riconosce anche JPEG, eseguibili Windows e immagini disco.
+- Mazzo di Memoria: incidenti e forense.
+
+Restano: Python per la sicurezza, reti avanzate (VLAN, VPN, proxy, IDS/IPS), pentest guidato in laboratorio, esami simulati a tempo.

@@ -860,6 +860,9 @@ function file(c: Ctx): number {
       if (t === '') d = 'empty';
       else if (t.startsWith('\u007fELF')) d = 'ELF 64-bit LSB executable, x86-64';
       else if (t.startsWith('%PDF')) d = 'PDF document';
+      else if (t.slice(0, 12).includes('JFIF')) d = 'JPEG image data, JFIF standard 1.01';
+      else if (t.startsWith('MZ')) d = 'PE32 executable (GUI) Intel 80386, for MS Windows';
+      else if (t.startsWith('DISKIMG')) d = 'DOS/MBR boot sector; partition 1 : ID=0x83 (Linux)';
       else if (t.startsWith('PK')) d = 'Zip archive data';
       else if (t.startsWith('TARSIM1')) d = 'POSIX tar archive (gzip compressed data)';
       else if (t.startsWith('#!')) d = `${t.includes('python') ? 'Python script' : 'Bourne-Again shell script'}, ASCII text executable`;

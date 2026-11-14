@@ -9,17 +9,19 @@ Si gioca in un **terminale Linux simulato**: comandi, file, rete e bersagli sono
 | Capitolo | Missioni | Argomenti |
 |---|---|---|
 | 01 · Jack-in | 6 | cos'è Linux, il terminale, il prompt, `whoami`, `pwd`, `ls`, `cd`, percorsi, `cat`, file nascosti, `man`, `ls -l`, `echo`, `history`, `mkdir`, `touch`, `>` e `>>`, `cp`, `mv`, `rm`, `tree`, prima CTF |
+| F · Fondamenti di sicurezza | 5 | triade CIA, AAA e non ripudio, asset/minacce/vulnerabilità/rischio, controlli, difesa in profondità, minimo privilegio, attori di minaccia, malware, ingegneria sociale, Kill Chain, MFA e password, ciclo di vita degli account, art. 615-ter, perimetro, divulgazione responsabile, GDPR, ISO 27001, NIST CSF, ruoli |
 | 02 · Rete di quartiere | 3 | reti, indirizzi IP, `ip a`, `ping`, DNS, firewall, porte, TCP, scope e legge (art. 615-ter c.p.), `nmap`, CVE, report di pentest |
 | 03 · Linux in profondità | 3 | utenti e gruppi, `id`, `/etc/passwd`, `/etc/shadow` e hash, permessi e `chmod`, audit, minimo privilegio, `find`, pipe, `grep`, `wc`, `ps aux` |
 | 04 · Primo turno al SOC | 3 | log e `/var/log`, `head`/`tail`, brute force, `cut \| sort \| uniq -c`, intrusione, cryptominer, timeline, `sudo ufw`, incident response, rapporto d'incidente |
 | 05 · Scripting | 3 | variabili, `$(...)`, stdout/stderr, `2>/dev/null`, `nano`, shebang, `chmod +x`, argomenti `$1`, cicli `for`, `if` e `test`, script di allarme |
 | 06 · Crittografia e password | 3 | codifica vs cifratura vs hash, `base64`, cifratura simmetrica e asimmetrica, TLS/HTTPS, SHA-256, `sha256sum -c`, supply chain attack, sale e hash lenti, password manager, MFA |
-| 07 · Web security | 3 | URL e HTTP, codici di stato, header, `curl`, information disclosure, robots.txt, security through obscurity, `access.log`, scanner, SQL injection, XSS, path traversal e relative difese |
-| 08 · Blue Team avanzato | 3 | SIEM e normalizzazione, regole di rilevamento, password spraying, Cyber Kill Chain, MITRE ATT&CK, threat intelligence, IOC, threat hunting nei log DNS e per hash, IDS |
+| 07 · Web security | 5 | URL e HTTP, codici di stato, header, `curl`, information disclosure, robots.txt, security through obscurity, `access.log`, scanner, SQL injection, XSS, path traversal; OWASP Top 10 completa; audit autorizzato di un negozio (IDOR, versioni esposte, file di backup, SSRF, password nei log) e struttura del report |
+| 08 · Blue Team avanzato | 5 | SIEM e normalizzazione, regole di rilevamento, password spraying, Cyber Kill Chain, MITRE ATT&CK, threat intelligence, IOC, threat hunting nei log DNS e per hash, IDS; analisi del phishing (intestazioni, SPF/DKIM/DMARC, link, campagna, risposta); gestione completa di un incidente (NIST SP 800-61) |
 | 09 · Reti avanzate | 4 | modello OSI e TCP/IP, incapsulamento, MAC e ARP, ARP spoofing, routing, CIDR e sottoreti con `ipcalc`, segmentazione e VLAN, `tcpdump`, flag TCP, protocolli in chiaro, scansioni SYN, chiavi SSH, known_hosts, tunnel e VPN |
 | 10 · Ricognizione e OSINT | 4 | OSINT e limiti etici/legali (GDPR), `whois`, `dig` (A, MX, TXT, NS), SPF/DKIM/DMARC, certificate transparency (`crtsh`), shadow IT, metadati con `exiftool`, effetto mosaico, CVE, CVSS, NVD e KEV, priorità delle correzioni |
 | 11 · Rinforzare i sistemi | 4 | cosa fa un attaccante dopo l'accesso (dal punto di vista di chi difende), `sudo -l` e regole pericolose, file SUID, credenziali nei file, `ss -tlnp`, `apt list --upgradable`, configurazione SSH sicura, CIS Benchmarks, riuso delle credenziali, difesa in profondità, EDR, backup 3-2-1, zero trust |
 | 12 · Windows e Active Directory | 3 | struttura di Windows, PowerShell (alias `Get-Content`, `Select-String`...), Active Directory, Domain Controller, gruppi privilegiati, tiering, Kerberos e NTLM, Event ID (4624, 4625, 4672, 4720, 4728, 7045, 1102), Sysmon, log centralizzati |
+| DF · Analisi forense | 3 | copie forensi, write blocker, impronte, catena di custodia, ordine di volatilità, firme dei file (`file`, `xxd`), `strings`, IOC, date MACB, timeline del filesystem, timestomping, `.bash_history` |
 | 13 · Cloud e carriera | 4 | cloud e responsabilità condivisa, IAM, storage pubblici, chiavi nel codice, cassetta degli attrezzi (Wireshark, Burp, Wazuh, Sysmon, Autopsy, CyberChef...), `alias` e `cheat`, guida al laboratorio di casa, report professionale, percorso di carriera e colloqui |
 
 Altre modalità:
