@@ -102,3 +102,8 @@ Restano da fare: riscrittura narrativa a mano delle lezioni 01–04, OWASP Top 1
 - **Glossario attivo**: 189 termini spiegati in parole semplici (`src/content/glossary.ts`). Nelle lezioni e nelle sfide la prima occorrenza di ogni termine è sottolineata e si tocca per leggere la definizione; nel Codex c'è il glossario completo con ricerca.
 
 Il programma previsto in questo documento è completo. Prossimi passi possibili: approfondire i punti deboli che emergono dagli esami simulati.
+
+## Aggiunto nella 1.12
+
+- Effetti visivi con interruttore (classe `fx`, rispetta `prefers-reduced-motion`): transizione tra schermate con linea di scansione, comparsa a cascata, conteggio degli XP, riquadro "nuovo rango", obiettivo raggiunto che pulsa, risposta sbagliata che trema, logo che sfarfalla ogni tanto.
+- Versione browser su GitHub Pages e salvataggio condiviso tramite Gist privato, con unione dei progressi tra dispositivi.

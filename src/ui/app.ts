@@ -30,6 +30,7 @@ import { analyze, type Analysis, type LogEntry } from '../game/coach';
 import { EXAMS } from '../game/exam';
 import { today } from '../game/cards';
 import { recordExam, renderExamsHome } from './exam';
+import { SyncError, describe as describeSave, loadCloud, saveCloud, syncOnce, type CloudConfig } from '../game/sync';
 import { annotateGlossary, bindGlossarySearch, glossaryHtml, installGlossary } from './glossary';
 import { openManual } from './manual';
 import { dueCount, renderMemoryHome } from './memory';
@@ -99,6 +100,10 @@ export class App {
   } | null = null;
   /** timer da fermare quando si cambia schermata */
   private timers: number[] = [];
+  /** rango prima dell'ultima missione completata (per festeggiare la promozione) */
+  private rankBefore = '';
+  /** ultimo passo mostrato: l'animazione parte solo quando si cambia passo */
+  private lastStepKey = '';
   private op: {
     op: Operation;
     found: Set<string>;
@@ -116,6 +121,59 @@ export class App {
 
   start(): void {
     this.showTitle();
+    // su PC, Esc fa da tasto "indietro" (ma non mentre scrivi nel terminale o in un campo)
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      const t = e.target as HTMLElement;
+      const sheet = document.querySelector<HTMLElement>('.manual-sheet [data-m="close"]');
+      if (sheet) return sheet.click();
+      if (t.closest('input, textarea, select, .editor, .gl-pop') || document.querySelector('.gl-pop, .editor')) return;
+      this.back();
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') void this.syncNow();
+    });
+    if (loadCloud()) void this.syncNow(true);
+  }
+
+  // ------------------------------------------------------------- salvataggio nel cloud
+
+  private syncTimer = 0;
+  private syncing = false;
+
+  private scheduleSync(): void {
+    const cfg = loadCloud();
+    if (!cfg || cfg.lastError === 'auth') return;
+    window.clearTimeout(this.syncTimer);
+    this.syncTimer = window.setTimeout(() => void this.syncNow(), 8000);
+  }
+
+  /** Legge il cloud, unisce, scrive. All'avvio applica anche i file del deck se nel cloud sono più recenti. */
+  private async syncNow(startup = false, cfgOverride?: CloudConfig): Promise<string> {
+    const cfg = cfgOverride ?? loadCloud();
+    if (!cfg || this.syncing || (!cfgOverride && cfg.lastError === 'auth')) return '';
+    this.syncing = true;
+    window.clearTimeout(this.syncTimer);
+    const before = { xp: this.save.xp, done: this.save.completed.length };
+    try {
+      this.persistDeck();
+      const localDeck = this.deckData() ?? loadDeck();
+      const r = await syncOnce(cfg, { v: 1, save: this.save, deck: localDeck });
+      Object.assign(this.save, r.save);
+      writeSave(this.save);
+      const deckApplied = !!r.remoteDeck && (startup || !localDeck) && !this.shell;
+      if (deckApplied && typeof r.remoteDeck === 'object') saveDeck(r.remoteDeck);
+      saveCloud(r.cfg);
+      const changed = this.save.xp !== before.xp || this.save.completed.length !== before.done;
+      if (changed && ['title', 'map'].includes(this.screen)) (this.screen === 'map' ? this.showMap() : this.showTitle());
+      return r.created ? 'Salvataggio creato nel tuo GitHub.' : changed ? `Progressi uniti: ${describeSave(this.save)}.` : 'Tutto sincronizzato.';
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Errore sconosciuto.';
+      saveCloud({ ...cfg, lastError: e instanceof SyncError && e.auth ? 'auth' : msg });
+      return `Sincronizzazione non riuscita: ${msg}`;
+    } finally {
+      this.syncing = false;
+    }
   }
 
   /** Tasto "indietro" di Android. */
@@ -159,16 +217,47 @@ export class App {
 
   private persist(): void {
     writeSave(this.save);
+    this.scheduleSync();
   }
 
   private applyFont(): void {
     document.documentElement.style.setProperty('--scale', String(this.save.fontScale));
+    this.applyFx();
+  }
+
+  /** Effetti visivi: attivi se l'opzione è accesa e il sistema non chiede animazioni ridotte. */
+  private applyFx(): void {
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    document.documentElement.classList.toggle('fx', this.save.effects !== false && !reduced);
+  }
+
+  private fxOn(): boolean {
+    return document.documentElement.classList.contains('fx');
+  }
+
+  /** Fa salire un numero da 0 al valore finale (solo con gli effetti attivi). */
+  private countUp(el: Element | null, to: number, prefix = '', suffix = ''): void {
+    if (!el) return;
+    if (!this.fxOn() || to <= 0) {
+      el.textContent = `${prefix}${to}${suffix}`;
+      return;
+    }
+    const start = performance.now();
+    const dur = 700;
+    const step = (t: number) => {
+      const k = Math.min(1, (t - start) / dur);
+      const eased = 1 - (1 - k) ** 3;
+      el.textContent = `${prefix}${Math.round(to * eased)}${suffix}`;
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
   }
 
   private mount(screen: string, node: HTMLElement): void {
     for (const t of this.timers) window.clearInterval(t);
     this.timers = [];
     this.screen = screen;
+    if (this.fxOn()) node.classList.add('fx-enter');
     this.root.replaceChildren(node);
     this.root.scrollTop = 0;
   }
@@ -746,6 +835,8 @@ export class App {
         ${r.step > 0 ? `<button class="ghost" data-act="prev">◂</button>` : ''}
         ${actions}
       </div>`;
+    panel.classList.toggle('step-new', this.lastStepKey !== `${r.mission.id}:${r.step}`);
+    this.lastStepKey = `${r.mission.id}:${r.step}`;
     if (step.kind === 'task' && !done) this.hideTaskCommands(panel.querySelector('.step-body')!, r.mission.id, r.step);
     {
       // glossario: ogni termine evidenziato solo la prima volta che compare nella missione
@@ -1086,6 +1177,7 @@ export class App {
   private finishMission(): void {
     const r = this.run!;
     const first = !this.save.completed.includes(r.mission.id);
+    this.rankBefore = rankFor(this.save.xp).name;
     if (first) {
       this.save.completed.push(r.mission.id);
       this.save.xp += r.mission.xp;
@@ -1108,6 +1200,7 @@ export class App {
           <div class="kicker">${lastOfChapter ? `// capitolo ${ch.code} completato` : '// missione completata'}</div>
           <h2>${m.title}</h2>
           ${first ? `<div class="xp-gain">+${m.xp} XP</div>` : '<div class="xp-gain replay">ripasso completato</div>'}
+          ${first && this.rankBefore && this.rankBefore !== rank.name ? `<div class="rank-up"><span>NUOVO RANGO</span><b>${rank.name}</b></div>` : ''}
           <div class="rank-now">Rango: <b>${rank.name}</b> · ${this.save.xp} XP</div>
           <h3>Cosa hai imparato</h3>
           <dl class="recap">
@@ -1129,6 +1222,7 @@ export class App {
     });
     this.fillCoachCode(node);
     this.mount('complete', node);
+    if (first) this.countUp(node.querySelector('.xp-gain'), m.xp, '+', ' XP');
   }
 
   // ------------------------------------------------------------- pagine
@@ -1769,6 +1863,41 @@ export class App {
     this.page('career', 'Carriera', '// dal gioco al lavoro', content);
   }
 
+  private cloudHtml(): string {
+    const cfg = loadCloud();
+    const web = 'https://xhasher.github.io/Netrunning_APP/';
+    if (cfg) {
+      const when = cfg.lastSync ? new Date(cfg.lastSync).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' }) : 'mai';
+      const err = cfg.lastError ? `<p class="small cloud-err">${cfg.lastError === 'auth' ? 'Il token non è più valido: scollega e collega di nuovo con un token nuovo.' : inline(cfg.lastError)}</p>` : '';
+      return html`
+        <p>Collegato a GitHub come <b>${cfg.login ?? '...'}</b>. Ultima sincronizzazione: ${when}.</p>
+        ${err}
+        <p class="small">I progressi si sincronizzano da soli all'avvio, qualche secondo dopo ogni salvataggio e quando chiudi l'app. Versione da browser: <a href="${web}" target="_blank" rel="noopener">${web}</a></p>
+        <div class="step-actions">
+          <button class="ghost" data-act="cloud-sync">Sincronizza ora</button>
+          <button class="ghost" data-act="cloud-off">Scollega</button>
+        </div>`;
+    }
+    return html`
+      <p class="small">Puoi giocare anche dal PC, nel browser, all'indirizzo <a href="${web}" target="_blank" rel="noopener">${web}</a>. Per avere gli stessi progressi su telefono e PC, collega su entrambi lo stesso account GitHub (gratuito): il gioco salva i progressi in un tuo <b>Gist privato</b>, un piccolo file nel tuo account. Nessun altro server, nessun dato altrove.</p>
+      <details class="mem-how">
+        <summary>Come ottenere il token (una volta sola, 2 minuti)</summary>
+        <div class="prose">
+          <ol>
+            <li>Su github.com, accedi e apri <b>Settings</b> (dal menu della tua foto) → <b>Developer settings</b> → <b>Personal access tokens</b> → <b>Tokens (classic)</b>.</li>
+            <li>Tocca <b>Generate new token (classic)</b>. Nome: <code>Netrunning</code>. Scadenza: quella che preferisci.</li>
+            <li>Spunta <b>solo</b> la casella <b>gist</b>. Nient'altro: così il token può toccare solo i Gist, non i tuoi repository.</li>
+            <li>Tocca <b>Generate token</b> e copia il codice (inizia con <code>ghp_</code>). GitHub te lo mostra una volta sola.</li>
+            <li>Incollalo qui sotto, su <b>ogni</b> dispositivo (telefono e PC). Puoi usare lo stesso token.</li>
+          </ol>
+          <p>Il token resta salvato solo sul dispositivo. Trattalo come una password: non condividerlo. Se lo perdi o temi che qualcuno l'abbia visto, cancellalo da GitHub e creane uno nuovo.</p>
+        </div>
+      </details>
+      <input class="mem-input code cloud-token" type="password" placeholder="ghp_..." autocapitalize="off" autocomplete="off" spellcheck="false" />
+      <div class="step-actions"><button class="next" data-act="cloud-connect">Collega e sincronizza</button></div>
+      <p class="small">Se su GitHub ci sono già progressi (da un altro dispositivo), vengono <b>uniti</b> a quelli di qui: missioni, XP, Memoria ed esami si sommano, niente va perso.</p>`;
+  }
+
   private showSettings(): void {
     const content = html`
       <section class="setting">
@@ -1787,6 +1916,18 @@ export class App {
           <span>Nei compiti, nascondi i comandi che hai già usato (si vedono toccandoli)</span>
         </label>
         <p class="small">Comandi che conosci: ${this.save.known.filter((k) => MANPAGES[k]).length}</p>
+      </section>
+      <section class="setting">
+        <h3>Effetti visivi</h3>
+        <label class="toggle">
+          <input type="checkbox" data-act="effects" ${this.save.effects !== false ? 'checked' : ''} />
+          <span>Transizioni e animazioni (si spengono da sole se il telefono è impostato per ridurre il movimento)</span>
+        </label>
+      </section>
+      <section class="setting cloud">
+        <h3>Gioca su più dispositivi</h3>
+        ${this.cloudHtml()}
+        <div class="cloud-msg small" aria-live="polite"></div>
       </section>
       <section class="setting">
         <h3>Backup dei progressi</h3>
@@ -1815,7 +1956,7 @@ export class App {
       </section>
       <section class="setting">
         <h3>Informazioni</h3>
-        <p class="small">Night City Netrunning v1.2 · corso di ethical hacking in italiano. Tutti i sistemi, le reti e i personaggi del gioco sono simulati o inventati. Le conoscenze di sicurezza vanno usate solo su sistemi propri o con autorizzazione scritta.</p>
+        <p class="small">Night City Netrunning v${__APP_VERSION__} · corso di ethical hacking in italiano. Tutti i sistemi, le reti e i personaggi del gioco sono simulati o inventati. Le conoscenze di sicurezza vanno usate solo su sistemi propri o con autorizzazione scritta.</p>
       </section>`;
     const node = this.page('settings', 'Opzioni', '// impostazioni', content);
     node.addEventListener('click', (e) => {
@@ -1823,6 +1964,40 @@ export class App {
       if (act === 'hideknown') {
         this.save.hideKnown = (e.target as HTMLInputElement).checked;
         this.persist();
+        return;
+      }
+      if (act === 'cloud-connect' || act === 'cloud-sync') {
+        const msgEl = node.querySelector<HTMLElement>('.cloud-msg')!;
+        let cfg = loadCloud();
+        if (act === 'cloud-connect') {
+          const token = node.querySelector<HTMLInputElement>('.cloud-token')!.value.trim();
+          if (!/^(ghp_|github_pat_)\w{20,}/.test(token)) {
+            msgEl.textContent = 'Il token non sembra valido: deve iniziare con ghp_ (classico) o github_pat_ (a grana fine).';
+            return;
+          }
+          cfg = { token };
+        }
+        if (!cfg) return;
+        msgEl.textContent = 'Sincronizzazione in corso...';
+        void this.syncNow(false, { ...cfg, lastError: undefined }).then((m) => {
+          if (this.screen !== 'settings') return;
+          this.showSettings();
+          const el2 = this.root.querySelector<HTMLElement>('.cloud-msg');
+          if (el2) el2.textContent = m;
+          this.root.querySelector('.cloud')?.scrollIntoView({ block: 'start' });
+        });
+        return;
+      }
+      if (act === 'cloud-off') {
+        if (!confirm('Scollegare questo dispositivo dal salvataggio nel cloud? I progressi restano sia qui sia su GitHub.')) return;
+        saveCloud(null);
+        this.showSettings();
+        return;
+      }
+      if (act === 'effects') {
+        this.save.effects = (e.target as HTMLInputElement).checked;
+        this.persist();
+        this.applyFx();
         return;
       }
       const box = node.querySelector<HTMLTextAreaElement>('.backup-box')!;
@@ -1883,7 +2058,9 @@ export class App {
         this.applyFont();
         node.querySelector('.font-val')!.textContent = `${Math.round(this.save.fontScale * 100)}%`;
       } else if (act === 'reset') {
-        if (confirm('Vuoi davvero cancellare tutti i progressi? Non si può annullare.')) {
+        const cloudOn = !!loadCloud();
+        if (confirm(`Vuoi davvero cancellare tutti i progressi? Non si può annullare.${cloudOn ? '\n\nQuesto dispositivo verrà anche scollegato dal salvataggio nel cloud (che resta su GitHub): se lo ricolleghi, i progressi del cloud torneranno.' : ''}`)) {
+          if (cloudOn) saveCloud(null);
           clearSave();
           clearDeck();
           this.save = loadSave();

@@ -29,10 +29,14 @@ export interface SaveData {
   logs: Record<string, LogEntry[]>;
   /** storico degli esami simulati (gli ultimi 30) */
   exams: ExamRecord[];
+  /** effetti visivi (transizioni, animazioni) */
+  effects: boolean;
+  /** ultimo salvataggio, in millisecondi: serve a unire i progressi tra dispositivi */
+  updatedAt: number;
 }
 
 export function defaultSave(): SaveData {
-  return { handle: null, xp: 0, completed: [], progress: {}, fontScale: 1, ops: [], best: {}, known: [], hideKnown: true, sim: { chapters: [], level: 1 }, srs: {}, streak: { day: 0, count: 0, best: 0 }, logs: {}, exams: [] };
+  return { handle: null, xp: 0, completed: [], progress: {}, fontScale: 1, ops: [], best: {}, known: [], hideKnown: true, sim: { chapters: [], level: 1 }, srs: {}, streak: { day: 0, count: 0, best: 0 }, logs: {}, exams: [], effects: true, updatedAt: 0 };
 }
 
 export function loadSave(): SaveData {
@@ -46,6 +50,7 @@ export function loadSave(): SaveData {
 }
 
 export function writeSave(s: SaveData): void {
+  s.updatedAt = Date.now();
   try {
     localStorage.setItem(KEY, JSON.stringify(s));
   } catch {

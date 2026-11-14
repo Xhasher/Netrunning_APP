@@ -1921,7 +1921,7 @@ pre.code {
   color: var(--green);
 }
 
-.mapnav button:last-child:nth-child(odd) {
+.mapnav button:last-child:nth-child(3n + 1) {
   grid-column: span 3;
 }
 
@@ -2634,4 +2634,252 @@ pre.code {
 
 .gl-search {
   margin-bottom: 0.8rem;
+}
+
+/* ---------------------------------------------------------------- effetti visivi (solo con html.fx) */
+
+.rank-up {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  margin: 0.4rem auto 0.6rem;
+  padding: 0.5rem 1.2rem;
+  border: 1px solid var(--yellow);
+  background: rgba(252, 238, 10, 0.07);
+}
+
+.rank-up span {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  color: var(--yellow);
+}
+
+.rank-up b {
+  font-family: var(--display);
+  font-size: 1.25rem;
+  letter-spacing: 0.04em;
+}
+
+@keyframes fx-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fx-scan {
+  from {
+    transform: translateY(-10vh);
+    opacity: 0.9;
+  }
+  to {
+    transform: translateY(110vh);
+    opacity: 0;
+  }
+}
+
+@keyframes fx-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes fx-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(61, 255, 168, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 0 14px rgba(61, 255, 168, 0);
+  }
+}
+
+@keyframes fx-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-5px);
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+}
+
+@keyframes fx-glitch {
+  0%,
+  92%,
+  100% {
+    text-shadow: none;
+    transform: none;
+  }
+  93% {
+    text-shadow: -2px 0 var(--pink), 2px 0 var(--cyan);
+    transform: translateX(1px);
+  }
+  95% {
+    text-shadow: 2px 0 var(--pink), -2px 0 var(--cyan);
+    transform: translateX(-1px);
+  }
+  97% {
+    text-shadow: none;
+    transform: none;
+  }
+}
+
+@keyframes fx-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* cambio di schermata: dissolvenza leggera e una linea di scansione che attraversa lo schermo */
+html.fx .fx-enter {
+  animation: fx-enter 0.24s ease-out both;
+}
+
+html.fx .fx-enter::after {
+  content: '';
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  box-shadow: 0 0 12px var(--cyan);
+  pointer-events: none;
+  z-index: 40;
+  animation: fx-scan 0.5s ease-in both;
+}
+
+/* il logo ogni tanto "sfarfalla" */
+html.fx .logo .l1 {
+  animation: fx-glitch 6s steps(1) infinite;
+}
+
+/* pulsanti: risposta al tocco e bagliore al passaggio del mouse */
+html.fx button {
+  transition: transform 0.08s ease, box-shadow 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+html.fx button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+@media (hover: hover) {
+  html.fx .opcard:hover:not(:disabled),
+  html.fx .mbtn.open:hover,
+  html.fx .mapnav button:hover {
+    box-shadow: 0 0 0 1px var(--cyan-dim), 0 0 14px rgba(0, 240, 255, 0.15);
+  }
+}
+
+/* obiettivo raggiunto */
+html.fx .objective.complete {
+  animation: fx-glow 0.8s ease-out;
+}
+
+html.fx .objective.complete .o-label {
+  display: inline-block;
+  animation: fx-pop 0.45s ease-out both;
+}
+
+/* risultato di una missione */
+html.fx .screen.complete .panel > * {
+  animation: fx-rise 0.35s ease-out both;
+}
+
+html.fx .screen.complete .panel > :nth-child(2) {
+  animation-delay: 0.05s;
+}
+
+html.fx .screen.complete .panel > :nth-child(3) {
+  animation-delay: 0.1s;
+}
+
+html.fx .screen.complete .panel > :nth-child(n + 4) {
+  animation-delay: 0.15s;
+}
+
+html.fx .rank-up {
+  animation: fx-pop 0.6s 0.3s ease-out both, fx-glow 1.2s 0.9s ease-out;
+}
+
+/* risposte: giusta che pulsa, sbagliata che trema */
+html.fx .opt.right {
+  animation: fx-glow 0.7s ease-out;
+}
+
+html.fx .opt.wrong {
+  animation: fx-shake 0.35s ease-in-out;
+}
+
+/* elenco delle missioni sulla mappa che compare a cascata */
+html.fx .screen.map .chapter {
+  animation: fx-rise 0.3s ease-out both;
+}
+
+html.fx .screen.map .chapter:nth-child(2) {
+  animation-delay: 0.04s;
+}
+
+html.fx .screen.map .chapter:nth-child(3) {
+  animation-delay: 0.08s;
+}
+
+html.fx .screen.map .chapter:nth-child(n + 4) {
+  animation-delay: 0.12s;
+}
+
+/* passaggio da un passo all'altro della lezione */
+html.fx .lesson.step-new .step-title,
+html.fx .lesson.step-new .step-body {
+  animation: fx-rise 0.22s ease-out both;
+}
+
+/* finestrella del glossario */
+html.fx .gl-pop {
+  animation: fx-rise 0.18s ease-out both;
+}
+
+.cloud a {
+  color: var(--cyan);
+  overflow-wrap: anywhere;
+}
+
+.cloud-err {
+  color: var(--red, #ff5468);
+}
+
+.cloud ol {
+  padding-left: 1.2rem;
+}
+
+.cloud-token {
+  margin: 0.4rem 0;
 }
