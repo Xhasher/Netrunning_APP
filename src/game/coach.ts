@@ -146,7 +146,7 @@ function add(map: Map<string, Tip>, t: Omit<Tip, 'count'>): void {
  * Analizza il diario di una o più missioni.
  * @param objectives quanti obiettivi pratici c'erano (serve per misurare l'efficienza)
  */
-export function analyze(log: readonly LogEntry[], objectives: number): Analysis {
+export function analyze(log: readonly LogEntry[], objectives: number, perObjective = 5): Analysis {
   const tips = new Map<string, Tip>();
   const strengths: Strength[] = [];
   const cmds = log.filter((e) => e.l);
@@ -351,10 +351,10 @@ export function analyze(log: readonly LogEntry[], objectives: number): Analysis 
       id: 'wrong',
       weight: 5,
       title: 'Verifica prima di rispondere',
-      text: `${wrong} risposte sbagliate. Prima di inviare una flag, rileggi la domanda e ricontrolla il dato nell'output (o rifai il comando in un altro modo per conferma). In un report vero una conclusione sbagliata fa più danni di una lenta.`,
+      text: `${wrong} risposte sbagliate. Prima di inviare una risposta (\`flag\`) o una segnalazione (\`report\`), rileggi la domanda e ricontrolla il dato nell'output (o rifai il comando in un altro modo per conferma). In un report vero una conclusione sbagliata fa più danni di una lenta.`,
     });
   const work = cmds.filter((e) => !['flag', 'hint', 'clear', 'help'].includes(first(e.l)));
-  if (objectives >= 3 && work.length > objectives * 5)
+  if (objectives >= 3 && work.length > objectives * perObjective)
     add(tips, {
       id: 'efficiency',
       weight: 2,
@@ -362,15 +362,17 @@ export function analyze(log: readonly LogEntry[], objectives: number): Analysis 
       text: `Hai usato in media ${Math.round(work.length / objectives)} comandi per obiettivo. Prima di scrivere, chiediti: "quale informazione mi serve, e quale comando me la dà?". Un'idea chiara vale dieci tentativi.`,
     });
 
-  // punti di forza
-  if (cmds.length >= 4 && errors === 0) strengths.push({ id: 'clean', text: 'Nessun errore: hai scritto ogni comando correttamente al primo colpo.' });
+  // punti di forza: solo se gli obiettivi sono stati davvero raggiunti
+  const passed = log.filter((e) => e.k === 'p').length;
+  const achieved = passed >= Math.ceil(objectives * 0.75);
+  if (achieved && cmds.length >= 4 && errors === 0) strengths.push({ id: 'clean', text: 'Nessun errore: hai scritto ogni comando correttamente al primo colpo.' });
   else if (cmds.length >= 8 && errors / cmds.length < 0.1) strengths.push({ id: 'precise', text: 'Pochissimi errori: scrivi con precisione.' });
-  if (objectives >= 2 && hints === 0) strengths.push({ id: 'nohint', text: 'Nessun suggerimento chiesto: hai trovato la strada da solo.' });
+  if (achieved && objectives >= 2 && hints === 0) strengths.push({ id: 'nohint', text: 'Nessun suggerimento chiesto: hai trovato la strada da solo.' });
   if ((freq.get('man') ?? 0) > 0) strengths.push({ id: 'man', text: 'Hai consultato `man`: è esattamente ciò che fa un professionista quando ha un dubbio.' });
   if (cmds.some((e) => /\|/.test(e.l) && !e.e && !improve(e.l))) strengths.push({ id: 'pipe', text: 'Hai collegato i comandi con le pipe in modo pulito.' });
   if (cmds.some((e) => /^ls\s+-\w*a/.test(e.l))) strengths.push({ id: 'hidden', text: 'Hai guardato anche i file nascosti con `ls -a`: un analista non si fida delle cartelle "vuote".' });
   if (cmds.some((e) => /(^|\s)(grep -c|grep -[a-z]*c|sort -u|cd -|!!)(\s|$)/.test(e.l))) strengths.push({ id: 'shortcut', text: 'Hai usato le scorciatoie giuste (`grep -c`, `sort -u`, `!!`, `cd -`...).' });
-  if (work.length && objectives && work.length <= objectives * 2 && objectives >= 2) strengths.push({ id: 'fast', text: 'Sei andato dritto all\'obiettivo, con pochissimi comandi in più del necessario.' });
+  if (achieved && work.length && objectives && work.length <= objectives * Math.max(2, perObjective - 3) && objectives >= 2) strengths.push({ id: 'fast', text: 'Sei andato dritto all\'obiettivo, con pochissimi comandi in più del necessario.' });
 
   const top = [...freq].filter(([c]) => !['flag', 'hint', 'clear'].includes(c)).sort((a, b) => b[1] - a[1]).slice(0, 5);
   return {

@@ -31,7 +31,7 @@ export class TerminalView {
   private busy = false;
 
   constructor(
-    private shell: Shell,
+    readonly shell: Shell,
     private onEvents: (events: ShellEvent[]) => void,
   ) {
     this.el = document.createElement('div');

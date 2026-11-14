@@ -72,4 +72,11 @@ describe('coach', () => {
     expect(a.tips).toEqual([]);
     expect(a.stats.top[0][0]).toBeDefined();
   });
+
+  it('nessun complimento se gli obiettivi non sono stati raggiunti', () => {
+    const s = analyze([L('ls'), L('pwd'), L('ls -l'), L('cd /tmp')], 4).strengths.map((x) => x.id);
+    expect(s).not.toContain('nohint');
+    expect(s).not.toContain('fast');
+    expect(s).not.toContain('clean');
+  });
 });

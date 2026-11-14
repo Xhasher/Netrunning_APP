@@ -52,6 +52,20 @@ function el<T extends HTMLElement = HTMLElement>(markup: string): T {
   return t.content.firstElementChild as T;
 }
 
+/** Trasforma l'ultimo comando eseguito in una riga del diario (per il coach). */
+function entryOf(sh: Shell, step: number, outcome: string | null, events: ShellEvent[]): LogEntry | null {
+  const last = sh.lastRun;
+  if (!last) return null;
+  const e: LogEntry = { l: last.line, d: last.cwd, s: step };
+  if (last.err) e.e = last.err.slice(0, 120);
+  if (last.out) e.o = last.out;
+  if (outcome === 'pass') e.k = 'p';
+  else if (outcome === 'wrong-answer') e.k = 'w';
+  else if (events.some((x) => x.type === 'scan' && x.outOfScope)) e.k = 'x';
+  else if (/^hint\b/.test(last.line)) e.k = 'h';
+  return e;
+}
+
 const finePointer = () => window.matchMedia?.('(pointer: fine)').matches ?? false;
 
 export class App {
@@ -73,6 +87,7 @@ export class App {
     shell: Shell;
     minimized: boolean;
     solvedNow: boolean;
+    log: LogEntry[];
   } | null = null;
   private op: {
     op: Operation;
@@ -80,6 +95,7 @@ export class App {
     hints: Record<string, number>;
     term: TerminalView;
     minimized: boolean;
+    log: LogEntry[];
   } | null = null;
   private screen = 'title';
 
@@ -388,7 +404,7 @@ export class App {
     const shell = buildWorld(this.save.handle!, () => this.opHint(true));
     op.setup(shell);
     const term = new TerminalView(shell, (ev) => this.onOpEvents(ev));
-    this.op = { op, found: new Set(), hints: {}, term, minimized: false };
+    this.op = { op, found: new Set(), hints: {}, term, minimized: false, log: [] };
     term.system(`── ${op.code} · ${op.title.toUpperCase()} ──`, 'banner');
     term.system(`Cliente: ${op.client}. Ricorda: solo dentro lo scope.`, 'info');
     const node = el(html`
@@ -458,6 +474,7 @@ export class App {
       const act = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset.act;
       if (act === 'hint') {
         this.opHint(false);
+        o.log.push({ l: '', d: o.term.shell.cwd, s: o.found.size, k: 'h' });
         this.renderOp(true);
       } else if (act === 'terminal') {
         o.minimized = true;
@@ -487,6 +504,14 @@ export class App {
   private onOpEvents(events: ShellEvent[]): void {
     const o = this.op;
     if (!o) return;
+    let outcome: string | null = null;
+    for (const ev of events)
+      if (ev.type === 'report') {
+        const f = matchFinding(o.op, ev.value);
+        outcome = f && !o.found.has(f.id) ? 'pass' : f ? outcome : 'wrong-answer';
+      }
+    const entry = entryOf(o.term.shell, o.found.size, outcome, events);
+    if (entry) o.log.push(entry);
     for (const ev of events) {
       if (ev.type === 'answer') o.term.system('Nelle operazioni i problemi si segnalano con "report", non con "flag".', 'info');
       if (ev.type !== 'report') continue;
@@ -515,6 +540,7 @@ export class App {
       this.persist();
     }
     const rank = rankFor(this.save.xp);
+    const coach = o.log.some((e) => e.l) ? analyze(o.log, o.op.findings.length, 12) : null;
     const node = el(html`
       <div class="screen complete">
         <div class="panel">
@@ -523,6 +549,7 @@ export class App {
           ${first ? `<div class="xp-gain">+${o.op.xp} XP</div>` : '<div class="xp-gain replay">operazione ripetuta</div>'}
           <div class="rank-now">Rango: <b>${rank.name}</b> · ${this.save.xp} XP</div>
           <div class="step-body">${renderMarkup(o.op.debrief)}</div>
+          ${coach ? `<h3>Il parere di Rook sul tuo lavoro</h3>${this.statsHtml(coach)}<div class="coach">${this.coachHtml(coach, 4)}</div>` : ''}
           <div class="step-actions">
             <button class="ghost" data-act="map">Mappa</button>
             <button class="next" data-act="ops">Operazioni ▸</button>
@@ -535,6 +562,7 @@ export class App {
       if (act === 'ops') this.showOps();
     });
     this.op = null;
+    this.fillCoachCode(node);
     this.mount('op-done', node);
   }
 
@@ -940,16 +968,8 @@ export class App {
   /** Annota nel diario della missione il comando appena eseguito (per l'analisi finale). */
   private logCommand(outcome: string | null, events: ShellEvent[]): void {
     const r = this.run;
-    const last = this.shell?.lastRun;
-    if (!r || !last) return;
-    const e: LogEntry = { l: last.line, d: last.cwd, s: r.step };
-    if (last.err) e.e = last.err.slice(0, 120);
-    if (last.out) e.o = last.out;
-    if (outcome === 'pass') e.k = 'p';
-    else if (outcome === 'wrong-answer') e.k = 'w';
-    else if (events.some((x) => x.type === 'scan' && x.outOfScope)) e.k = 'x';
-    else if (/^hint\b/.test(last.line)) e.k = 'h';
-    this.pushLog(r.mission.id, e);
+    const e = this.shell ? entryOf(this.shell, r?.step ?? 0, outcome, events) : null;
+    if (r && e) this.pushLog(r.mission.id, e);
   }
 
   private pushLog(id: string, e: LogEntry): void {
@@ -1298,7 +1318,7 @@ export class App {
     const seed = (Date.now() ^ Math.floor(Math.random() * 2 ** 31)) >>> 0;
     const drills = generateSession(shell, chapters, level, seed);
     const term = new TerminalView(shell, (ev) => this.onSimEvents(ev));
-    this.sim = { drills, idx: 0, level, chapters, results: [], hinted: drills.map(() => false), hintLevel: 0, term, shell, minimized: false, solvedNow: false };
+    this.sim = { drills, idx: 0, level, chapters, results: [], hinted: drills.map(() => false), hintLevel: 0, term, shell, minimized: false, solvedNow: false, log: [] };
     term.system(`── SIMULAZIONE · ${LEVELS[level].name.toUpperCase()} · ${drills.length} sfide ──`, 'banner');
     term.system('I file delle sfide sono nella cartella sim/. Le risposte si inviano con "flag".', 'info');
     const node = el(html`
@@ -1392,6 +1412,7 @@ export class App {
     const h = d.hints[Math.min(s.hintLevel, d.hints.length - 1)];
     if (s.hintLevel < d.hints.length) s.hintLevel++;
     s.hinted[s.idx] = true;
+    if (!fromShell) s.log.push({ l: '', d: s.shell.cwd, s: s.idx, k: 'h' });
     if (fromShell) queueMicrotask(() => this.renderSim());
     return h;
   }
@@ -1419,6 +1440,9 @@ export class App {
         solved = false;
       }
     }
+    const wrong = !solved && events.some((ev) => ev.type === 'answer') && !!d.answer;
+    const entry = entryOf(s.shell, s.idx, solved ? 'pass' : wrong ? 'wrong-answer' : null, events);
+    if (entry) s.log.push(entry);
     if (!solved) return;
     s.solvedNow = true;
     s.term.system(`✔ SFIDA RISOLTA (${s.idx + 1}/${s.drills.length})`, 'ok');
@@ -1468,6 +1492,7 @@ export class App {
           </li>`;
       })
       .join('');
+    const coach = s.log.some((e) => e.l) ? analyze(s.log, s.drills.length, 7) : null;
     const node = el(html`
       <div class="screen complete">
         <div class="panel">
@@ -1476,6 +1501,7 @@ export class App {
           <div class="xp-gain">+${xp} XP</div>
           <div class="rank-now">${record ? 'Nuovo record personale per questo livello!' : this.save.best[key] !== undefined ? `Record: ${this.save.best[key]}/${s.drills.length}` : 'Riprova: ogni partita è diversa.'}</div>
           <ol class="findings">${rows}</ol>
+          ${coach ? `<h3>Il parere di Nyx sul tuo lavoro</h3>${this.statsHtml(coach)}<div class="coach">${this.coachHtml(coach, 4)}</div>` : ''}
           <div class="step-actions">
             <button class="ghost" data-act="setup">Impostazioni</button>
             <button class="next" data-act="again">Nuova partita ▸</button>
@@ -1490,6 +1516,7 @@ export class App {
       if (act === 'setup') this.showSimSetup();
       if (act === 'again') this.startSim(chapters, level);
     });
+    this.fillCoachCode(node);
     this.mount('sim-done', node);
   }
 
