@@ -58,3 +58,13 @@ Restano da fare: riscrittura narrativa a mano delle lezioni 01–04, OWASP Top 1
 ## Aggiunto nella 1.5
 
 - **Coach** (`src/game/coach.ts`): diario dei comandi per missione e analisi automatica. Riconosce errori di battitura (con il comando giusto), percorsi sbagliati, errori ripetuti senza leggere il messaggio, catene riscrivibili (`cat | grep`, `grep | wc -l`, `sort | uniq`, `grep | head -n 1`), spostamenti inutili con `cd`, file enormi letti con `cat`, comandi lunghi riscritti a mano, `rm -r` senza guardare, `chmod 777`, `sudo` superfluo, scansioni fuori perimetro, troppi suggerimenti o risposte sbagliate; e segnala anche ciò che fai bene. Consigli a fine missione, debriefing a fine capitolo (anche dalla mappa).
+
+## Aggiunto nella 1.6
+
+- Coach anche nelle Simulazioni e nelle Operazioni (soglie di efficienza diverse per modalità; i complimenti solo se gli obiettivi sono stati raggiunti).
+- **7.4 La Top 10**: tutte le categorie OWASP 2021 con esempi e cure. **7.5 Il negozio di Judy**: audit autorizzato su un sito simulato (IDOR, header e versioni, backup esposto, SSRF e password nei log), classificazione e struttura del report.
+- **8.4 Anatomia di un phishing**: intestazioni (Received, Reply-To, Return-Path), SPF/DKIM/DMARC, lettura dei link, ricerca della campagna nei log di consegna e del proxy, procedura di risposta.
+- Mazzi di Memoria: OWASP Top 10, analisi delle email.
+- Le missioni già completate restano rigiocabili anche se ne vengono aggiunte di nuove prima.
+
+Restano: ciclo di vita del SOC e gestione degli incidenti (NIST 800-61), reti avanzate, pentest in laboratorio, forensics, Python, esami a tempo.

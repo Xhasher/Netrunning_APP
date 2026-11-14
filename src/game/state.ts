@@ -75,12 +75,13 @@ export function rankFor(xp: number): { name: string; next: number | null; floor:
   return { name: RANKS[idx][1], floor: RANKS[idx][0], next: RANKS[idx + 1]?.[0] ?? null };
 }
 
-/** Le missioni si sbloccano in ordine: una è aperta se la precedente è completata. */
+/** Le missioni si sbloccano in ordine: una è aperta se la precedente è completata (o se è già stata completata). */
 export function isUnlocked(s: SaveData, missionId: string): boolean {
   const list = allMissions();
   const i = list.findIndex((m) => m.id === missionId);
   if (i <= 0) return i === 0;
-  return s.completed.includes(list[i - 1].id);
+  // una missione già completata resta sempre rigiocabile, anche se nel corso ne sono state aggiunte di nuove prima
+  return s.completed.includes(missionId) || s.completed.includes(list[i - 1].id);
 }
 
 export function nextMissionId(s: SaveData): string | null {

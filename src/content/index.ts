@@ -13,9 +13,13 @@ import { CH11 } from './ch11-hardening';
 import { CH12 } from './ch12-windows';
 import { CH13 } from './ch13-carriera';
 import { CHF } from './chF-fondamenti';
+import { OWASP_MISSIONS, PHISHING_MISSION } from './ch07-owasp';
 import { addSchede } from './schede';
 
 export const CHAPTERS: Chapter[] = [CH01, CHF, CH02, CH03, CH04, CH05, CH06, CH07, CH08, CH09, CH10, CH11, CH12, CH13];
+
+CH07.missions.push(...OWASP_MISSIONS);
+CH08.missions.push(PHISHING_MISSION);
 
 addSchede(CHAPTERS);
 

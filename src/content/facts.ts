@@ -17,6 +17,42 @@ export interface FactDeck {
 
 export const FACT_DECKS: FactDeck[] = [
   {
+    id: 'owasp',
+    title: 'OWASP Top 10',
+    unlock: 'ch07-m4',
+    typeFwd: true,
+    ask: (q) => `Quale categoria OWASP 2021 è ${q}?`,
+    askReverse: (a) => `Qual è la sigla di "${a}" nella OWASP Top 10?`,
+    items: [
+      { q: 'A01', a: 'Broken Access Control', accept: ['controllo degli accessi', 'access control'], note: 'IDOR, pannelli non protetti' },
+      { q: 'A02', a: 'Cryptographic Failures', accept: ['errori di crittografia', 'crittografia'], note: 'niente HTTPS, password in chiaro, dati nell\'URL' },
+      { q: 'A03', a: 'Injection', accept: ['iniezione'], note: 'SQL injection, XSS' },
+      { q: 'A04', a: 'Insecure Design', accept: ['progettazione insicura'], note: 'il difetto è nel progetto' },
+      { q: 'A05', a: 'Security Misconfiguration', accept: ['misconfiguration', 'configurazione sbagliata'], note: 'backup esposti, header mancanti' },
+      { q: 'A06', a: 'Vulnerable and Outdated Components', accept: ['outdated components', 'componenti obsoleti', 'componenti vulnerabili'], note: 'versioni vecchie con CVE note' },
+      { q: 'A07', a: 'Identification and Authentication Failures', accept: ['authentication failures', 'autenticazione'], note: 'nessun limite ai tentativi, niente MFA' },
+      { q: 'A08', a: 'Software and Data Integrity Failures', accept: ['integrity failures', 'integrità'], note: 'aggiornamenti non verificati' },
+      { q: 'A09', a: 'Security Logging and Monitoring Failures', accept: ['logging failures', 'log', 'monitoraggio'], note: 'nessun log, o log che nessuno guarda' },
+      { q: 'A10', a: 'Server-Side Request Forgery', accept: ['ssrf'], note: 'il server scarica indirizzi interni' },
+    ],
+  },
+  {
+    id: 'email',
+    title: 'Analisi delle email',
+    unlock: 'ch08-m4',
+    typeFwd: true,
+    ask: (q) => `Quale intestazione o controllo ${q}?`,
+    items: [
+      { q: 'indica dove va la risposta quando premi "Rispondi"', a: 'Reply-To' },
+      { q: 'si legge dal basso verso l\'alto per trovare il server di partenza', a: 'Received' },
+      { q: 'verifica che l\'IP che ha spedito sia autorizzato dal dominio', a: 'SPF' },
+      { q: 'verifica la firma digitale dell\'email', a: 'DKIM' },
+      { q: 'dice cosa fare con le email che falliscono i controlli (none, quarantine, reject)', a: 'DMARC' },
+      { q: 'mostra il mittente dichiarato, falsificabile', a: 'From' },
+      { q: 'raccoglie il verdetto di SPF, DKIM e DMARC', a: 'Authentication-Results' },
+    ],
+  },
+  {
     id: 'concetti',
     typeFwd: true,
     title: 'Concetti di sicurezza',

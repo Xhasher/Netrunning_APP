@@ -5,7 +5,7 @@ import '../engine/manual';
 import '../engine/sysinfo';
 import '../engine/textlang';
 import { createNetwork } from '../engine/network';
-import { Shell } from '../engine/shell';
+import { Shell, addSite } from '../engine/shell';
 import type { Host } from '../engine/network';
 import { base64Encode, sha256 } from '../engine/sha256';
 import { Vfs } from '../engine/vfs';
@@ -520,6 +520,7 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
   // Capitolo 11 — il server di laboratorio per l'audit dei privilegi
   const shell = new Shell({ user, host: HOSTNAME, fs, net: createNetwork(), hint });
   addLab(shell);
+  addShopAndMail(shell, home, mine);
   return shell;
 }
 
@@ -758,4 +759,157 @@ function buildWinEvents(): string {
   ev(7045, 'PC-BASSI', 'SYSTEM', 'installato servizio "WinUpdater" C:\\Users\\Public\\upd.exe');
   ev(1102, 'PC-BASSI', 'a.bassi', 'il registro di controllo è stato cancellato');
   return L.join('\n') + '\n';
+}
+
+/** Capitoli 07 e 08: il negozio online di Judy (audit OWASP) e la campagna di phishing al SOC. */
+function addShopAndMail(sh: Shell, home: string, mine: { owner: string; group: string }): void {
+  const fs = sh.fs;
+  sh.net.hosts.push({
+    ip: '10.20.0.90',
+    names: ['negozio.lan', 'negozio'],
+    mac: '',
+    pingable: true,
+    latency: 2.4,
+    ttl: 64,
+    ports: [{ port: 80, service: 'http', version: 'Apache httpd 2.4.29' }],
+    inScope: true,
+  });
+  addSite('10.20.0.90', {
+    headers: ['Server: Apache/2.4.29 (Ubuntu)', 'X-Powered-By: PHP/5.6.40', 'Set-Cookie: SESSIONE=7f3a91c2; path=/'],
+    pages: {
+      '/': {
+        body: [
+          '<!DOCTYPE html>',
+          '<html><head><title>Judy BD - braindance artigianali</title></head>',
+          '<body>',
+          '  <h1>Judy BD</h1>',
+          '  <p>Braindance artigianali, spedizione in tutta Night City.</p>',
+          '  <form action="http://negozio.lan/login.php" method="GET">',
+          '    <input name="user"> <input name="pass" type="password"> <button>Entra</button>',
+          '  </form>',
+          '  <a href="/anteprima.php?url=https://nightcity.nc/news">Anteprima notizie</a>',
+          '</body></html>',
+        ].join('\n'),
+      },
+      '/ordine.php?id=1041': {
+        body: ['<html><body>', '<h2>Ordine 1041</h2>', '<p>Cliente: Account di prova (contratto di audit)</p>', '<p>Articolo: BD "Pioggia su Japantown" x1</p>', '<p>Pagamento: carta di prova **** 0000</p>', '</body></html>'].join('\n'),
+      },
+      '/ordine.php?id=1042': {
+        body: [
+          '<html><body>',
+          '<h2>Ordine 1042</h2>',
+          '<p>Cliente: Evelyn P.</p>',
+          '<p>Indirizzo: Jig-Jig Street 12, Japantown</p>',
+          '<p>Articolo: BD "Lizzie\'s Bar, notte" x2</p>',
+          '<p>Pagamento: carta **** 4421</p>',
+          '</body></html>',
+        ].join('\n'),
+      },
+      '/config.php.bak': {
+        type: 'text/plain',
+        body: ['<?php', '// configurazione del negozio (copia prima delle modifiche)', "define('DB_HOST', 'localhost');", "define('DB_NAME', 'negozio');", "define('DB_USER', 'shop_admin');", "define('DB_PASS', 'Braindance2077!');", '?>'].join('\n'),
+      },
+      '/robots.txt': { type: 'text/plain', body: 'User-agent: *\nDisallow:' },
+    },
+  });
+  fs.writeFile(
+    `${home}/web/negozio-contratto.txt`,
+    [
+      'CONTRATTO DI AUDIT - Judy BD (negozio online)',
+      'Autorizza: Judy Alvarez, titolare. Esegue: il team di Rook.',
+      '',
+      'PERIMETRO',
+      '  http://negozio.lan/  (sito di test, copia esatta di quello in produzione)',
+      '  log del server: web/negozio.log',
+      '',
+      'ACCOUNT DI PROVA',
+      '  utente "audit", con un ordine di prova: numero 1041',
+      '',
+      'AUTORIZZATO',
+      '  richieste manuali con curl; UNA richiesta a un ordine non tuo (1042) per verificare la segnalazione del cliente',
+      '',
+      'VIETATO',
+      '  scaricare dati di clienti oltre la singola verifica; strumenti automatici; modificare ordini',
+      '',
+      'NOTE DELLA TITOLARE',
+      '  Lo sviluppatore fa una copia dei file prima di modificarli. Non so dove le lascia.',
+      '',
+      'EMERGENZE',
+      '  Se trovi password o dati di pagamento esposti: chiamare subito Judy, 555-0177',
+    ].join('\n') + '\n',
+    mine,
+  );
+  const L: string[] = [];
+  const t = (m: number, sec: number) => `[13/Nov/2077:21:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')} +0100]`;
+  const UA = '"Mozilla/5.0 (Linux; Android 14)"';
+  L.push(`192.168.7.21 - - ${t(0, 4)} "GET / HTTP/1.1" 200 812 "-" ${UA}`);
+  L.push(`192.168.7.21 - - ${t(0, 9)} "GET /login.php?user=judy&pass=Kabuki2077 HTTP/1.1" 302 0 "-" ${UA}`);
+  L.push(`192.168.7.33 - - ${t(1, 2)} "GET /ordine.php?id=1038 HTTP/1.1" 200 640 "-" ${UA}`);
+  L.push(`192.168.7.33 - - ${t(1, 40)} "GET /anteprima.php?url=https://nightcity.nc/news HTTP/1.1" 200 2210 "-" ${UA}`);
+  for (let i = 0; i < 9; i++) L.push(`203.0.113.9 - - ${t(3, 10 + i)} "GET /login.php?user=admin&pass=${['admin', '123456', 'password', 'judy', 'negozio', 'qwerty', 'letmein', 'admin1', 'shop'][i]} HTTP/1.1" 200 410 "-" "python-requests/2.31"`);
+  L.push(`198.51.100.40 - - ${t(5, 2)} "GET /anteprima.php?url=http://localhost/server-status HTTP/1.1" 200 1530 "-" "curl/8.5.0"`);
+  L.push(`198.51.100.40 - - ${t(5, 7)} "GET /anteprima.php?url=http://169.254.169.254/latest/meta-data/ HTTP/1.1" 200 312 "-" "curl/8.5.0"`);
+  L.push(`192.168.7.33 - - ${t(6, 30)} "GET /ordine.php?id=1038 HTTP/1.1" 200 640 "-" ${UA}`);
+  L.push(`192.168.7.40 - - ${t(8, 1)} "GET / HTTP/1.1" 200 812 "-" ${UA}`);
+  fs.writeFile(`${home}/web/negozio.log`, L.join('\n') + '\n', mine);
+
+  // --- la campagna di phishing (capitolo 08)
+  fs.writeFile(
+    `${home}/posta/segnalazione.txt`,
+    [
+      'SEGNALAZIONE PHISHING #4471 - ricevuta alle 09:42',
+      'Da: m.ruiz (amministrazione)',
+      '',
+      '"Mi è arrivata una fattura scaduta da Arasaka con minaccia di sospensione.',
+      ' Non mi risulta nessun debito. Non ho cliccato. Allego l\'email originale."',
+    ].join('\n') + '\n',
+    mine,
+  );
+  fs.writeFile(
+    `${home}/posta/fattura.eml`,
+    [
+      'Received: from mx1.arasaka-logistics.nc (10.4.0.25)',
+      '        by mailbox.arasaka-logistics.nc; Fri, 13 Nov 2077 09:31:07 +0100',
+      'Received: from relay.cheap-mail.nc (198.51.100.17)',
+      '        by mx1.arasaka-logistics.nc; Fri, 13 Nov 2077 09:31:05 +0100',
+      'Received: from mail.arasaka-pagamenti.nc (203.0.113.88)',
+      '        by relay.cheap-mail.nc; Fri, 13 Nov 2077 09:31:02 +0100',
+      'Authentication-Results: mx1.arasaka-logistics.nc;',
+      '        spf=fail (arasaka.nc does not designate 203.0.113.88 as permitted sender)',
+      '        dkim=none; dmarc=fail (p=none) header.from=arasaka.nc',
+      'Return-Path: <billing@arasaka-pagamenti.nc>',
+      'From: "Arasaka - Ufficio Pagamenti" <pagamenti@arasaka.nc>',
+      'Reply-To: <recupero.crediti77@mailbox.nc>',
+      'To: m.ruiz@arasaka-logistics.nc',
+      'Subject: URGENTE: fattura scaduta - sospensione del servizio entro 24 ore',
+      'Date: Fri, 13 Nov 2077 09:31:00 +0100',
+      'Content-Type: text/html; charset=UTF-8',
+      '',
+      '<p>Gentile cliente,</p>',
+      '<p>la fattura n. 2077-5512 risulta <b>non pagata</b>. Senza regolarizzazione entro 24 ore',
+      'il servizio verrà sospeso e la pratica passerà al recupero crediti.</p>',
+      '<p><a href="https://arasaka.nc.pagamenti-sicuri.nc/fatture/login">Visualizza e paga la fattura</a></p>',
+      '<p>Ufficio Pagamenti - Arasaka</p>',
+    ].join('\n') + '\n',
+    mine,
+  );
+  const users = ['m.ruiz', 'k.tanaka', 't.okafor', 'l.moreau', 'd.santos', 'p.ivanova'];
+  const D: string[] = [];
+  let n = 0;
+  for (const u of ['a.berg', 'r.cole']) D.push(`2077-11-13 08:${String(10 + n++).padStart(2, '0')}:00 delivered to=${u} from=newsletter@nightcity.nc subject="Novità della settimana"`);
+  users.forEach((u, i) => D.push(`2077-11-13 09:31:${String(5 + i).padStart(2, '0')} delivered to=${u} from=pagamenti@arasaka.nc subject="URGENTE: fattura scaduta - sospensione del servizio entro 24 ore"`));
+  D.push('2077-11-13 09:40:12 delivered to=k.tanaka from=it@arasaka-logistics.nc subject="Manutenzione stampanti"');
+  fs.writeFile(`${home}/posta/consegne.log`, D.join('\n') + '\n', mine);
+  fs.writeFile(
+    `${home}/posta/proxy.log`,
+    [
+      '2077-11-13 09:33:41 user=k.tanaka GET https://intranet.arasaka-logistics.nc/ 200',
+      '2077-11-13 09:35:02 user=l.moreau GET https://arasaka.nc.pagamenti-sicuri.nc/fatture/login 200',
+      '2077-11-13 09:36:17 user=t.okafor GET https://arasaka.nc.pagamenti-sicuri.nc/fatture/login 200',
+      '2077-11-13 09:36:58 user=t.okafor POST https://arasaka.nc.pagamenti-sicuri.nc/fatture/login 302',
+      '2077-11-13 09:37:00 user=t.okafor GET https://www.arasaka.nc/ 200',
+      '2077-11-13 09:51:20 user=m.ruiz GET https://intranet.arasaka-logistics.nc/segnala 200',
+    ].join('\n') + '\n',
+    mine,
+  );
 }
