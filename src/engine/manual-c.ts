@@ -252,17 +252,31 @@ doc('nmap', {
     ['-sn', 'solo scoperta degli host accesi, senza scansionare le porte'],
     ['-sV', 'rileva software e versione di ogni servizio'],
     ['-p PORTE', 'solo le porte indicate: -p 22,80 oppure -p 1-1000'],
+    ['-p-', 'tutte le 65535 porte (lento, ma trova i servizi su porte insolite)'],
     ['-Pn', 'non fa il controllo "è acceso?": scansiona comunque (utile con firewall che bloccano il ping)'],
+    ['-O', 'stima del sistema operativo da TTL e risposte TCP (serve root: sudo)'],
+    ['-sC', 'script NSE predefiniti: http-title, ssh-hostkey, ftp-anon...'],
+    ['--script NOMI', 'script o categorie NSE: vuln, banner, http-title, ftp-anon...'],
+    ['-A', '"aggressiva": -sV + -sC + -O (serve root)'],
+    ['-oN FILE', 'salva il risultato in un file di testo, per il report'],
+    ['--open', 'mostra solo le porte aperte'],
+    ['-sS', 'scansione SYN, "mezza connessione" (serve root)'],
   ],
   examples: [
     ['nmap -sn 192.168.1.0/24', 'chi è acceso nella rete'],
     ['nmap 192.168.1.20', 'le 1000 porte più comuni di un host'],
     ['nmap -sV -p 22,80 192.168.1.20', 'versioni dei soli servizi SSH e web'],
     ['nmap -p 443 cassa.lan', 'una porta sola su un host che non risponde al ping'],
+    ['nmap -p 1-100 jukebox.lan', 'un intervallo di porte'],
+    ['nmap -sC -p 21,80 deposito.lan', 'gli script predefiniti su due porte'],
+    ['nmap --script vuln -sV range.lan', 'vulnerabilità note delle versioni trovate'],
+    ['sudo nmap -O contab.lan', 'che sistema operativo è?'],
   ],
   notes: [
     'Stati delle porte: open (c\'è un servizio), closed (nessun servizio), filtered (un firewall non fa capire).',
     'Su un server tuo, esegui nmap per vedere cosa vede un attaccante: ogni porta aperta che non ti serve va chiusa.',
+    'Metodo: -sn per gli host, scansione predefinita su tutti, poi -p- e -A solo su quelli interessanti. Ogni scansione si salva con -oN.',
+    'Gli script NSE delle categorie intrusive e brute provano davvero ad attaccare: servono un\'autorizzazione esplicita e una finestra concordata.',
   ],
   see: ['nc', 'curl', 'ss', 'cve'],
 });
@@ -718,4 +732,28 @@ doc('nginx', {
   examples: [['sudo nginx -t', 'la configurazione è valida?']],
   notes: ['Regola da sistemista: dopo ogni modifica, prima "nginx -t" e solo se va bene "systemctl restart nginx". Un riavvio con un errore spegne il sito.'],
   see: ['systemctl', 'journalctl', 'nano'],
+});
+
+doc('pwsh', {
+  cat: SH,
+  short: 'PowerShell: la shell a oggetti di Windows (anche su Linux)',
+  synopsis: 'pwsh  ·  pwsh -c "CMDLET | CMDLET"',
+  description: [
+    'PowerShell è la shell di Windows, oggi disponibile anche su Linux e macOS. I comandi si chiamano cmdlet e hanno la forma Verbo-Nome (Get-Process, Stop-Process). Tra un cmdlet e l\'altro della pipeline passano OGGETTI con proprietà, non testo: si filtra per proprietà invece di tagliare colonne.',
+    'pwsh apre la console (prompt "PS ..."); exit torna a bash. Con -c esegue una sola riga. Dentro, Enter-PSSession -ComputerName PC apre una sessione su un PC Windows remoto (WinRM), Exit-PSSession la chiude.',
+    'Cmdlet di base: Get-ChildItem (ls), Get-Content (cat), Select-String (grep), Where-Object { $_.Prop -eq valore }, Select-Object Prop / -First N, Sort-Object Prop -Descending, Group-Object Prop, Measure-Object, Format-List *. Operatori: -eq -ne -gt -lt -ge -le -like -match.',
+    'Cmdlet da analista su Windows: Get-Process, Get-Service, Get-ScheduledTask, Get-NetTCPConnection, Get-LocalUser, Get-LocalGroupMember, Get-WinEvent -FilterHashtable @{LogName=\'Security\'; Id=4625}, Get-FileHash. Per contenere: Stop-Process, Disable-ScheduledTask, Disable-LocalUser.',
+  ],
+  options: [['-c COMANDI', 'esegue una riga di PowerShell e torna a bash']],
+  examples: [
+    ['pwsh -c "Get-ChildItem windows"', 'file e cartelle come oggetti'],
+    ['pwsh -c "Get-Content windows/security.csv | Select-String 4625 | Measure-Object"', 'quante righe contengono 4625'],
+    ['pwsh -c "Get-ChildItem -Recurse -Filter *.log | Sort-Object Length -Descending | Select-Object -First 3"', 'i tre log più grandi'],
+    ['pwsh -c "Get-Process | Sort-Object WS -Descending | Select-Object -First 3"', 'i processi che usano più memoria'],
+  ],
+  notes: [
+    'Get- non modifica mai nulla: i verbi che cambiano lo stato sono Set-, New-, Remove-, Stop-, Disable-... Utile per leggere gli script altrui.',
+    'PowerShell è amatissimo dagli attaccanti (è su ogni Windows): "-enc" con un testo Base64, finestre nascoste (-w hidden) e "iex" (Invoke-Expression) sono segnali classici negli allarmi. Gli eventi 4104 (Script Block Logging) registrano cosa ha eseguito davvero.',
+  ],
+  see: ['ps', 'grep', 'sha256sum'],
 });

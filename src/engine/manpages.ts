@@ -728,4 +728,5 @@ export const ALIASES: Record<string, string> = {
   export: 'env',
   suggerimento: 'hint',
   python: 'python3',
+  powershell: 'pwsh',
 };

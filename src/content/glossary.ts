@@ -11,6 +11,17 @@ export interface GlossaryEntry {
 }
 
 export const GLOSSARY: GlossaryEntry[] = [
+  // --- fase 3
+  { term: 'cmdlet', aliases: ['cmdlets'], def: 'Un comando di PowerShell, sempre nella forma Verbo-Nome (Get-Process, Stop-Process). Produce oggetti con proprietà, non testo.' },
+  { term: 'WinRM', exact: true, def: 'Windows Remote Management: il servizio che permette di aprire una console PowerShell su un altro PC (Enter-PSSession), porta 5985.' },
+  { term: 'NSE', exact: true, def: 'Nmap Scripting Engine: script che nmap esegue sui servizi trovati (titolo di un sito, FTP anonimo, vulnerabilità note).' },
+  { term: 'access review', aliases: ['revisione degli accessi'], def: 'Il controllo periodico che ogni account corrisponda a una persona che lavora ancora lì, con i permessi giusti.' },
+  { term: 'hardening', def: 'Rendere un sistema più difficile da attaccare: spegnere ciò che non serve, configurazioni sicure, permessi minimi, aggiornamenti.' },
+  { term: 'Markdown', exact: true, def: 'Formato di testo semplice per la documentazione: # per i titoli, - per gli elenchi. Si legge bene anche senza essere convertito.' },
+  { term: 'UTC', exact: true, def: 'Il tempo coordinato universale: il fuso orario di riferimento per i report e i log internazionali.' },
+  { term: 'root cause', def: 'La causa vera di un problema o di un incidente, non solo il sintomo. La sua ricerca si chiama root cause analysis (RCA).' },
+  { term: 'account di servizio', aliases: ['account di servizi'], def: 'Un account usato da un programma, non da una persona (backup, integrazioni). Va protetto con password gestite e privilegi minimi.' },
+  { term: 'joiner-mover-leaver', def: 'Il ciclo di vita degli accessi: chi entra riceve gli accessi, chi cambia ruolo li cambia, chi esce li perde subito.' },
   // --- amministrazione e lavoro del SOC (fase 2)
   { term: 'systemd', def: 'Il primo programma che parte all\'accensione di quasi tutti i Linux moderni: avvia e sorveglia i servizi e tiene il diario di sistema. Gli si parla con systemctl e journalctl.' },
   { term: 'journal', aliases: ['diario di sistema'], def: 'Il diario centralizzato di systemd: raccoglie i messaggi di kernel e servizi, ognuno con data, programma e priorità. Si legge con journalctl.' },

@@ -2,13 +2,16 @@
 // ma il mestiere: smistare una coda di allarmi, distinguere i falsi positivi,
 // sapere quando e come passare la palla (escalation), lasciare consegne utili.
 
+import { sha256 } from '../engine/sha256';
 import type { Shell } from '../engine/shell';
 import type { ShellEvent } from '../engine/types';
 import type { Chapter } from '../game/types';
 
 const readOf = (rel: string) => (ev: ShellEvent, sh: { home: string }) => ev.type === 'read' && ev.path === `${sh.home}/${rel}`;
 
-export const DOCM_HASH = '9f2c4be81a7d3e05c6b1f4a29d8e7c3051ab6f92e4d07c18b35a9e6f0d2c47b1';
+/** Il documento con la macro: lo stesso file si ritrova sul PC con PowerShell (capitolo 12). */
+export const DOCM_CONTENT = 'PK\u0003\u0004 [Content_Types].xml word/document.xml word/vbaProject.bin\nSub AutoOpen(): Shell "powershell -nop -w hidden -enc JABjAD0ATgBlAHcA..." : End Sub\n';
+export const DOCM_HASH = sha256(DOCM_CONTENT);
 
 const fileHas = (sh: Shell, rel: string, words: string[]) => {
   const f = sh.fs.get(`${sh.home}/${rel}`);
@@ -439,7 +442,7 @@ ORA: 13/11 09:01 (apertura allegato) - in corso
 COSA È SUCCESSO: phishing con macro. Outlook -> fattura_novembre.docm
   -> macro -> powershell -enc -> beacon verso cdn-upd4te.nc:8443
   ogni 5 min (bloccato dal proxy) + attività pianificata "OneDriveSync".
-IOC: fattura_novembre.docm  sha256=9f2c4b...  cdn-upd4te.nc  10.0.3.44
+IOC: fattura_novembre.docm  sha256=${DOCM_HASH.slice(0, 6)}...  cdn-upd4te.nc  10.0.3.44
 FATTO FINORA: verificati EDR e proxy. Nessuna azione sull'host.
 RICHIESTA: isolamento di PC-AMM-07; ricerca della mail e dell'hash
   sugli altri PC.

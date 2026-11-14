@@ -3,10 +3,13 @@
 import { addAdmin } from './world-admin';
 import { addPracticeFiles } from './ch-pratica';
 import { addSocFiles } from './chSOC-turno';
+import { addReconLab } from './chPT-recon';
+import { addWeekFiles } from './chSJ-settimana';
 import '../engine/coreutils';
 import '../engine/pycmd';
 import '../engine/manual';
 import '../engine/sysinfo';
+import '../engine/pwsh';
 import '../engine/textlang';
 import { createNetwork } from '../engine/network';
 import { Shell, addSite } from '../engine/shell';
@@ -532,6 +535,8 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
   addAdmin(shell);
   addPracticeFiles(shell);
   addSocFiles(shell);
+  addReconLab(shell);
+  addWeekFiles(shell);
   return shell;
 }
 

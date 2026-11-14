@@ -4,6 +4,10 @@ export interface Port {
   port: number;
   service: string;
   version: string;
+  /** titolo della pagina (script http-title) */
+  title?: string;
+  /** FTP con accesso anonimo: i file visibili (script ftp-anon) */
+  anon?: string[];
 }
 
 export interface Host {
@@ -18,6 +22,8 @@ export interface Host {
   ports: Port[];
   /** fa parte del perimetro autorizzato del contratto? */
   inScope: boolean;
+  /** sistema operativo per nmap -O (altrimenti dedotto dal TTL) */
+  os?: string;
 }
 
 export interface Network {

@@ -39,7 +39,7 @@ export const MODULES: { id: string; name: string; core: boolean; skills: string[
   { id: 'M3', name: 'Reti operative', core: true, skills: ['ip', 'ping', 'traceroute', 'dig', 'nslookup', 'ss', 'netstat', 'curl', 'ssh', 'ssh-keygen', 'ipcalc', 'arp', 'ifconfig'] },
   { id: 'M5', name: 'Bash e Python', core: true, skills: ['variabili', 'for', 'if', 'test', 'bash', 'nano', 'seq', 'sed', 'awk', 'tr', 'xargs', 'regex', 'python3'] },
   { id: 'M6', name: 'Crittografia e identità', core: true, skills: ['base64', 'sha256sum', 'md5sum', 'sha1sum', 'xxd', 'strings'] },
-  { id: 'M8', name: 'SOC: sorvegliare e rispondere', core: true, skills: ['ufw', 'tcpdump'] },
+  { id: 'M8', name: 'SOC: sorvegliare e rispondere', core: true, skills: ['ufw', 'tcpdump', 'pwsh'] },
   { id: 'M9', name: 'Strumenti di rete', core: false, skills: ['nmap', 'nc'] },
   { id: 'M10', name: 'Vulnerability assessment e hardening', core: false, skills: ['whois', 'crtsh', 'exiftool', 'cve'] },
   { id: 'M5b', name: 'Shell e produttività', core: false, skills: ['alias', 'unalias', 'cheat', 'exit', 'date', 'lsb_release'] },
@@ -64,7 +64,9 @@ export function skillsInLine(line: string): string[] {
   if (/(^|\s)\d?>>?\s*\S/.test(line)) out.add('redirezioni');
   if (/^\s*for\s/.test(line) || /;\s*for\s/.test(line)) out.add('for');
   if (/^\s*if\s/.test(line) || /;\s*if\s/.test(line)) out.add('if');
-  if (/\$\w|\$\{/.test(line)) out.add('variabili');
+  if (/\$\w|\$\{/.test(line) && !/\$_/.test(line)) out.add('variabili');
+  // un cmdlet di PowerShell (Verbo-Nome) vale come pratica di pwsh
+  if (/(^|[|\s"])(get|set|select|where|sort|group|measure|format|stop|disable|enter|exit)-[a-z]+/i.test(line)) out.add('pwsh');
   if (/(^|\s)[^\s"'|]*[*?][^\s"'|]*/.test(line.replace(/grep.*|find.*/, ''))) out.add('jolly');
   return [...out];
 }

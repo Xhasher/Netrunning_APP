@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CHAPTERS } from '../src/content';
 import { buildWorld } from '../src/content/world';
 import { evaluate } from '../src/game/logic';
+import { DOCM_HASH } from '../src/content/chSOC-turno';
 
 // Soluzione di ogni passo "task", in ordine, per ogni missione.
 const SOLUTIONS: Record<string, string[][]> = {
@@ -89,6 +90,62 @@ const SOLUTIONS: Record<string, string[][]> = {
   'chSOC-m4': [
     ['@nano soc/consegne.txt|APERTI\n A05+A06 PC-AMM-07 (L2)\n A09 DC-01 (L2)\nCHIUSI\n A02 FP\nDA SORVEGLIARE\n 45.155.205.33\n'],
     ['cat soc/consegne.txt'],
+  ],
+  'chPT-m5': [
+    ['nmap deposito.lan', 'flag 3'],
+    ['nmap -p- deposito.lan', 'flag 27017'],
+    ['nmap -sV -p 27017 deposito.lan', 'flag mongodb'],
+    ['sudo nmap -O contab.lan', 'flag windows'],
+    ['nmap -sC -p 21,80 deposito.lan', 'flag backup_inventario.sql'],
+    ['nmap --script vuln -sV -p- deposito.lan', 'flag CVE-2077-2702'],
+    ['sudo nmap -A -p- -oN ~/deposito_nmap.txt deposito.lan'],
+  ],
+  'ch12-m4': [
+    ['pwsh'],
+    ['Get-ChildItem windows'],
+    ['Get-ChildItem -Recurse -Filter *.log | Sort-Object Length -Descending | Select-Object -First 1', 'flag auth.log'],
+    ['Get-Content windows/security.csv | Select-String 4625 | Measure-Object', 'flag 8'],
+    ['Get-Process | Sort-Object WS -Descending | Select-Object -First 3', 'flag pwsh'],
+  ],
+  'ch12-m5': [
+    ['pwsh', 'Enter-PSSession -ComputerName PC-AMM-07'],
+    ['Get-Process | Sort-Object CPU -Descending | Select-Object -First 5', 'flag powershell'],
+    ['Get-Process -Name powershell | Format-List *', 'flag WINWORD'],
+    ['Get-NetTCPConnection -State Established', 'flag 198.51.100.200'],
+    ["Get-ScheduledTask | Where-Object { $_.Author -ne 'Microsoft Corporation' }", 'flag OneDriveSync'],
+    ['Get-ScheduledTask -TaskName OneDriveSync | Format-List', 'Get-Content C:\\Users\\r.costa\\AppData\\Roaming\\Microsoft\\sync.ps1', 'flag 300'],
+    ['Get-LocalGroupMember -Group Administrators', 'flag supporto'],
+    ["Get-WinEvent -FilterHashtable @{LogName='Security'; Id=4720}", 'flag 09:04'],
+    ['Get-FileHash C:\\Users\\r.costa\\Downloads\\fattura_novembre.docm', '@hash'],
+    ['Disable-ScheduledTask -TaskName OneDriveSync'],
+    ['Stop-Process -Id 4588'],
+    ['Disable-LocalUser -Name supporto'],
+  ],
+  'chSJ-m1': [
+    ["awk -F, '$4 == \"cessato\" && $5 == \"attivo\"' settimana/utenti.csv", 'flag 2'],
+    ["awk -F, '$6 == \"admin\" && $7 == \"no\" && $5 == \"attivo\"' settimana/utenti.csv", 'flag p.ivanova'],
+    ['grep servizio settimana/utenti.csv', 'flag svc.backup'],
+    ['echo "g.bianchi t.moretti: disattivare" >> settimana/accessi.txt', 'echo "p.ivanova: MFA; svc.backup: verificare" >> settimana/accessi.txt'],
+  ],
+  'chSJ-m2': [
+    ['nmap --script vuln -sV -oN settimana/range.txt range.lan'],
+    ['grep CVSS settimana/range.txt', 'flag CVE-2077-1188'],
+    ['cat settimana/esposizione.txt', 'flag si'],
+    ['cve jenkins 2.440', 'flag no'],
+  ],
+  'chSJ-m3': [
+    ['grep 4625 settimana/eventi.csv | cut -d, -f4 | sort -u | wc -l', 'flag 7'],
+    ['grep 4624 settimana/eventi.csv | grep 10.0.7.12', 'flag f.romano'],
+    ['grep 5140 settimana/eventi.csv', 'flag 2'],
+    ['grep 10.0.7.12 settimana/dhcp.log', 'flag MAG-PC-03'],
+  ],
+  'chSJ-m4': [
+    ["sed -e 's/PermitRootLogin yes/PermitRootLogin no/' -e 's/PasswordAuthentication yes/PasswordAuthentication no/' -e 's/MaxAuthTries 10/MaxAuthTries 3/' -e 's/X11Forwarding yes/X11Forwarding no/' settimana/sshd_config > settimana/sshd_config.nuovo"],
+    ['diff settimana/sshd_config settimana/sshd_config.nuovo'],
+    ['chmod 600 settimana/id_backup'],
+  ],
+  'chSJ-m5': [
+    ['@nano settimana/report.md|# Weekly report\n## Summary\nPassword spraying compromised f.romano.\n## Findings\n- g.bianchi, t.moretti active; p.ivanova no MFA\n- CVE-2077-1188 on range.lan\n- PermitRootLogin yes on SRV-WEB-01\n## Recommendations\n- MFA for admins\n'],
   ],
   'chAM-m1': [['uname -r', 'flag 6.8.0-nightos'], ['uptime', 'flag 3'], ['free -h', 'flag 2.5Gi'], ['df -h', 'flag /var'], ['which nmap', 'flag /usr/bin/nmap']],
   'chAM-m2': [
@@ -304,7 +361,7 @@ describe('ogni missione è completabile', () => {
               expect(sh.writeText(path, content.replace(/\\n/g, '\n'), false, root)).toBeNull();
               events = [{ type: 'saved' as const, path }];
             } else {
-              const res = sh.run(cmd);
+              const res = sh.run(cmd === '@hash' ? `flag ${DOCM_HASH.slice(0, 8)}` : cmd);
               events = res.events;
               const errs = res.lines.filter((l) => l.cls === 'err').map((l) => l.text);
               expect(errs, `"${cmd}" ha prodotto errori inattesi`).toEqual(errs.filter((e) => /Permission denied|command not found|not in the sudoers|need to be root/.test(e) || ['cat /etc/shadow', 'cd /root', 'Whoami', 'sha256sum -c SHA256SUMS', 'find / -name passwd 2>/dev/null', 'nmap helix.corp', 'python3 py/rotto.py'].includes(cmd)));

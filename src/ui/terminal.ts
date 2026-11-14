@@ -1,5 +1,6 @@
 // Il terminale a schermo: output, riga di input, cronologia, TAB e tasti rapidi.
 
+import { psPrompt } from '../engine/pwsh';
 import type { Shell } from '../engine/shell';
 import type { Line, ShellEvent } from '../engine/types';
 
@@ -106,12 +107,14 @@ export class TerminalView {
   updatePrompt(): void {
     const sh = this.shell;
     this.promptEl.innerHTML = '';
-    const parts: [string, string][] = [
-      [`${sh.user}@${sh.host}`, 'p-user'],
-      [':', 'p-sep'],
-      [sh.promptPath(), 'p-path'],
-      ['$', 'p-sep'],
-    ];
+    const parts: [string, string][] = sh.ps
+      ? [[psPrompt(sh), 'p-path']]
+      : [
+          [`${sh.user}@${sh.host}`, 'p-user'],
+          [':', 'p-sep'],
+          [sh.promptPath(), 'p-path'],
+          ['$', 'p-sep'],
+        ];
     for (const [t, c] of parts) {
       const s = document.createElement('span');
       s.className = c;

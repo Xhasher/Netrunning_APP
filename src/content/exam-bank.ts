@@ -10,6 +10,49 @@ export interface BankQ {
 }
 
 export const EXAM_BANK: BankQ[] = [
+  // --- nmap avanzato, PowerShell, lavoro da junior
+  {
+    chapter: 'chPT',
+    question: 'Una scansione predefinita di nmap mostra solo SSH e HTTP. Il cliente dice che sul server gira anche un database. Cosa fai?',
+    options: ['nmap -p- per controllare tutte le 65535 porte, poi -sV sulle porte nuove', 'Concludi che il database non c\'è', 'nmap -sn sul server', 'Chiedi la password del database'],
+    correct: 0,
+    explain: 'Senza -p, nmap controlla solo le 1000 porte più comuni: servizi su porte alte restano invisibili.',
+  },
+  {
+    chapter: 'chPT',
+    question: '`nmap -O server` risponde "requires root privileges". Perché?',
+    options: ['Il rilevamento del sistema operativo costruisce pacchetti a mano, cosa che richiede root', 'Il server blocca nmap', '-O è un\'opzione sbagliata', 'Serve una licenza di nmap'],
+    correct: 0,
+    explain: '-O (e -A, che lo contiene) e la scansione SYN -sS richiedono i privilegi di root: si usa sudo, sempre dentro il perimetro autorizzato.',
+  },
+  {
+    chapter: 'ch12',
+    question: 'In PowerShell, come trovi i processi che usano più di 500 MB di memoria?',
+    options: ['Get-Process | Where-Object { $_.WS -gt 500MB }', 'Get-Process | grep 500', 'ps aux | Select-String 500MB', 'Get-Process -Memory 500'],
+    correct: 0,
+    explain: 'Where-Object filtra sulla proprietà WS (Working Set). PowerShell capisce le unità come MB e GB.',
+  },
+  {
+    chapter: 'ch12',
+    question: 'Sul PC compromesso trovi un\'attività pianificata malevola. Cosa esegui, su indicazione del L2?',
+    options: ['Disable-ScheduledTask: la disattivi e la conservi come prova', 'Unregister-ScheduledTask: la cancelli subito', 'Riavvii il PC', 'Niente: la lasci attiva per vedere cosa fa'],
+    correct: 0,
+    explain: 'Contenere senza distruggere le prove: disattivata non fa danni, ma resta disponibile per l\'analisi.',
+  },
+  {
+    chapter: 'chSJ',
+    question: 'Sette account diversi hanno un solo accesso fallito ciascuno, dallo stesso IP, in tre minuti. Di cosa si tratta?',
+    options: ['Password spraying', 'Un utente che ha dimenticato la password', 'Brute force su un singolo account', 'Un falso positivo sicuro'],
+    correct: 0,
+    explain: 'Tanti account, pochi tentativi ciascuno, una sola sorgente: è lo schema dello spraying, pensato per non far scattare il blocco degli account.',
+  },
+  {
+    chapter: 'chSJ',
+    question: 'Durante la revisione degli accessi trovi un ex dipendente con l\'account ancora attivo. Qual è la raccomandazione corretta?',
+    options: ['Disattivare subito l\'account e collegare la cessazione HR alla rimozione automatica degli accessi', 'Cambiargli la password', 'Lasciarlo attivo: non lavora più lì, quindi non lo usa', 'Cancellare tutti i suoi file'],
+    correct: 0,
+    explain: 'È il controllo leaver: chi esce perde gli accessi il giorno stesso. La causa (un processo manuale) si corregge automatizzando.',
+  },
   // --- amministrazione Linux e lavoro del SOC
   {
     chapter: 'chAM',

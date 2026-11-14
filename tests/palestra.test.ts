@@ -33,7 +33,7 @@ describe('palestra dei comandi', () => {
         expect(drill.answer || drill.state, where).toBeTruthy();
         expect(drill.solve.flatMap((l) => skillsInLine(l)), where).toContain(e.skill);
       }
-  });
+  }, 60_000);
 
   it('una serie su un comando sale di livello', () => {
     const d = generatePalestra(buildWorld('edge'), { skill: 'grep', seed: 5 });

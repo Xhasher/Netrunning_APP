@@ -95,6 +95,14 @@ export const CVES: CveEntry[] = [
     summary: 'Un plugin del pacchetto base permette di eseguire codice sul server senza autenticazione.',
   },
   {
+    id: 'CVE-2077-2702',
+    product: 'mongodb',
+    affects: 'MongoDB < 4.4 con la configurazione predefinita',
+    test: versionBelow('4.4'),
+    cvss: 9.1,
+    summary: 'Il database accetta connessioni senza autenticazione su tutte le interfacce: chiunque lo raggiunge legge e cancella i dati.',
+  },
+  {
     id: 'CVE-2077-0520',
     product: 'nginx',
     affects: 'nginx < 1.20',

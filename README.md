@@ -4,7 +4,7 @@ Un gioco per Android che insegna **ethical hacking, penetration testing e cyber 
 
 Si gioca in un **terminale Linux simulato**: comandi, file, rete e bersagli sono tutti finti, quindi si può sperimentare senza rischi e senza connessione.
 
-## Contenuti (v1.14)
+## Contenuti (v1.15)
 
 | Capitolo | Missioni | Argomenti |
 |---|---|---|
@@ -23,9 +23,10 @@ Si gioca in un **terminale Linux simulato**: comandi, file, rete e bersagli sono
 | 09 · Reti avanzate | 5 | modello OSI e TCP/IP, incapsulamento, MAC e ARP, ARP spoofing, routing, CIDR e sottoreti con `ipcalc`, segmentazione e VLAN, `tcpdump`, flag TCP, protocolli in chiaro, scansioni SYN, chiavi SSH, known_hosts, tunnel e VPN; firewall, DMZ, NAT, proxy, IDS/IPS, regole Suricata, VPN aziendali |
 | 10 · Ricognizione e OSINT | 4 | OSINT e limiti etici/legali (GDPR), `whois`, `dig` (A, MX, TXT, NS), SPF/DKIM/DMARC, certificate transparency (`crtsh`), shadow IT, metadati con `exiftool`, effetto mosaico, CVE, CVSS, NVD e KEV, priorità delle correzioni |
 | 11 · Rinforzare i sistemi | 4 | cosa fa un attaccante dopo l'accesso (dal punto di vista di chi difende), `sudo -l` e regole pericolose, file SUID, credenziali nei file, `ss -tlnp`, `apt list --upgradable`, configurazione SSH sicura, CIS Benchmarks, riuso delle credenziali, difesa in profondità, EDR, backup 3-2-1, zero trust |
-| PT · Pentest guidato | 4 | fasi di un pentest (PTES, NIST 800-115), black/grey/white box, regole d'ingaggio, `nmap -sV`, robots.txt, directory listing, credenziali dimenticate, `cve` e KEV, prova minima e riuso delle password, `sudo -l` e GTFOBins, script di root, report con gravità, riverifica |
-| 12 · Windows e Active Directory | 3 | struttura di Windows, PowerShell (alias `Get-Content`, `Select-String`...), Active Directory, Domain Controller, gruppi privilegiati, tiering, Kerberos e NTLM, Event ID (4624, 4625, 4672, 4720, 4728, 7045, 1102), Sysmon, log centralizzati |
+| PT · Pentest guidato | 5 | fasi di un pentest (PTES, NIST 800-115), black/grey/white box, regole d'ingaggio, `nmap -sV`, robots.txt, directory listing, credenziali dimenticate, `cve` e KEV, prova minima e riuso delle password, `sudo -l` e GTFOBins, script di root, report con gravità, riverifica; nmap a livelli: `-p-`, `sudo nmap -O`, script NSE (`-sC`, `--script vuln`), `-A`, `-oN` |
+| 12 · Windows e Active Directory | 5 | struttura di Windows, PowerShell (alias `Get-Content`, `Select-String`...), Active Directory, Domain Controller, gruppi privilegiati, tiering, Kerberos e NTLM, Event ID (4624, 4625, 4672, 4720, 4728, 7045, 1102), Sysmon, log centralizzati; PowerShell vero (`pwsh`): cmdlet Verbo-Nome, pipeline di oggetti, `Where-Object`, `Select-Object`, `Sort-Object`, `Group-Object`, `Measure-Object`; risposta a distanza con `Enter-PSSession`: processi, connessioni, attività pianificate, amministratori locali, `Get-WinEvent`, `Get-FileHash`, contenimento |
 | DF · Analisi forense | 3 | copie forensi, write blocker, impronte, catena di custodia, ordine di volatilità, firme dei file (`file`, `xxd`), `strings`, IOC, date MACB, timeline del filesystem, timestomping, `.bash_history` |
+| SJ · Una settimana da junior | 5 | revisione degli accessi (joiner-mover-leaver, MFA, account di servizio), vulnerability assessment con priorità (CVSS, KEV, esposizione), password spraying su un file server fino al PC sorgente, hardening SSH con revisione, report settimanale in inglese (lessico tecnico, Markdown) |
 | 13 · Cloud e carriera | 4 | cloud e responsabilità condivisa, IAM, storage pubblici, chiavi nel codice, cassetta degli attrezzi (Wireshark, Burp, Wazuh, Sysmon, Autopsy, CyberChef...), `alias` e `cheat`, guida al laboratorio di casa, report professionale, percorso di carriera e colloqui |
 
 Altre modalità:
@@ -40,7 +41,7 @@ Altre modalità:
 - **Progressi condivisi tra telefono e PC**: in Opzioni › Gioca su più dispositivi si collega un token GitHub con il solo permesso `gist`. I progressi vengono salvati in un Gist privato dell'utente e **uniti** (non sovrascritti) tra i dispositivi: missioni, XP, Memoria ed esami si sommano. Nessun server esterno (`src/game/sync.ts`).
 - **Effetti visivi** discreti (transizioni, conteggio XP, promozioni di rango), disattivabili in Opzioni e spenti automaticamente se il sistema chiede di ridurre il movimento.
 - **Competenze**: ogni comando e concetto ha cinque stati (introdotta, compresa, esercitata, acquisita, consolidata) calcolati da ciò che fai davvero; "acquisita" richiede due situazioni diverse risolte senza suggerimenti. Nei primi capitoli i suggerimenti sono liberi, poi si sbloccano dopo un tentativo, infine si chiedono con una conferma.
-- **Palestra dei comandi**: 69 esercizi brevi generati a caso su 35 comandi e concetti (anche systemctl, journalctl, df, du, tar, crontab, tee, xargs), in tre livelli, con dati sempre nuovi; serie su un comando o allenamento misto sui punti deboli.
+- **Palestra dei comandi**: 75 esercizi brevi generati a caso su 37 comandi e concetti (anche systemctl, journalctl, df, du, tar, crontab, tee, xargs, nmap avanzato e PowerShell), in tre livelli, con dati sempre nuovi; serie su un comando o allenamento misto sui punti deboli.
 - **Memoria**: allenamento quotidiano di 5 minuti a ripetizione spaziata. Esercizi in tre livelli (scegli, ricomponi, scrivi) su comandi, opzioni e codici da sapere a memoria; le carte tornano poco prima di essere dimenticate, con serie di giorni consecutivi.
 - **Simulazioni**: sfide pratiche generate a caso, sempre diverse, sui capitoli scelti, con tre livelli di difficoltà (Facile, Medio, Difficile). Riepilogo finale con le soluzioni.
 - **Giochi**: *Phishing o no?* (riconoscere email e SMS truffa), *Turno al SOC* (triage degli allarmi), *Allenamento* (quiz di ripasso).

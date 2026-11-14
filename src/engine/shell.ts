@@ -43,6 +43,8 @@ export interface RemoteSystem {
   listening?: [number, string][];
   /** aggiornamenti disponibili */
   upgradable?: string[];
+  /** cartella che contiene le home (Windows: /Users) */
+  homeBase?: string;
 }
 
 export interface ShellOptions {
@@ -369,6 +371,10 @@ export class Shell {
   /** gruppi dell'utente */
   groups: string[] = ['users'];
   hint?: () => string | null;
+  /** la console è in modalità PowerShell (pwsh) */
+  ps = false;
+  /** interprete PowerShell, registrato da pwsh.ts */
+  static psHook: ((sh: Shell, line: string, out: { lines: Line[]; events: ShellEvent[] }) => boolean) | null = null;
 
   constructor(o: ShellOptions) {
     this.user = o.user;
@@ -390,6 +396,13 @@ export class Shell {
 
   promptText(): string {
     return `${this.user}@${this.host}:${this.promptPath()}$`;
+  }
+
+  /** Esegue una riga con bash anche mentre la console è in PowerShell. */
+  runBash(line: string): RunResult {
+    const result: RunResult = { lines: [], events: [] };
+    this.execText(line, { lines: result.lines, events: result.events }, 0);
+    return result;
   }
 
   abs(p: string): string {
@@ -424,7 +437,7 @@ export class Shell {
     this.fs = r.fs;
     this.user = user;
     this.host = r.hostname;
-    this.home = user === 'root' ? '/root' : `/home/${user}`;
+    this.home = user === 'root' ? '/root' : `${r.homeBase ?? '/home'}/${user}`;
     this.cwd = r.fs.get(this.home) ? this.home : '/';
     this.oldPwd = this.cwd;
   }
@@ -478,7 +491,9 @@ export class Shell {
     this.steps = 0;
     const cwd = this.cwd;
     const sink: Sink = { lines: result.lines, events: result.events };
-    this.execText(line, sink, 0);
+    if (this.ps && Shell.psHook) {
+      if (!Shell.psHook(this, line, sink)) this.ps = false;
+    } else this.execText(line, sink, 0);
     if (sink.clear) result.clear = true;
     this.lastRun = {
       line,
@@ -585,6 +600,7 @@ export class Shell {
   /** Si può scrivere in questo percorso? */
   canWrite(abs: string): boolean {
     const node = this.fs.get(abs);
+    if (this.user === 'root') return node ? node.type === 'file' : this.fs.get(dirnameOf(abs))?.type === 'dir';
     if (node) return !node.locked && node.type === 'file' && (node.owner === this.user || node.perms[7] === 'w');
     const parent = this.fs.get(dirnameOf(abs));
     return !!parent && parent.type === 'dir' && !parent.locked && (parent.owner === this.user || parent.perms[7] === 'w');
@@ -1229,21 +1245,74 @@ export const COMMANDS: Record<string, Command> = {
   nmap(c) {
     const flags: string[] = [];
     let ports: number[] | null = null;
+    let allPorts = false;
     let target: string | undefined;
+    let scripts: string[] = [];
+    let outFile = '';
+    let onlyOpen = false;
+    const SCRIPTS = ['default', 'http-title', 'http-server-header', 'ssh-hostkey', 'ftp-anon', 'banner', 'vuln', 'mysql-info'];
     for (let i = 0; i < c.args.length; i++) {
       const a = c.args[i];
-      if (a === '-p') {
-        const spec = c.args[++i] ?? '';
-        ports = spec.split(',').map(Number);
-        if (!spec || ports.some((p) => !Number.isInteger(p) || p < 1 || p > 65535)) {
+      if (a === '-p-') {
+        allPorts = true;
+        flags.push('-p-');
+      } else if (a === '-p' || /^-p\d/.test(a)) {
+        const spec = a === '-p' ? (c.args[++i] ?? '') : a.slice(2);
+        if (spec === '-') {
+          allPorts = true;
+          flags.push('-p-');
+          continue;
+        }
+        const list: number[] = [];
+        let bad = !spec;
+        for (const part of spec.split(',')) {
+          const m = part.match(/^(\d+)(?:-(\d+))?$/);
+          if (!m) {
+            bad = true;
+            break;
+          }
+          const lo = Number(m[1]);
+          const hi = m[2] ? Number(m[2]) : lo;
+          if (lo < 1 || hi > 65535 || hi < lo) {
+            bad = true;
+            break;
+          }
+          for (let p = lo; p <= hi; p++) list.push(p);
+        }
+        if (bad) {
           c.err(`Error #485: Your port specifications are illegal.`);
           return 1;
         }
+        ports = list;
         flags.push('-p');
-      } else if (['-sn', '-sV', '-Pn', '-sT', '-sS', '-v'].includes(a)) flags.push(a);
+      } else if (a === '-sC') {
+        flags.push('-sC');
+        scripts.push('default');
+      } else if (a === '--script' || a.startsWith('--script=')) {
+        const v = a === '--script' ? (c.args[++i] ?? '') : a.slice(9);
+        const list = v.split(',').filter(Boolean);
+        const unknown = list.find((x) => !SCRIPTS.includes(x));
+        if (!list.length || unknown) {
+          c.err(`NSE: failed to initialize the script engine: '${unknown ?? ''}' did not match a category, filename, or directory`);
+          c.info(`💡 Script disponibili nel deck: ${SCRIPTS.join(', ')}.`);
+          return 1;
+        }
+        scripts.push(...list);
+        flags.push('--script');
+      } else if (a === '-A') {
+        flags.push('-A', '-sV', '-O', '-sC');
+        scripts.push('default');
+      } else if (a === '-oN') {
+        outFile = c.args[++i] ?? '';
+        if (!outFile) {
+          c.err('nmap: -oN richiede il nome di un file');
+          return 1;
+        }
+      } else if (a === '--open') onlyOpen = true;
+      else if (['-sn', '-sV', '-Pn', '-sT', '-sS', '-v', '-O', '-T4', '-T3', '-n'].includes(a)) flags.push(a);
       else if (a.startsWith('-')) {
         c.err(`nmap: unrecognized option '${a}'`);
-        c.info('💡 Opzioni disponibili qui: -sn, -sV, -p. Vedi "man nmap".');
+        c.info('💡 Opzioni disponibili qui: -sn, -p, -p-, -sV, -O, -sC, --script, -A, -oN, --open. Vedi "man nmap".');
         return 1;
       } else target = a;
     }
@@ -1252,6 +1321,13 @@ export const COMMANDS: Record<string, Command> = {
       c.out('Usage: nmap [Scan Type(s)] [Options] {target specification}');
       c.info('💡 Indica un bersaglio, es: nmap 192.168.1.20 — e solo se è nello scope!');
       return 0;
+    }
+    const needRoot = flags.includes('-O') || flags.includes('-sS');
+    if (needRoot && c.sh.user !== 'root') {
+      c.err(flags.includes('-O') ? 'TCP/IP fingerprinting (for OS scan) requires root privileges.' : 'You requested a scan type which requires root privileges.');
+      c.err('QUITTING!');
+      c.info('💡 Il rilevamento del sistema operativo (-O, e quindi -A) e la scansione SYN (-sS) costruiscono pacchetti "a mano": servono i privilegi di root. Prova con sudo.');
+      return 1;
     }
 
     let hosts: Host[];
@@ -1284,68 +1360,91 @@ export const COMMANDS: Record<string, Command> = {
       return outOfScope(c, target);
     }
 
-    c.out(NMAP_HEADER);
+    // tutto ciò che stampa nmap, per salvarlo con -oN
+    const report: string[] = [];
+    const out = (t: string, cls?: LineClass, d?: number) => {
+      report.push(t);
+      c.out(t, cls, d);
+    };
+    const finish = () => {
+      if (!outFile) return;
+      const e = c.sh.writeText(c.sh.abs(outFile), `# Nmap 7.95 scan initiated as: nmap ${c.args.join(' ')}\n` + report.join('\n') + '\n', false);
+      if (e) c.err(`Failed to open normal output file ${outFile} for writing: ${e}`);
+      else c.emit({ type: 'write', path: c.sh.abs(outFile) });
+    };
+
+    out(NMAP_HEADER);
     const t0 = Date.now() % 7;
     if (flags.includes('-sn')) {
       for (const h of hosts) {
-        c.out(`Nmap scan report for ${displayName(h, h.ip)}`, 'ok', 350);
-        c.out(`Host is up (${(h.latency / 1000).toFixed(4)}s latency).`);
+        out(`Nmap scan report for ${displayName(h, h.ip)}`, 'ok', 350);
+        out(`Host is up (${(h.latency / 1000).toFixed(4)}s latency).`);
       }
-      c.out(
+      out(
         `Nmap done: ${rangeSize} IP address${rangeSize > 1 ? 'es' : ''} (${hosts.length} host${hosts.length === 1 ? '' : 's'} up) scanned in ${(rangeSize > 1 ? 2.31 : 0.05).toFixed(2)} seconds`,
         'out',
         400,
       );
+      finish();
       c.emit({ type: 'scan', target, ip: hosts.length === 1 ? hosts[0].ip : null, flags, outOfScope: false });
       return 0;
     }
 
     if (hosts.length === 0) {
-      c.out('Note: Host seems down. If it is really up, but blocking our ping probes, try -Pn', 'warn', 600);
-      c.out(`Nmap done: 1 IP address (0 hosts up) scanned in 3.04 seconds`);
+      out('Note: Host seems down. If it is really up, but blocking our ping probes, try -Pn', 'warn', 600);
+      out(`Nmap done: 1 IP address (0 hosts up) scanned in 3.04 seconds`);
+      finish();
       c.emit({ type: 'scan', target, ip: unknownIp, flags, outOfScope: false });
       return 0;
     }
 
     const version = flags.includes('-sV');
+    // senza -p si scandiscono le 1000 porte più comuni: le porte "strane" sopra la 10000 restano nascoste
+    const TOP = (p: number) => p <= 10000;
     for (const h of hosts) {
-      c.out(`Nmap scan report for ${displayName(h, h.ip)}`, 'ok', 500);
-      c.out(`Host is up (${(h.latency / 1000).toFixed(4)}s latency).`);
-      type Row = { port: string; state: string; service: string; version: string };
+      out(`Nmap scan report for ${displayName(h, h.ip)}`, 'ok', 500);
+      out(`Host is up (${(h.latency / 1000).toFixed(4)}s latency).`);
+      type Row = { port: string; state: string; service: string; version: string; p?: (typeof h.ports)[number] };
       let rows: Row[];
-      if (ports) {
-        rows = ports.map((p) => {
-          const open = h.ports.find((x) => x.port === p);
-          return {
-            port: `${p}/tcp`,
-            state: open ? 'open' : 'closed',
-            service: open?.service ?? WELL_KNOWN[p] ?? 'unknown',
-            version: open?.version ?? '',
-          };
+      const asRow = (p: (typeof h.ports)[number]): Row => ({ port: `${p.port}/tcp`, state: 'open', service: p.service, version: p.version, p });
+      if (ports && ports.length <= 25 && !onlyOpen) {
+        rows = ports.map((n) => {
+          const open = h.ports.find((x) => x.port === n);
+          return open ? asRow(open) : { port: `${n}/tcp`, state: 'closed', service: WELL_KNOWN[n] ?? 'unknown', version: '' };
         });
       } else {
-        rows = h.ports.map((p) => ({ port: `${p.port}/tcp`, state: 'open', service: p.service, version: p.version }));
-        c.out(`Not shown: ${1000 - rows.length} closed tcp ports (conn-refused)`);
+        const scanned = allPorts ? 65535 : ports ? ports.length : 1000;
+        const inSet = (n: number) => (allPorts ? true : ports ? ports.includes(n) : TOP(n));
+        rows = h.ports.filter((p) => inSet(p.port)).map(asRow);
+        if (rows.length < scanned) out(`Not shown: ${scanned - rows.length} closed tcp ports (conn-refused)`);
       }
       if (rows.length === 0) {
-        c.out('All 1000 scanned ports are closed', 'dim');
+        out(`All ${allPorts ? 65535 : ports?.length ?? 1000} scanned ports are closed`, 'dim');
         continue;
       }
       const w1 = Math.max(4, ...rows.map((r) => r.port.length)) + 1;
       const w2 = Math.max(5, ...rows.map((r) => r.state.length)) + 1;
       const w3 = Math.max(7, ...rows.map((r) => r.service.length)) + 1;
-      c.out(`${'PORT'.padEnd(w1)}${'STATE'.padEnd(w2)}${version ? 'SERVICE'.padEnd(w3) + 'VERSION' : 'SERVICE'}`, 'dim', 900);
+      out(`${'PORT'.padEnd(w1)}${'STATE'.padEnd(w2)}${version ? 'SERVICE'.padEnd(w3) + 'VERSION' : 'SERVICE'}`, 'dim', 900);
       for (const r of rows) {
-        c.out(
-          `${r.port.padEnd(w1)}${r.state.padEnd(w2)}${version ? r.service.padEnd(w3) + r.version : r.service}`,
-          r.state === 'open' ? 'out' : 'dim',
-          120,
-        );
+        out(`${r.port.padEnd(w1)}${r.state.padEnd(w2)}${version ? r.service.padEnd(w3) + r.version : r.service}`, r.state === 'open' ? 'out' : 'dim', 120);
+        if (r.p && scripts.length) for (const l of nseFor(h, r.p, scripts)) out(l, l.includes('VULNERABLE') || l.includes('Anonymous FTP login allowed') ? 'warn' : 'out', 60);
       }
-      c.out('');
+      if (flags.includes('-O')) {
+        const os = h.os ?? (h.ttl <= 64 ? 'Linux 4.15 - 5.19' : h.ttl <= 128 ? 'Microsoft Windows 10 1809 - 11 / Server 2019' : 'Cisco IOS 15.X');
+        const family = /windows/i.test(os) ? 'Microsoft Windows' : /linux/i.test(os) ? 'Linux' : 'Cisco IOS';
+        out('Device type: general purpose', 'out', 300);
+        out(`Running: ${family}`);
+        out(`OS details: ${os}`, 'ok');
+        out('Network Distance: 1 hop');
+      }
+      out('');
     }
-    if (version) c.out('Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .', 'dim');
-    c.out(`Nmap done: 1 IP address (1 host up) scanned in ${(version ? 6.18 : 0.42 + t0 / 100).toFixed(2)} seconds`);
+    if (version || scripts.length) out('Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .', 'dim');
+    if (flags.includes('-O')) out('OS detection performed. Please report any incorrect results at https://nmap.org/submit/ .', 'dim');
+    const secs = allPorts ? 41.7 : version || scripts.length ? 6.18 : 0.42 + t0 / 100;
+    out(`Nmap done: 1 IP address (1 host up) scanned in ${secs.toFixed(2)} seconds`);
+    finish();
     c.emit({ type: 'scan', target, ip: hosts[0].ip, flags, outOfScope: false });
     return 0;
   },
@@ -1925,7 +2024,7 @@ export const COMMANDS: Record<string, Command> = {
       return ufw({ ...c, args: c.args.slice(1) }, true);
     }
     // sul deck di addestramento puoi anche gestire i servizi e leggere i registri di sistema
-    const ADMIN = ['systemctl', 'journalctl', 'lastb', 'nano', 'nginx'];
+    const ADMIN = ['systemctl', 'journalctl', 'lastb', 'nano', 'nginx', 'nmap'];
     if (!c.sh.system && ADMIN.includes(c.args[0])) {
       if (c.args[0] === 'nano') {
         const f = c.args[1];
@@ -1950,7 +2049,7 @@ export const COMMANDS: Record<string, Command> = {
       }
     }
     c.err(`${c.sh.user} is not in the sudoers file.  This incident will be reported.`);
-    c.info('💡 In questo deck sudo è permesso solo per amministrare firewall (ufw), servizi (systemctl, nginx -t), registri (journalctl, lastb) e i file di configurazione in /etc (nano).');
+    c.info('💡 In questo deck sudo è permesso solo per amministrare firewall (ufw), servizi (systemctl, nginx -t), registri (journalctl, lastb) e i file di configurazione in /etc (nano); nmap come root per -O e -A, sempre solo nel perimetro.');
     return 1;
   },
 
@@ -2544,6 +2643,43 @@ function headTail(c: Ctx, which: 'head' | 'tail'): number {
   const lines = splitLines(text);
   for (const l of which === 'head' ? lines.slice(0, n) : lines.slice(Math.max(0, lines.length - n))) c.out(l);
   return 0;
+}
+
+/** Risultati degli script NSE di nmap per una porta aperta (nel formato di nmap, con | e |_). */
+function nseFor(h: Host, p: { port: number; service: string; version: string; title?: string; anon?: string[] }, scripts: string[]): string[] {
+  const on = (name: string, def = true) => scripts.includes(name) || (def && scripts.includes('default'));
+  const lines: string[] = [];
+  const block = (name: string, body: string[]) => {
+    if (!body.length) return;
+    if (body.length === 1) lines.push(`|_${name}: ${body[0]}`);
+    else {
+      lines.push(`| ${name}: ${body[0]}`);
+      body.slice(1, -1).forEach((b) => lines.push(`|   ${b}`));
+      lines.push(`|_  ${body[body.length - 1]}`);
+    }
+  };
+  const svc = p.service.toLowerCase();
+  if (svc.startsWith('http')) {
+    if (on('http-title')) block('http-title', [p.title ?? "Site doesn't have a title (text/html)."]);
+    if (on('http-server-header') && p.version) block('http-server-header', [p.version.replace(/ \(.*/, '')]);
+  }
+  if (svc === 'ssh' && on('ssh-hostkey')) {
+    const fp = sha256(`${h.ip}:${p.port}`);
+    block('ssh-hostkey', ['', `256 SHA256:${base64Encode(fp.slice(0, 32)).slice(0, 43)} (ED25519)`, `3072 SHA256:${base64Encode(fp.slice(32)).slice(0, 43)} (RSA)`].filter(Boolean));
+  }
+  if (svc === 'ftp' && on('ftp-anon')) {
+    if (p.anon) block('ftp-anon', ['Anonymous FTP login allowed (FTP code 230)', ...p.anon.map((f) => `-rw-r--r--    1 0        0            4096 Nov 10 03:00 ${f}`)]);
+  }
+  if (svc === 'mysql' && on('mysql-info')) block('mysql-info', ['', `Protocol: 10`, `Version: ${p.version.replace(/^MySQL /, '')}`]);
+  if (on('banner', false) && p.version) block('banner', [p.version]);
+  if (on('vuln', false)) {
+    const hits = CVES.filter((v) => {
+      const m = p.version.match(new RegExp(`${v.product}\\D{0,12}?(\\d+(?:\\.\\d+)*)`, 'i'));
+      return !!m && v.test(m[1]);
+    });
+    for (const v of hits) block('vulners', ['VULNERABLE:', `${v.id}  CVSS ${v.cvss.toFixed(1)}  ${v.affects}`, v.summary.split('.')[0] + '.']);
+  }
+  return lines;
 }
 
 function outOfScope(c: Ctx, target: string): number {

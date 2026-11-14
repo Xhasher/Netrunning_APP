@@ -1371,7 +1371,153 @@ const ADMIN: PalEx[] = [
   },
 ];
 
-export const PALESTRA: PalEx[] = [...NAV, ...FILEOPS, ...TEXT, ...CRYPTO, ...ADMIN];
+// ---------------------------------------------------------------- nmap
+
+function labHost(c: Ctx, ports: { port: number; service: string; version: string }[], ttl = 64) {
+  const ip = `10.77.${c.r.int(1, 250)}.${c.r.int(2, 250)}`;
+  const name = `${c.r.pick(WORDS)}${c.r.int(1, 9)}.lab`;
+  c.sh.net.hosts.push({ ip, names: [name], mac: '', pingable: true, latency: 2, ttl, ports, inScope: true });
+  mkdir(c);
+  return name;
+}
+
+const SVC_VERS: [number, string, string][] = [
+  [22, 'ssh', 'OpenSSH 8.9p1 Ubuntu 3ubuntu0.10'],
+  [80, 'http', 'Apache httpd 2.4.58 ((Ubuntu))'],
+  [443, 'https', 'nginx 1.24.0'],
+  [21, 'ftp', 'vsftpd 3.0.5'],
+  [3306, 'mysql', 'MySQL 8.0.36'],
+  [5432, 'postgresql', 'PostgreSQL DB 15.4'],
+  [8080, 'http', 'Apache Tomcat 9.0.80'],
+];
+
+const NMAP: PalEx[] = [
+  {
+    id: 'nmap-versione',
+    skill: 'nmap',
+    lv: 1,
+    make: (c) => {
+      const svc = c.r.shuffle(SVC_VERS).slice(0, 3);
+      const t = c.r.pick(svc);
+      const host = labHost(c, svc.map(([port, service, version]) => ({ port, service, version })).sort((a, b) => a.port - b.port));
+      return {
+        title: 'Che versione?',
+        prompt: `Sul bersaglio di laboratorio \`${host}\` (autorizzato) gira un servizio sulla porta ${t[0]}. Che **software** è? Invia il primo nome della colonna VERSION (es. OpenSSH) con \`flag\`.`,
+        hints: ['nmap ha un\'opzione per le versioni; -p limita le porte.', `nmap -sV -p ${t[0]} ${host}`],
+        answer: [t[2].split(' ')[0]],
+        solve: [`nmap -sV -p ${t[0]} ${host}`],
+      };
+    },
+  },
+  {
+    id: 'nmap-tutte',
+    skill: 'nmap',
+    lv: 2,
+    make: (c) => {
+      const svc = c.r.shuffle(SVC_VERS).slice(0, 2).map(([port, service, version]) => ({ port, service, version }));
+      const high = c.r.pick([10443, 20022, 27017, 31337, 49200, 60080]);
+      const host = labHost(c, [...svc, { port: high, service: 'unknown', version: '' }].sort((a, b) => a.port - b.port));
+      return {
+        title: 'La porta nascosta',
+        prompt: `Il bersaglio di laboratorio \`${host}\` ha un servizio su una porta **alta**, che la scansione predefinita non controlla. Quale porta? Invia il numero con \`flag\`.`,
+        hints: ['Senza indicazioni nmap prova solo le 1000 porte più comuni. C\'è un modo per dirgli "tutte".', `nmap -p- ${host}`],
+        answer: [String(high)],
+        solve: [`nmap -p- ${host}`],
+      };
+    },
+  },
+  {
+    id: 'nmap-os',
+    skill: 'nmap',
+    lv: 3,
+    make: (c) => {
+      const win = c.r.next() < 0.5;
+      const host = labHost(
+        c,
+        win
+          ? [
+              { port: 445, service: 'microsoft-ds', version: '' },
+              { port: 3389, service: 'ms-wbt-server', version: '' },
+            ]
+          : [
+              { port: 22, service: 'ssh', version: '' },
+              { port: 80, service: 'http', version: '' },
+            ],
+        win ? 128 : 64,
+      );
+      return {
+        title: 'Che sistema è?',
+        prompt: `Che famiglia di sistema operativo gira su \`${host}\`? Fallo stimare a nmap e invia \`linux\` o \`windows\` con \`flag\`.`,
+        hints: ['L\'opzione per il sistema operativo richiede i privilegi di root.', `sudo nmap -O ${host}`],
+        answer: [win ? 'windows' : 'linux'],
+        solve: [`sudo nmap -O ${host}`],
+      };
+    },
+  },
+];
+
+// ---------------------------------------------------------------- PowerShell
+
+const PWSH: PalEx[] = [
+  {
+    id: 'pwsh-conta',
+    skill: 'pwsh',
+    lv: 1,
+    make: (c) => {
+      const ip = pubIp(c.r);
+      write(c, 'auth.log', authLog(c.r, { fails: c.r.int(3, 15), ip, others: c.r.int(10, 30) }).join('\n') + '\n');
+      const n = (content(c.sh, abs(c, 'auth.log')) ?? '').split('\n').filter((l) => l.includes(ip)).length;
+      return {
+        title: 'Conta con PowerShell',
+        prompt: `Con PowerShell, conta quante righe di \`${c.dir}/auth.log\` contengono l'IP \`${ip}\`. Invia il numero (Count) con \`flag\`.`,
+        hints: ['Get-Content legge, Select-String filtra, Measure-Object conta. Entra con pwsh, oppure usa pwsh -c "...".', `pwsh -c "Get-Content ${c.dir}/auth.log | Select-String ${ip} | Measure-Object"`],
+        answer: [String(n)],
+        solve: [`pwsh -c "Get-Content ${c.dir}/auth.log | Select-String ${ip} | Measure-Object"`],
+      };
+    },
+  },
+  {
+    id: 'pwsh-ordina',
+    skill: 'pwsh',
+    lv: 2,
+    make: (c) => {
+      const names = uniqName(c.r, 5, FILES);
+      const big = c.r.pick(names);
+      for (const n of names) write(c, `export/${n}.csv`, 'x'.repeat(n === big ? c.r.int(4000, 9000) : c.r.int(100, 3000)));
+      return {
+        title: 'Il più grande, per proprietà',
+        prompt: `Con PowerShell trova il file più grande in \`${c.dir}/export\` ordinando per la proprietà Length. Invia il nome con \`flag\`.`,
+        hints: ['Get-ChildItem, poi Sort-Object Length -Descending, poi Select-Object -First 1.', `pwsh -c "Get-ChildItem ${c.dir}/export | Sort-Object Length -Descending | Select-Object -First 1"`],
+        answer: [`${big}.csv`, big],
+        solve: [`pwsh -c "Get-ChildItem ${c.dir}/export | Sort-Object Length -Descending | Select-Object -First 1"`],
+      };
+    },
+  },
+  {
+    id: 'pwsh-filtra',
+    skill: 'pwsh',
+    lv: 3,
+    make: (c) => {
+      const names = uniqName(c.r, 6, FILES);
+      const limit = 2000;
+      let n = 0;
+      for (const f of names) {
+        const size = c.r.int(500, 4000);
+        if (size > limit) n++;
+        write(c, `report/${f}.txt`, 'y'.repeat(size));
+      }
+      return {
+        title: 'Filtra gli oggetti',
+        prompt: `Quanti file di \`${c.dir}/report\` sono più grandi di ${limit} byte? Usa Where-Object sulla proprietà Length e conta. Invia il numero con \`flag\`.`,
+        hints: ['Where-Object { $_.Length -gt N } filtra; Measure-Object conta. Da bash, con pwsh -c, usa gli apici singoli: tra virgolette doppie bash sostituirebbe $_.', `pwsh -c 'Get-ChildItem ${c.dir}/report | Where-Object { $_.Length -gt ${limit} } | Measure-Object'`],
+        answer: [String(n)],
+        solve: [`pwsh -c 'Get-ChildItem ${c.dir}/report | Where-Object { $_.Length -gt ${limit} } | Measure-Object'`],
+      };
+    },
+  },
+];
+
+export const PALESTRA: PalEx[] = [...NAV, ...FILEOPS, ...TEXT, ...CRYPTO, ...ADMIN, ...NMAP, ...PWSH];
 
 /** Comandi con almeno un esercizio, in ordine di corso. */
 export const PALESTRA_SKILLS: string[] = [...new Set(PALESTRA.map((e) => e.skill))];
