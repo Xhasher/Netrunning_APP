@@ -26,6 +26,7 @@ import {
 import type { Chapter, Mission, QuizStep, Step } from '../game/types';
 import { MANPAGES } from '../engine/manpages';
 import { PROSE_SKIP, cmdName, commandsInLine, commandsInMarkup, taughtBefore } from '../game/commands';
+import { analyze, type Analysis, type LogEntry } from '../game/coach';
 import { openManual } from './manual';
 import { dueCount, renderMemoryHome } from './memory';
 import { inline, renderMarkup } from './markup';
@@ -276,6 +277,7 @@ export class App {
             <span class="ch-count">${doneCount}/${ch.missions.length}</span>
           </div>
           <ol class="missions"></ol>
+          ${doneCount === ch.missions.length ? `<button class="ch-debrief" data-debrief="${ch.id}">Debriefing del capitolo ▸</button>` : ''}
         </article>`);
       const ol = art.querySelector('ol')!;
       ch.missions.forEach((m, i) => {
@@ -319,9 +321,10 @@ export class App {
     }
 
     node.addEventListener('click', (e) => {
-      const t = (e.target as HTMLElement).closest<HTMLElement>('[data-act],[data-mission]');
+      const t = (e.target as HTMLElement).closest<HTMLElement>('[data-act],[data-mission],[data-debrief]');
       if (!t) return;
-      if (t.dataset.mission) this.showMission(t.dataset.mission);
+      if (t.dataset.debrief) this.showDebrief(t.dataset.debrief);
+      else if (t.dataset.mission) this.showMission(t.dataset.mission);
       else if (t.dataset.act === 'codex') this.showCodex();
       else if (t.dataset.act === 'train') this.showTraining();
       else if (t.dataset.act === 'sandbox') this.showSandbox();
@@ -582,6 +585,9 @@ export class App {
       minimized: false,
     };
 
+    // il diario dei comandi riparte quando la missione ricomincia da capo
+    if (step === 0 || !this.save.logs[id]) this.save.logs[id] = [];
+
     // ogni missione parte dalla home
     shell.cwd = shell.home;
     term.updatePrompt();
@@ -785,6 +791,7 @@ export class App {
     const step = this.currentStep();
     if (step?.kind !== 'task') return;
     r.hintLevel = Math.min(r.hintLevel + 1, step.hints.length);
+    this.pushLog(r.mission.id, { l: '', d: this.shell?.cwd ?? '', s: r.step, k: 'h' });
     this.renderStep(true);
   }
 
@@ -916,6 +923,7 @@ export class App {
     const step = this.currentStep();
     const done = this.stepIsDone();
     const outcome = evaluate(done ? undefined : step, events, this.shell!);
+    this.logCommand(outcome, events);
     if (outcome === 'pass') {
       term.system('✔ OBIETTIVO COMPLETATO', 'ok');
       this.markDone();
@@ -927,6 +935,102 @@ export class App {
         'info',
       );
     }
+  }
+
+  /** Annota nel diario della missione il comando appena eseguito (per l'analisi finale). */
+  private logCommand(outcome: string | null, events: ShellEvent[]): void {
+    const r = this.run;
+    const last = this.shell?.lastRun;
+    if (!r || !last) return;
+    const e: LogEntry = { l: last.line, d: last.cwd, s: r.step };
+    if (last.err) e.e = last.err.slice(0, 120);
+    if (last.out) e.o = last.out;
+    if (outcome === 'pass') e.k = 'p';
+    else if (outcome === 'wrong-answer') e.k = 'w';
+    else if (events.some((x) => x.type === 'scan' && x.outOfScope)) e.k = 'x';
+    else if (/^hint\b/.test(last.line)) e.k = 'h';
+    this.pushLog(r.mission.id, e);
+  }
+
+  private pushLog(id: string, e: LogEntry): void {
+    const log = (this.save.logs[id] ??= []);
+    log.push(e);
+    if (log.length > 400) log.splice(0, log.length - 400);
+    this.persist();
+  }
+
+  private missionAnalysis(ids: string[]): Analysis | null {
+    const log = ids.flatMap((id) => this.save.logs[id] ?? []);
+    if (!log.some((e) => e.l)) return null;
+    const objectives = ids.reduce((n, id) => n + (findMission(id)?.mission.steps.filter((st) => st.kind === 'task').length ?? 0), 0);
+    return analyze(log, objectives);
+  }
+
+  /** Il riquadro con i consigli: stessi elementi per la missione e per il capitolo. */
+  private coachHtml(a: Analysis, maxTips: number): string {
+    const tips = a.tips.slice(0, maxTips);
+    const code = (k: string, v: string) => `<div class="cc-row"><span class="cc-k">${k}</span><pre class="cc-code"></pre><template>${v.replace(/</g, '&lt;')}</template></div>`;
+    return html`
+      ${a.strengths.length ? `<ul class="coach-good">${a.strengths.slice(0, 3).map((x) => `<li>${inline(x.text)}</li>`).join('')}</ul>` : ''}
+      ${tips.length
+        ? tips
+            .map(
+              (t) => html`
+                <div class="coach-tip">
+                  <div class="ct-title">${t.title}${t.count > 1 ? ` <span class="ct-n">×${t.count}</span>` : ''}</div>
+                  <p>${inline(t.text)}</p>
+                  ${t.yours ? code('TU', t.yours) : ''}${t.better ? code('MEGLIO', t.better) : ''}
+                </div>`,
+            )
+            .join('')
+        : '<p class="coach-none">Niente da correggere: hai lavorato in modo pulito.</p>'}`;
+  }
+
+  /** Riempie i blocchi di codice dei consigli come testo (mai come HTML). */
+  private fillCoachCode(node: HTMLElement): void {
+    node.querySelectorAll<HTMLElement>('.cc-row').forEach((row) => {
+      const tpl = row.querySelector('template')!;
+      row.querySelector('pre')!.textContent = tpl.innerHTML.replace(/&lt;/g, '<').replace(/&amp;/g, '&').replace(/&gt;/g, '>');
+      tpl.remove();
+    });
+  }
+
+  private statsHtml(a: Analysis): string {
+    const st = a.stats;
+    const acc = st.commands ? Math.round(((st.commands - st.errors) / st.commands) * 100) : 100;
+    return html`
+      <div class="coach-stats">
+        <div><b>${st.commands}</b><span>comandi</span></div>
+        <div><b>${acc}%</b><span>senza errori</span></div>
+        <div><b>${st.hints}</b><span>suggerimenti</span></div>
+        <div><b>${st.wrong}</b><span>risposte sbagliate</span></div>
+      </div>
+      ${st.top.length ? `<p class="coach-top">I tuoi comandi più usati: ${st.top.map(([c, n]) => `<code>${c}</code> ${n}`).join(' · ')}</p>` : ''}`;
+  }
+
+  private showDebrief(chId: string): void {
+    const ch = CHAPTERS.find((c) => c.id === chId);
+    if (!ch) return;
+    const a = this.missionAnalysis(ch.missions.map((m) => m.id));
+    const perMission = ch.missions
+      .map((m, i) => {
+        const ma = this.missionAnalysis([m.id]);
+        if (!ma) return '';
+        const acc = ma.stats.commands ? Math.round(((ma.stats.commands - ma.stats.errors) / ma.stats.commands) * 100) : 100;
+        return `<li><span>${ch.code}.${i + 1} ${inline(m.title)}</span><span class="dm-n">${ma.stats.commands} cmd · ${acc}% · ${ma.stats.hints} sugg.</span></li>`;
+      })
+      .join('');
+    const body = a
+      ? html`
+          <div class="prose coach-intro">${renderMarkup(`@nyx: Ho riletto tutto quello che hai scritto in questo capitolo, comando per comando. Non ti giudico per il risultato, quello l'hai portato a casa. Ti dico **come** ci sei arrivato, e cosa ti farebbe lavorare meglio.`)}</div>
+          ${this.statsHtml(a)}
+          <h3 class="coach-h">Cosa fai bene e cosa migliorare</h3>
+          ${this.coachHtml(a, 6)}
+          ${perMission ? `<h3 class="coach-h">Missione per missione</h3><ul class="debrief-missions">${perMission}</ul>` : ''}
+          <p class="coach-foot">L'analisi si basa sull'ultima volta che hai giocato ogni missione. Rigiocane una per migliorare il tuo debriefing.</p>`
+      : '<p class="empty">Non ci sono ancora comandi registrati per questo capitolo: il debriefing si basa su ciò che scrivi nelle missioni da questa versione in poi. Rigioca una missione per vederlo.</p>';
+    const node = this.page('debrief', `Debriefing · ${ch.title}`, `// capitolo ${ch.code}`, body);
+    this.fillCoachCode(node);
   }
 
   private finishMission(): void {
@@ -947,6 +1051,7 @@ export class App {
     const next = nextMissionId(this.save);
     const nextInfo = next ? findMission(next) : null;
     const rank = rankFor(this.save.xp);
+    const coach = this.missionAnalysis([m.id]);
     const node = el(html`
       <div class="screen complete">
         <div class="panel">
@@ -958,6 +1063,8 @@ export class App {
           <dl class="recap">
             ${m.recap.map(([k, v]) => `<div><dt>${inline(k)}</dt><dd>${inline(v)}</dd></div>`).join('')}
           </dl>
+          ${coach ? `<h3>Il parere di Nyx sul tuo lavoro</h3><div class="coach">${this.coachHtml(coach, 3)}</div>` : ''}
+          ${lastOfChapter ? `<button class="continue debrief-go" data-act="debrief"><span class="c-kicker">FINE CAPITOLO ${ch.code}</span><span class="c-title">Debriefing del capitolo ▸</span><span class="c-tag">L'analisi completa di come hai lavorato: statistiche, abitudini da tenere e da correggere.</span></button>` : ''}
           <div class="step-actions">
             <button class="ghost" data-act="map">Mappa</button>
             ${nextInfo ? `<button class="next" data-act="next">Prossima: ${nextInfo.mission.title} ▸</button>` : ''}
@@ -968,7 +1075,9 @@ export class App {
       const t = (e.target as HTMLElement).closest<HTMLElement>('[data-act]');
       if (t?.dataset.act === 'map') this.showMap();
       if (t?.dataset.act === 'next' && nextInfo) this.showMission(nextInfo.mission.id);
+      if (t?.dataset.act === 'debrief') this.showDebrief(ch.id);
     });
+    this.fillCoachCode(node);
     this.mount('complete', node);
   }
 

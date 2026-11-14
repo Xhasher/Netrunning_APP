@@ -54,3 +54,7 @@ nascosti, quiz, almeno una Operazione, test automatici (partita completa) e voci
 - Schede del Manuale approfondite per ssh, ssh-keygen, whois, exiftool, crtsh, cve, nano.
 
 Restano da fare: riscrittura narrativa a mano delle lezioni 01–04, OWASP Top 10 completo, analisi del phishing, ciclo di vita del SOC, reti avanzate, pentest in laboratorio, forensics, Python, esami a tempo.
+
+## Aggiunto nella 1.5
+
+- **Coach** (`src/game/coach.ts`): diario dei comandi per missione e analisi automatica. Riconosce errori di battitura (con il comando giusto), percorsi sbagliati, errori ripetuti senza leggere il messaggio, catene riscrivibili (`cat | grep`, `grep | wc -l`, `sort | uniq`, `grep | head -n 1`), spostamenti inutili con `cd`, file enormi letti con `cat`, comandi lunghi riscritti a mano, `rm -r` senza guardare, `chmod 777`, `sudo` superfluo, scansioni fuori perimetro, troppi suggerimenti o risposte sbagliate; e segnala anche ciò che fai bene. Consigli a fine missione, debriefing a fine capitolo (anche dalla mappa).

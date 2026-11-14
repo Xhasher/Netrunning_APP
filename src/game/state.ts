@@ -1,4 +1,5 @@
 import { allMissions } from '../content';
+import type { LogEntry } from './coach';
 
 const KEY = 'nc-edgerunner-save-v1';
 
@@ -23,10 +24,12 @@ export interface SaveData {
   srs: Record<string, [number, number]>;
   /** giorni consecutivi di allenamento */
   streak: { day: number; count: number; best: number };
+  /** diario dei comandi di ogni missione (l'ultima volta che è stata giocata) */
+  logs: Record<string, LogEntry[]>;
 }
 
 export function defaultSave(): SaveData {
-  return { handle: null, xp: 0, completed: [], progress: {}, fontScale: 1, ops: [], best: {}, known: [], hideKnown: true, sim: { chapters: [], level: 1 }, srs: {}, streak: { day: 0, count: 0, best: 0 } };
+  return { handle: null, xp: 0, completed: [], progress: {}, fontScale: 1, ops: [], best: {}, known: [], hideKnown: true, sim: { chapters: [], level: 1 }, srs: {}, streak: { day: 0, count: 0, best: 0 }, logs: {} };
 }
 
 export function loadSave(): SaveData {

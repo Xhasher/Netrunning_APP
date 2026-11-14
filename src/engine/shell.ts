@@ -362,6 +362,8 @@ export class Shell {
   fs: Vfs;
   net: Network;
   history: string[] = [];
+  /** l'ultimo comando eseguito con run(): serve all'analisi del modo di lavorare */
+  lastRun: { line: string; cwd: string; err: string | null; out: number } | null = null;
   /** IP bloccati dal firewall (ufw) */
   firewall: string[] = [];
   /** gruppi dell'utente */
@@ -457,6 +459,7 @@ export class Shell {
   userAliases: Record<string, string> = {};
 
   run(input: string): RunResult {
+    this.lastRun = null;
     let line = input.trim();
     const result: RunResult = { lines: [], events: [] };
     if (!line) return result;
@@ -473,9 +476,16 @@ export class Shell {
     }
     this.history.push(line);
     this.steps = 0;
+    const cwd = this.cwd;
     const sink: Sink = { lines: result.lines, events: result.events };
     this.execText(line, sink, 0);
     if (sink.clear) result.clear = true;
+    this.lastRun = {
+      line,
+      cwd,
+      err: result.lines.find((l) => l.cls === 'err')?.text ?? null,
+      out: result.lines.filter((l) => l.cls !== 'err' && l.cls !== 'info').length,
+    };
     return result;
   }
 
