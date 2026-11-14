@@ -5,6 +5,7 @@
 
 import { WORDS, NAMES, makeRng, pathAnswers, pubIp, time, write, type Ctx, type Drill, type Level, type Rng } from './drills';
 import { base64Encode, sha256 } from '../engine/sha256';
+import { DISKS_FILE, JOURNAL_FILE, SVC_FILE, encodeUnits } from '../engine/sysinfo';
 import type { Shell } from '../engine/shell';
 
 export interface PalEx {
@@ -1077,7 +1078,300 @@ const CRYPTO: PalEx[] = [
   },
 ];
 
-export const PALESTRA: PalEx[] = [...NAV, ...FILEOPS, ...TEXT, ...CRYPTO];
+
+// ---------------------------------------------------------------- amministrazione
+
+const SVC_POOL: [string, string][] = [
+  ['ssh', 'OpenBSD Secure Shell server'],
+  ['cron', 'Regular background program processing daemon'],
+  ['nginx', 'A high performance web server and a reverse proxy server'],
+  ['postgresql', 'PostgreSQL database server'],
+  ['rsyslog', 'System Logging Service'],
+  ['docker', 'Docker Application Container Engine'],
+  ['fail2ban', 'Fail2Ban Service'],
+  ['redis', 'Advanced key-value store'],
+];
+
+const root = { owner: 'root', group: 'root' };
+
+function journalOf(c: Ctx, rows: [number, number, string][]): void {
+  c.sh.localFs.mkdirp('/var/log/journal', root);
+  c.sh.localFs.writeFile(
+    JOURNAL_FILE,
+    rows
+      .sort((a, b) => a[1] - b[1])
+      .map(([p, t, msg]) => `${p}|Nov 12 ${time(t)} deck ${msg}\n`)
+      .join(''),
+    { ...root, perms: 'rw-r-----', locked: true },
+  );
+}
+
+const ADMIN: PalEx[] = [
+  {
+    id: 'systemctl-failed',
+    skill: 'systemctl',
+    lv: 1,
+    make: (c) => {
+      const pick = c.r.shuffle(SVC_POOL).slice(0, 5);
+      const bad = c.r.pick(pick)[0];
+      c.sh.localFs.mkdirp('/var/lib/nightos', root);
+      c.sh.localFs.writeFile(
+        SVC_FILE,
+        encodeUnits(pick.map(([name, desc]) => ({ name, desc, state: name === bad ? 'failed' : 'active', enabled: true, pid: name === bad ? 0 : c.r.int(300, 3000), mem: `${c.r.int(1, 90)}.${c.r.int(0, 9)}M`, since: 'Thu 2077-11-12 06:00:00 CET; 15h ago' }))),
+        root,
+      );
+      mkdir(c);
+      return {
+        title: 'Cosa è guasto?',
+        prompt: 'Su questa macchina un servizio è in errore. Quale? Invia il nome con `flag`.',
+        hints: ['systemctl ha un\'opzione che mostra solo i servizi falliti.', 'systemctl --failed'],
+        answer: [bad, `${bad}.service`],
+        solve: ['systemctl --failed'],
+      };
+    },
+  },
+  {
+    id: 'systemctl-enabled',
+    skill: 'systemctl',
+    lv: 2,
+    make: (c) => {
+      const pick = c.r.shuffle(SVC_POOL).slice(0, 5);
+      const target = c.r.pick(pick)[0];
+      const en = c.r.next() < 0.5;
+      c.sh.localFs.mkdirp('/var/lib/nightos', root);
+      c.sh.localFs.writeFile(
+        SVC_FILE,
+        encodeUnits(pick.map(([name, desc]) => ({ name, desc, state: 'active', enabled: name === target ? en : true, pid: c.r.int(300, 3000), mem: '4.0M', since: 'Thu 2077-11-12 06:00:00 CET; 15h ago' }))),
+        root,
+      );
+      mkdir(c);
+      return {
+        title: 'Partirà al riavvio?',
+        prompt: `Il servizio \`${target}\` adesso è acceso. Ma ripartirà da solo al prossimo riavvio? Invia \`enabled\` o \`disabled\` con \`flag\`.`,
+        hints: ['Acceso (active) e avvio automatico (enabled) sono due cose diverse: c\'è un sottocomando apposta.', `systemctl is-enabled ${target}`],
+        answer: [en ? 'enabled' : 'disabled'],
+        solve: [`systemctl is-enabled ${target}`],
+      };
+    },
+  },
+  {
+    id: 'journalctl-err',
+    skill: 'journalctl',
+    lv: 1,
+    make: (c) => {
+      const progs = ['backup.sh', 'nginx', 'postgres', 'php-fpm', 'smartd'];
+      const bad = c.r.pick(progs);
+      const rows: [number, number, string][] = [];
+      for (let i = 0; i < 25; i++) rows.push([6, c.r.int(0, 80000), `${c.r.pick(progs.filter((p) => p !== bad))}[${c.r.int(100, 9999)}]: ${c.r.pick(['avvio completato', 'richiesta servita', 'controllo ok', 'connessione chiusa'])}`]);
+      rows.push([3, c.r.int(0, 80000), `${bad}[${c.r.int(100, 9999)}]: ${c.r.pick(['No space left on device', 'connection refused', 'permission denied', 'disk read error'])}`]);
+      rows.push([4, c.r.int(0, 80000), `${c.r.pick(progs)}[${c.r.int(100, 9999)}]: risposta lenta (${c.r.int(2, 9)} s)`]);
+      journalOf(c, rows);
+      mkdir(c);
+      return {
+        title: 'Chi ha dato errore?',
+        prompt: 'Nel diario di sistema c\'è un solo messaggio di livello **err**. Quale programma lo ha scritto? Invia il nome con `flag`.',
+        hints: ['journalctl ha un filtro per priorità: err mostra gli errori e quelli più gravi.', 'journalctl -p err'],
+        answer: [bad],
+        solve: ['journalctl -p err'],
+      };
+    },
+  },
+  {
+    id: 'journalctl-since',
+    skill: 'journalctl',
+    lv: 2,
+    make: (c) => {
+      const h = c.r.int(1, 5);
+      const ip = pubIp(c.r);
+      const rows: [number, number, string][] = [];
+      for (let i = 0; i < 20; i++) {
+        let t = c.r.int(0, 86000);
+        while (Math.floor(t / 3600) === h) t = c.r.int(0, 86000);
+        rows.push([6, t, `sshd[${c.r.int(1000, 9999)}]: Failed password for ${c.r.pick(NAMES)} from ${pubIp(c.r)} port ${c.r.int(30000, 60000)} ssh2`]);
+      }
+      for (let i = 0; i < 3; i++) rows.push([6, h * 3600 + c.r.int(60, 3500), `sshd[${c.r.int(1000, 9999)}]: Failed password for root from ${ip} port ${c.r.int(30000, 60000)} ssh2`]);
+      journalOf(c, rows);
+      mkdir(c);
+      const hh = String(h).padStart(2, '0');
+      const h2 = String(h + 1).padStart(2, '0');
+      return {
+        title: 'Un\'ora di notte',
+        prompt: `Da quale IP sono arrivati i tentativi di accesso **tra le ${hh}:00 e le ${h2}:00**? Usa il diario e invia l'IP con \`flag\`.`,
+        hints: ['journalctl ha due opzioni per l\'inizio e la fine di una fascia oraria.', `journalctl --since ${hh}:00 --until ${h2}:00`],
+        answer: [ip],
+        solve: [`journalctl --since ${hh}:00 --until ${h2}:00`],
+      };
+    },
+  },
+  {
+    id: 'journalctl-unit',
+    skill: 'journalctl',
+    lv: 3,
+    make: (c) => {
+      const rows: [number, number, string][] = [];
+      const progs = ['nginx', 'cron', 'sshd', 'postgres'];
+      for (let i = 0; i < 30; i++) {
+        const p = c.r.pick(progs);
+        rows.push([c.r.pick([6, 6, 6, 4, 3]), c.r.int(0, 86000), `${p}[${c.r.int(100, 9999)}]: evento ${i}`]);
+      }
+      journalOf(c, rows);
+      const n = rows.filter(([p, , m]) => m.startsWith('nginx[') && p <= 3).length;
+      mkdir(c);
+      return {
+        title: 'Filtri combinati',
+        prompt: 'Quanti messaggi di livello **err** (o più grave) ha scritto **nginx**? Combina i filtri di journalctl e conta con una pipe. Invia il numero con `flag`.',
+        hints: ['-u per il servizio, -p per la priorità; la prima riga di journalctl è un\'intestazione.', 'journalctl -u nginx -p err | grep -c nginx'],
+        answer: [String(n)],
+        solve: ['journalctl -u nginx -p err', 'journalctl -u nginx -p err | grep -c nginx'],
+      };
+    },
+  },
+  {
+    id: 'df-pieno',
+    skill: 'df',
+    lv: 1,
+    make: (c) => {
+      const mounts = c.r.shuffle(['/', '/var', '/home', '/srv', '/data']).slice(0, 3);
+      const full = c.r.pick(mounts);
+      const rows = mounts.map((m, i) => {
+        const pct = m === full ? c.r.int(92, 99) : c.r.int(10, 70);
+        const size = c.r.pick([40, 100, 250]);
+        const used = Math.round((size * pct) / 100);
+        return `/dev/sda${i + 1}       ${String(size).padStart(4)}G  ${String(used).padStart(3)}G  ${String(size - used).padStart(3)}G  ${pct}% ${m}`;
+      });
+      c.sh.localFs.mkdirp('/var/lib/nightos', root);
+      c.sh.localFs.writeFile(DISKS_FILE, rows.join('\n') + '\n', root);
+      mkdir(c);
+      return {
+        title: 'Il disco quasi pieno',
+        prompt: 'Una delle partizioni è sopra il 90%. Su quale cartella è montata? Invia il percorso (colonna Mounted on) con `flag`.',
+        hints: ['df mostra lo spazio di ogni partizione; -h lo rende leggibile.', 'df -h'],
+        answer: [full],
+        solve: ['df -h'],
+      };
+    },
+  },
+  {
+    id: 'du-cartella',
+    skill: 'du',
+    lv: 2,
+    make: (c) => {
+      const dirs = uniqName(c.r, 4);
+      const big = c.r.pick(dirs);
+      for (const d of dirs) write(c, `dati/${d}/blocco.bin`, 'x'.repeat(d === big ? c.r.int(30000, 60000) : c.r.int(500, 5000)));
+      return {
+        title: 'Chi riempie il disco?',
+        prompt: `Quale cartella dentro \`${c.dir}/dati\` occupa più spazio? Invia il nome con \`flag\`.`,
+        hints: ['du -sh misura ogni cartella; sort -h ordina dimensioni come 4K e 2M.', `du -sh ${c.dir}/dati/* | sort -h`],
+        answer: [big, `${c.dir}/dati/${big}`],
+        solve: [`du -sh ${c.dir}/dati/* | sort -h`],
+      };
+    },
+  },
+  {
+    id: 'tar-crea',
+    skill: 'tar',
+    lv: 2,
+    make: (c) => {
+      const d = c.r.pick(['progetto', 'configurazioni', 'prove', 'report']);
+      const fs = uniqName(c.r, 3, FILES);
+      for (const f of fs) write(c, `${d}/${f}.txt`, `${f}\n`);
+      const out = `${d}-${c.r.int(10, 99)}.tgz`;
+      return {
+        title: 'Impacchetta',
+        prompt: `Crea l'archivio compresso \`${c.dir}/${out}\` con dentro tutta la cartella \`${c.dir}/${d}\`.`,
+        hints: ['tar con c (crea), z (comprimi) e f seguito dal nome dell\'archivio; poi cosa archiviare.', `tar -czf ${c.dir}/${out} ${c.dir}/${d}`],
+        state: (sh) => {
+          const f = sh.fs.get(`${sh.home}/${c.dir}/${out}`);
+          return !!f && f.type === 'file' && f.content.startsWith('TARSIM1') && fs.every((x) => f.content.includes(`${x}.txt`));
+        },
+        solve: [`tar -czf ${c.dir}/${out} ${c.dir}/${d}`],
+      };
+    },
+  },
+  {
+    id: 'tar-lista',
+    skill: 'tar',
+    lv: 3,
+    make: (c) => {
+      const names = uniqName(c.r, 4, FILES).map((f) => `backup/${f}.${c.r.pick(EXT)}`);
+      const odd = `backup/.${c.r.pick(WORDS)}_${c.r.int(10, 99)}.sh`;
+      const entries: Record<string, { c: string; p: string; d: boolean }> = { 'backup/': { c: '', p: 'rwxr-xr-x', d: true } };
+      for (const n of c.r.shuffle([...names, odd])) entries[n] = { c: 'x\n', p: 'rw-r--r--', d: false };
+      write(c, 'notturno.tgz', 'TARSIM1\n' + JSON.stringify(entries));
+      return {
+        title: 'Cosa c\'è nell\'archivio?',
+        prompt: `Nell'archivio \`${c.dir}/notturno.tgz\` qualcuno ha infilato uno **script nascosto**. Elenca il contenuto **senza estrarlo** e invia il nome dello script (con il percorso, come lo mostra tar) con \`flag\`.`,
+        hints: ['tar con t (list) al posto di c o x.', `tar -tzf ${c.dir}/notturno.tgz`],
+        answer: [odd, odd.split('/').pop()!],
+        solve: [`tar -tzf ${c.dir}/notturno.tgz`],
+      };
+    },
+  },
+  {
+    id: 'cron-ogni',
+    skill: 'crontab',
+    lv: 2,
+    make: (c) => {
+      const n = c.r.pick([2, 5, 10, 15, 20, 30]);
+      const script = `/opt/${c.r.pick(WORDS)}/${c.r.pick(['sync', 'esporta', 'pulisci', 'controlla'])}.sh`;
+      c.sh.localFs.mkdirp('/var/spool/cron/crontabs', root);
+      c.sh.localFs.writeFile(
+        `/var/spool/cron/crontabs/${c.sh.user}`,
+        ['# m h dom mon dow  comando', `30 2 * * *  ${c.sh.home}/script/backup.sh`, `*/${n} * * * *  ${script}`, `0 6 * * 1  ${c.sh.home}/script/report.sh`].join('\n') + '\n',
+        { owner: c.sh.user, group: c.sh.user, perms: 'rw-------' },
+      );
+      mkdir(c);
+      return {
+        title: 'Ogni quanto?',
+        prompt: `Tra i tuoi lavori pianificati ce n'è uno che esegue \`${script}\`. Ogni quanti **minuti** parte? Invia il numero con \`flag\`.`,
+        hints: ['crontab -l elenca i tuoi lavori pianificati. Il primo campo è il minuto; */N vuol dire "ogni N".', 'crontab -l'],
+        answer: [String(n)],
+        solve: ['crontab -l', `echo ${n}`],
+      };
+    },
+  },
+  {
+    id: 'tee-salva',
+    skill: 'tee',
+    lv: 2,
+    make: (c) => {
+      const ip = pubIp(c.r);
+      write(c, 'auth.log', authLog(c.r, { fails: c.r.int(4, 15), ip, others: c.r.int(10, 25) }).join('\n') + '\n');
+      const n = (content(c.sh, abs(c, 'auth.log')) ?? '').split('\n').filter((l) => l.includes('Failed password')).length;
+      return {
+        title: 'Salva e conta insieme',
+        prompt: `Salva in \`${c.dir}/fallimenti.txt\` tutte le righe "Failed password" di \`${c.dir}/auth.log\` e, **nella stessa riga di comando**, falle contare a wc.`,
+        hints: ['tee scrive in un file e passa avanti quello che riceve.', `grep "Failed password" ${c.dir}/auth.log | tee ${c.dir}/fallimenti.txt | wc -l`],
+        state: (sh) => (content(sh, abs(c, 'fallimenti.txt')) ?? '').trim().split('\n').filter(Boolean).length === n,
+        solve: [`grep "Failed password" ${c.dir}/auth.log | tee ${c.dir}/fallimenti.txt | wc -l`],
+      };
+    },
+  },
+  {
+    id: 'xargs-wc',
+    skill: 'xargs',
+    lv: 3,
+    make: (c) => {
+      let total = 0;
+      for (const d of uniqName(c.r, 3)) {
+        const k = c.r.int(3, 12);
+        total += k;
+        write(c, `log/${d}/servizio.log`, Array.from({ length: k }, (_, i) => `riga ${i}`).join('\n') + '\n');
+      }
+      write(c, 'log/LEGGIMI.txt', 'non contare questo\n');
+      return {
+        title: 'Tutti insieme',
+        prompt: `Quante righe hanno in totale i file \`.log\` sotto \`${c.dir}/log\`? Trova i file con find e passali a wc con xargs. Invia il totale con \`flag\`.`,
+        hints: ['xargs trasforma le righe ricevute in argomenti del comando che segue.', `find ${c.dir}/log -name "*.log" | xargs wc -l`],
+        answer: [String(total)],
+        solve: [`find ${c.dir}/log -name "*.log" | xargs wc -l`],
+      };
+    },
+  },
+];
+
+export const PALESTRA: PalEx[] = [...NAV, ...FILEOPS, ...TEXT, ...CRYPTO, ...ADMIN];
 
 /** Comandi con almeno un esercizio, in ordine di corso. */
 export const PALESTRA_SKILLS: string[] = [...new Set(PALESTRA.map((e) => e.skill))];

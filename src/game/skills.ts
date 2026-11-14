@@ -35,7 +35,7 @@ export type StateIndex = 0 | 1 | 2 | 3 | 4 | 5;
 export const MODULES: { id: string; name: string; core: boolean; skills: string[] }[] = [
   { id: 'M0', name: 'Primo contatto', core: true, skills: ['whoami', 'hostname', 'pwd', 'ls', 'cd', 'cat', 'man', 'help', 'history', 'clear', 'echo'] },
   { id: 'M1', name: 'File e testo', core: true, skills: ['mkdir', 'touch', 'cp', 'mv', 'rm', 'rmdir', 'tree', 'redirezioni', 'find', 'grep', 'pipe', 'head', 'tail', 'wc', 'sort', 'uniq', 'cut', 'diff', 'tee', 'tar', 'file', 'stat', 'which', 'jolly'] },
-  { id: 'M2', name: 'Amministrare Linux', core: true, skills: ['id', 'groups', 'chmod', 'chown', 'sudo', 'ps', 'systemctl', 'journalctl', 'apt', 'df', 'du', 'free', 'crontab', 'uptime', 'uname', 'who', 'last', 'lastb', 'env'] },
+  { id: 'M2', name: 'Amministrare Linux', core: true, skills: ['id', 'groups', 'chmod', 'chown', 'sudo', 'ps', 'systemctl', 'journalctl', 'nginx', 'apt', 'df', 'du', 'free', 'crontab', 'uptime', 'uname', 'who', 'last', 'lastb', 'env'] },
   { id: 'M3', name: 'Reti operative', core: true, skills: ['ip', 'ping', 'traceroute', 'dig', 'nslookup', 'ss', 'netstat', 'curl', 'ssh', 'ssh-keygen', 'ipcalc', 'arp', 'ifconfig'] },
   { id: 'M5', name: 'Bash e Python', core: true, skills: ['variabili', 'for', 'if', 'test', 'bash', 'nano', 'seq', 'sed', 'awk', 'tr', 'xargs', 'regex', 'python3'] },
   { id: 'M6', name: 'Crittografia e identità', core: true, skills: ['base64', 'sha256sum', 'md5sum', 'sha1sum', 'xxd', 'strings'] },

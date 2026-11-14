@@ -55,6 +55,61 @@ const SOLUTIONS: Record<string, string[][]> = {
     ['grep Accepted caso/auth.log', 'flag mama'],
   ],
   'ch04-m3': [['cat caso/processi.txt', 'flag 6631'], ['sudo ufw deny from 203.0.113.77'], ['sudo ufw status']],
+  'ch02-m4': [['ip route', 'flag 192.168.1.1'], ['ping -c 2 192.168.1.1'], ['nslookup cassa.lan', 'flag 192.168.1.30'], ['ping -c 2 cassa.lan'], ['nc -zv cassa.lan 443'], ['curl -I http://jukebox.lan', 'flag 200'], ['traceroute 8.8.8.8', 'flag 4'], ['ss -tlnp', 'flag 22']],
+  'ch05-m4': [
+    ["awk '{print $1}' web/access.log"],
+    ["awk '{print $1}' web/access.log | sort | uniq -c | sort -rn | head -n 3", 'flag 203.0.113.50'],
+    ["awk '$9 == 404' web/access.log | wc -l", 'flag 12'],
+    ["awk -F: '$3 >= 1000 {print $1}' /etc/passwd", 'flag 2'],
+    ["sed -E 's/192\\.168\\.1\\.[0-9]+/IP-INTERNO/g' web/access.log > web/access_anon.log"],
+    ["ps aux | tr -s ' ' | cut -d ' ' -f 1 | sort | uniq -c", 'flag 3'],
+    ["grep ' 404 ' web/access.log | tee ~/errori404.txt | wc -l"],
+    ['find ~/caso ~/web -name "*.log" | xargs wc -l', 'flag 89'],
+    ['diff testo/sshd_config.ieri testo/sshd_config.oggi', 'flag PermitRootLogin yes'],
+  ],
+  'chSOC-m1': [
+    ['cat soc/LEGGIMI.txt'],
+    ['grep -cE "^A[0-9]" soc/coda.csv', 'flag 14'],
+    ['cut -d, -f3 soc/coda.csv | sort | uniq -c | sort -rn', 'flag Accesso fallito ripetuto'],
+    ['grep "Accesso fallito" soc/coda.csv', 'flag 45.155.205.33'],
+    ['grep critica soc/coda.csv', 'cat soc/asset.txt', 'flag A09'],
+  ],
+  'chSOC-m2': [
+    ['grep k.tanaka soc/vpn.log', 'grep k.tanaka soc/trasferte.txt', 'flag falso positivo'],
+    ['grep 10.0.3.5 soc/manutenzioni.txt', 'flag benigno'],
+    ['cat soc/edr-PC-AMM-07.txt', 'flag fattura_novembre.docm'],
+    ['grep r.costa rete/difese/proxy.log', 'flag 5'],
+  ],
+  'chSOC-m3': [
+    ['cat soc/playbook-malware.txt', 'flag L2'],
+    ['grep sha256 soc/edr-PC-AMM-07.txt > soc/escalation-A05.txt'],
+    ['echo "ALLARMI: A05 A06  HOST: PC-AMM-07  UTENTE: r.costa  ORA: 09:01" >> soc/escalation-A05.txt', 'echo "IOC: fattura_novembre.docm cdn-upd4te.nc  RICHIESTA: isolare PC-AMM-07" >> soc/escalation-A05.txt'],
+    ['grep adm.temp soc/manutenzioni.txt', 'flag no'],
+  ],
+  'chSOC-m4': [
+    ['@nano soc/consegne.txt|APERTI\n A05+A06 PC-AMM-07 (L2)\n A09 DC-01 (L2)\nCHIUSI\n A02 FP\nDA SORVEGLIARE\n 45.155.205.33\n'],
+    ['cat soc/consegne.txt'],
+  ],
+  'chAM-m1': [['uname -r', 'flag 6.8.0-nightos'], ['uptime', 'flag 3'], ['free -h', 'flag 2.5Gi'], ['df -h', 'flag /var'], ['which nmap', 'flag /usr/bin/nmap']],
+  'chAM-m2': [
+    ['systemctl --failed', 'flag nginx'],
+    ['systemctl status nginx'],
+    ['journalctl -u nginx', 'flag server_nmae'],
+    ['journalctl -g negozio', 'flag luca'],
+    ['@sudonano /etc/nginx/sites-enabled/negozio|server {\n    listen 80;\n    server_name negozio.lan;\n    root /var/www/negozio;\n    index index.html;\n\n    location / {\n        try_files $uri $uri/ =404;\n    }\n}\n'],
+    ['sudo nginx -t'],
+    ['sudo systemctl restart nginx', 'systemctl is-active nginx'],
+  ],
+  'chAM-m3': [['journalctl -p err', 'flag backup.sh'], ['journalctl -p warning', 'flag /var'], ['journalctl --since 03:00 --until 04:00', 'flag 45.155.205.33'], ['last', 'flag 192.168.1.50'], ['sudo lastb', 'flag 6']],
+  'chAM-m4': [
+    ['df -h /var', 'flag 96%'],
+    ['du -sh /var/log/* | sort -h', 'flag app'],
+    ['ls -lhS /var/log/app', 'flag debug.log'],
+    ['grep debug.log /etc/crontab', 'flag /opt/app/esporta.sh'],
+    ['tar -czf ~/debug-20771112.tgz /var/log/app/debug.log'],
+    ['tar -tzf ~/debug-20771112.tgz'],
+    ['@sudonano /etc/crontab|# /etc/crontab\n17 *  * * *  root  cd / && run-parts --report /etc/cron.hourly\n15 1,13 * * *  root  /usr/local/bin/backup.sh\n*/5 * * * *  root  /opt/app/esporta.sh >> /var/log/app/debug.log\n'],
+  ],
   'ch01-m6': [
     ['cd laboratorio', 'mkdir appunti'],
     ['echo "ls elenca i file" > appunti/comandi.txt', 'echo "cd cambia cartella" >> appunti/comandi.txt'],
@@ -240,12 +295,13 @@ describe('ogni missione è completabile', () => {
           for (const cmd of sol[i]) {
             // "@nano FILE|contenuto" simula l'editor: scrive il file ed emette l'evento "saved"
             let events;
-            if (cmd.startsWith('@nano ')) {
-              const rest = cmd.slice(6);
+            if (cmd.startsWith('@nano ') || cmd.startsWith('@sudonano ')) {
+              const root = cmd.startsWith('@sudonano ');
+              const rest = cmd.slice(root ? 10 : 6);
               const file = rest.slice(0, rest.indexOf('|'));
               const content = rest.slice(rest.indexOf('|') + 1);
               const path = sh.abs(file);
-              expect(sh.writeText(path, content.replace(/\\n/g, '\n'), false)).toBeNull();
+              expect(sh.writeText(path, content.replace(/\\n/g, '\n'), false, root)).toBeNull();
               events = [{ type: 'saved' as const, path }];
             } else {
               const res = sh.run(cmd);

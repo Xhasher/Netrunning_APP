@@ -10,6 +10,49 @@ export interface BankQ {
 }
 
 export const EXAM_BANK: BankQ[] = [
+  // --- amministrazione Linux e lavoro del SOC
+  {
+    chapter: 'chAM',
+    question: 'Dopo una modifica alla configurazione, nginx non riparte. `systemctl status nginx` mostra `failed`. Cosa guardi per primo?',
+    options: ['Le ultime righe del diario del servizio (journalctl -u nginx), che di solito dicono file e riga dell\'errore', 'Riavvio l\'intero server', 'Reinstallo nginx', 'Disabilito il firewall'],
+    correct: 0,
+    explain: 'Il diario del servizio quasi sempre contiene il motivo esatto. Dopo la correzione: `nginx -t`, poi restart, poi verifica.',
+  },
+  {
+    chapter: 'chAM',
+    question: '`df -h` mostra `/var` al 98%. Qual è la prima cosa da fare?',
+    options: ['Trovare cosa lo riempie con du (cartella, poi file) e capire perché cresce', 'Cancellare tutto /var/log', 'Riavviare il server', 'Spostare /var su un altro disco senza controllare'],
+    correct: 0,
+    explain: 'df dice quale partizione, du dice chi la riempie, la causa dice come evitare che si ripeta. Cancellare log a caso può distruggere prove.',
+  },
+  {
+    chapter: 'chAM',
+    question: 'Quale comando mostra solo gli errori del diario di sistema tra le 02:00 e le 03:00?',
+    options: ['journalctl -p err --since 02:00 --until 03:00', 'journalctl -u err 02:00', 'cat /var/log/journal | grep 02', 'systemctl --failed --since 02:00'],
+    correct: 0,
+    explain: '-p filtra per priorità (err e più gravi), --since e --until per fascia oraria. Il journal è binario: non si legge con cat.',
+  },
+  {
+    chapter: 'chSOC',
+    question: 'Un allarme "login da paese insolito" riguarda un dipendente in trasferta registrata, con MFA superata dal portatile aziendale. Come lo classifichi?',
+    options: ['Falso positivo, con le prove scritte nel ticket', 'Vero positivo: blocco subito l\'account', 'Lo ignoro senza scrivere nulla', 'Falso negativo'],
+    correct: 0,
+    explain: 'Il comportamento è legittimo e verificato. Si chiude con le prove e si può proporre un tuning della regola.',
+  },
+  {
+    chapter: 'chSOC',
+    question: 'Sei L1. L\'EDR mostra Word che avvia PowerShell codificato e connessioni regolari verso un dominio sconosciuto. Il playbook dice che l\'isolamento lo decide il L2. Cosa fai?',
+    options: ['Escalation al L2 con nota completa: host, utente, ora, catena dei processi, IOC, richiesta di isolamento', 'Spengo il PC dell\'utente', 'Mando una mail all\'utente per chiedere cosa ha aperto', 'Cancello l\'allegato dalla casella di posta'],
+    correct: 0,
+    explain: 'Spegnere distrugge le prove in memoria; la mail può leggerla anche l\'attaccante; cancellare l\'allegato non ferma il malware avviato.',
+  },
+  {
+    chapter: 'chSOC',
+    question: 'Una scansione di porte interna arriva dall\'IP del server dell\'IT, dentro la finestra di un change approvato. Come la chiudi?',
+    options: ['Vero positivo benigno, citando il numero del change', 'Falso positivo', 'Vero positivo: isolo il server dell\'IT', 'Falso negativo'],
+    correct: 0,
+    explain: 'La scansione è avvenuta davvero (la regola ha funzionato), ma era autorizzata. Fuori dalla finestra del change non lo sarebbe più.',
+  },
   // --- Linux e terminale
   {
     chapter: 'ch01',

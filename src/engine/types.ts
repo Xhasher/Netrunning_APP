@@ -5,6 +5,7 @@ export type LineClass =
   | 'info' // spiegazione del gioco (non fa parte del vero Linux)
   | 'ok' // successo
   | 'warn' // avviso
+  | 'bad' // dato importante in rosso (non è un errore del comando)
   | 'dir' // nome di cartella (come i colori di ls)
   | 'cmd'; // riga di comando digitata
 
@@ -30,7 +31,7 @@ export type ShellEvent =
   | { type: 'firewall'; action: 'deny' | 'allow'; ip: string }
   | { type: 'write'; path: string }
   | { type: 'script'; path: string; ok: boolean }
-  | { type: 'edit'; path: string }
+  | { type: 'edit'; path: string; root?: boolean }
   | { type: 'saved'; path: string }
   | { type: 'ssh'; host: string; ip: string; user: string }
   | { type: 'report'; value: string }

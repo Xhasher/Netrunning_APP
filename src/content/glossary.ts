@@ -11,6 +11,24 @@ export interface GlossaryEntry {
 }
 
 export const GLOSSARY: GlossaryEntry[] = [
+  // --- amministrazione e lavoro del SOC (fase 2)
+  { term: 'systemd', def: 'Il primo programma che parte all\'accensione di quasi tutti i Linux moderni: avvia e sorveglia i servizi e tiene il diario di sistema. Gli si parla con systemctl e journalctl.' },
+  { term: 'journal', aliases: ['diario di sistema'], def: 'Il diario centralizzato di systemd: raccoglie i messaggi di kernel e servizi, ognuno con data, programma e priorità. Si legge con journalctl.' },
+  { term: 'demone', aliases: ['demoni'], def: 'Un programma che gira in sottofondo, senza finestra, in attesa di fare il suo lavoro (ssh, cron, nginx). Su Linux spesso il nome finisce con "d": sshd.' },
+  { term: 'partizione', aliases: ['partizioni'], def: 'Una parte di un disco separata dalle altre, come una stanza di una casa. Ognuna ha il suo spazio: se una si riempie, lo spazio libero delle altre non aiuta.' },
+  { term: 'load average', def: 'Il carico medio della CPU negli ultimi 1, 5 e 15 minuti: quanti programmi vogliono il processore. Si confronta con il numero di CPU.' },
+  { term: 'logrotate', def: 'Programma che ogni giorno o settimana comprime i log vecchi, ne apre di nuovi e cancella i più vecchi, così i log non riempiono il disco.' },
+  { term: 'change management', aliases: ['change'], exact: true, def: 'Il processo con cui ogni modifica a un sistema in produzione viene chiesta, approvata, registrata e resa annullabile. Un cambiamento senza "change" è sospetto.' },
+  { term: 'escalation', def: 'Passare un caso al livello superiore (da L1 a L2, da L2 all\'incident response), con una nota che permette di agire subito.' },
+  { term: 'playbook', def: 'Procedura scritta, passo per passo, per gestire un tipo di incidente: serve a non improvvisare sotto pressione.' },
+  { term: 'vero positivo', def: 'Un allarme che è scattato per un problema reale. Se il fatto è avvenuto ma era autorizzato, si parla di vero positivo "benigno".' },
+  { term: 'falso negativo', aliases: ['falsi negativi'], def: 'Un attacco reale che nessun allarme ha segnalato. È il caso più pericoloso: lo si scopre dopo, o con il threat hunting.' },
+  { term: 'alert fatigue', def: 'La stanchezza da troppi allarmi, quasi tutti innocui: il rischio è smettere di vedere quello vero.' },
+  { term: 'beaconing', def: 'Un malware che contatta il server dell\'attaccante a intervalli regolari, come un battito: uno dei segnali più affidabili nei log del proxy.' },
+  { term: 'MTTD', exact: true, def: 'Mean Time To Detect: il tempo medio tra l\'inizio di un attacco e il momento in cui il SOC se ne accorge.' },
+  { term: 'MTTR', exact: true, def: 'Mean Time To Respond (o Recover): il tempo medio per rispondere a un incidente o ripristinare il servizio.' },
+  { term: 'netcat', def: 'Il "coltellino svizzero" delle reti: apre connessioni verso una porta. Con -zv serve a verificare se una porta accetta connessioni.' },
+  { term: 'anonimizzare', aliases: ['anonimizzazione', 'pseudonimizzare'], def: 'Togliere o sostituire i dati personali (nomi, IP dei clienti) da un file prima di condividerlo, come chiede il GDPR.' },
   // --- computer e sistemi
   { term: 'sistema operativo', def: 'Il programma principale di un computer: gestisce file, memoria, rete e fa partire gli altri programmi. Esempi: Windows, Linux, Android, macOS.' },
   { term: 'Linux', exact: true, def: 'Sistema operativo gratuito e open source, usato dalla maggior parte dei server di Internet e alla base di Android.' },

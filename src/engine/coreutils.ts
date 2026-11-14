@@ -378,7 +378,7 @@ function grep(c: Ctx): number {
 // ---------------------------------------------------------------- sort, uniq, cut
 
 function sort(c: Ctx): number {
-  const p = parseOpts(c.args, 'nrufbc', 'kt');
+  const p = parseOpts(c.args, 'nrufbch', 'kt');
   if (p.err) {
     c.err(`sort: ${p.err}`);
     return 2;
@@ -405,6 +405,16 @@ function sort(c: Ctx): number {
   const cmp = (a: string, b: string) => {
     let ka = key(a);
     let kb = key(b);
+    if (p.f.has('h')) {
+      // dimensioni leggibili: 512 < 4K < 1.5M < 2G
+      const hv = (x: string) => {
+        const m = x.trim().match(/^([\d.]+)\s*([KMGT]?)/i);
+        return m ? parseFloat(m[1]) * 1024 ** ' KMGT'.indexOf((m[2] || ' ').toUpperCase()) : 0;
+      };
+      const d = hv(ka) - hv(kb);
+      if (d) return d;
+      return 0;
+    }
     if (p.f.has('n')) {
       const d = (parseFloat(ka) || 0) - (parseFloat(kb) || 0);
       if (d) return d;
@@ -808,7 +818,7 @@ function diff(c: Ctx): number {
     const ra = del.length ? (del.length > 1 ? `${del[0].i + 1},${del[del.length - 1].i + 1}` : `${del[0].i + 1}`) : `${ops[start].i}`;
     const rb = ins.length ? (ins.length > 1 ? `${ins[0].j + 1},${ins[ins.length - 1].j + 1}` : `${ins[0].j + 1}`) : `${ops[start].j}`;
     c.out(`${ra}${del.length && ins.length ? 'c' : del.length ? 'd' : 'a'}${rb}`, 'dim');
-    for (const o of del) c.out(`< ${o.l}`, 'err');
+    for (const o of del) c.out(`< ${o.l}`, 'bad');
     if (del.length && ins.length) c.out('---', 'dim');
     for (const o of ins) c.out(`> ${o.l}`, 'ok');
   }

@@ -1,6 +1,7 @@
 import { CAREER, CHAPTERS, PLANNED, allMissions, findMission } from '../content';
 import { GAMES } from '../content/games';
 import { GENERATORS, LEVELS, generateSession, normalizeDrillAnswer, type Drill, type Level } from '../content/drills';
+import { SYS_ROOTS } from '../content/world-admin';
 import { PALESTRA_SKILLS, exercisesFor, generatePalestra } from '../content/palestra';
 import { TIPS, randomTip } from '../content/tips';
 import { OPERATIONS, matchFinding, type Operation } from '../content/operations';
@@ -333,6 +334,13 @@ export class App {
       if (saved?.home) this.shell.fs.overlay(this.shell.home, saved.home);
       if (saved?.deleted?.length) this.shell.fs.removePaths(saved.deleted);
       if (saved?.aliases) this.shell.userAliases = { ...saved.aliases };
+      // le modifiche ai file di sistema (configurazioni, servizi, diario)
+      const sys = (saved as { sys?: Record<string, { tree: unknown; deleted: string[] }> } | null)?.sys;
+      for (const [root, d] of Object.entries(sys ?? {})) {
+        if (!SYS_ROOTS.includes(root)) continue;
+        if (d.tree) this.shell.localFs.overlay(root, d.tree);
+        if (d.deleted?.length) this.shell.localFs.removePaths(d.deleted);
+      }
       this.term = new TerminalView(this.shell, (ev) => this.onShellEvents(ev));
       this.term.system('NightOS 2077 · deck di addestramento', 'banner');
       this.term.system('Tutto ciò che accade qui è simulato. Scrivi "help" per i comandi.', 'info');
@@ -1146,11 +1154,16 @@ export class App {
     return this.pristine;
   }
 
-  private deckData(): { home: unknown; deleted: string[]; aliases: Record<string, string> } | null {
+  private deckData(): { home: unknown; deleted: string[]; aliases: Record<string, string>; sys: Record<string, { tree: unknown; deleted: string[] }> } | null {
     const sh = this.shell;
     if (!sh) return null;
     const diff = sh.localFs.diffFrom(this.pristineHome(), `/home/${this.save.handle}`);
-    return { home: diff.tree, deleted: diff.deleted, aliases: sh.userAliases };
+    const sys: Record<string, { tree: unknown; deleted: string[] }> = {};
+    for (const root of SYS_ROOTS) {
+      const d = sh.localFs.diffFrom(this.pristineHome(), root);
+      if (d.tree || d.deleted.length) sys[root] = d;
+    }
+    return { home: diff.tree, deleted: diff.deleted, aliases: sh.userAliases, sys };
   }
 
   /** Aggiunge alla barra in alto il pulsante che apre il Manuale. */

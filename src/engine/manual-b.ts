@@ -125,6 +125,7 @@ doc('sort', {
     ['-f', 'ignora maiuscole e minuscole'],
     ['-k N', 'ordina per la colonna N (i campi sono separati da spazi)'],
     ['-t SEP', 'carattere separatore dei campi per -k'],
+    ['-h', 'ordina dimensioni leggibili: 512 < 4K < 2M < 1G (da usare dopo du -h)'],
     ['-c', 'controlla se è già ordinato (senza stampare)'],
   ],
   examples: [
@@ -486,7 +487,7 @@ doc('sudo', {
   cat: PERM,
   description: [
     '"superuser do": esegue un comando con i privilegi di root. Funziona solo se il tuo utente è autorizzato nel file /etc/sudoers, e di solito chiede la tua password. Ogni uso viene registrato nei log (auth.log): lascia una traccia, a differenza di un accesso diretto come root.',
-    'In questo deck sudo è consentito solo per ufw, e "sudo -l" mostra le regole del tuo utente: la prima cosa da controllare in un audit dei privilegi.',
+    'In questo deck sudo è consentito per amministrare il firewall (ufw), i servizi (systemctl, nginx -t), i registri (journalctl, lastb) e i file di configurazione in /etc (nano). "sudo -l" mostra le regole del tuo utente: la prima cosa da controllare in un audit dei privilegi.',
   ],
   options: [
     ['-l', 'elenca i comandi che il tuo utente può eseguire con sudo'],
@@ -495,6 +496,7 @@ doc('sudo', {
   examples: [
     ['sudo -l', 'cosa posso fare come amministratore?'],
     ['sudo ufw status', 'mostra lo stato del firewall'],
+    ['sudo systemctl restart nginx', 'riavvia un servizio'],
   ],
   notes: [
     'NOPASSWD in /etc/sudoers significa niente password: se l\'account viene violato, l\'attaccante è subito root.',

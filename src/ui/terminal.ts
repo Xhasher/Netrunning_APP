@@ -221,7 +221,7 @@ export class TerminalView {
       this.updatePrompt();
       this.onEvents(res.events);
       const edit = res.events.find((e) => e.type === 'edit');
-      if (edit && edit.type === 'edit') this.openEditor(edit.path);
+      if (edit && edit.type === 'edit') this.openEditor(edit.path, !!edit.root);
     } finally {
       this.busy = false;
       this.inputLine.classList.remove('busy');
@@ -230,7 +230,7 @@ export class TerminalView {
   }
 
   /** Editor di testo a tutto schermo (il "nano" del deck). */
-  openEditor(path: string): void {
+  openEditor(path: string, asRoot = false): void {
     const node = this.shell.fs.get(path);
     const content = node && node.type === 'file' ? node.content : '';
     const name = path.startsWith(this.shell.home) ? '~' + path.slice(this.shell.home.length) : path;
@@ -272,7 +272,7 @@ export class TerminalView {
     const save = () => {
       let text = ta.value;
       if (text && !text.endsWith('\n')) text += '\n';
-      const err = this.shell.writeText(path, text, false);
+      const err = this.shell.writeText(path, text, false, asRoot);
       if (err) {
         state.textContent = `errore: ${err}`;
         state.classList.add('err');

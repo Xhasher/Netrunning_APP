@@ -1025,7 +1025,8 @@ pre.code {
   color: #d6d9e4;
 }
 
-.tl.err {
+.tl.err,
+.tl.bad {
   color: var(--red);
 }
 

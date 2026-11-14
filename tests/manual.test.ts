@@ -36,7 +36,7 @@ describe('manuale', () => {
         const r = sh.run(cmd);
         const errs = r.lines.filter((l) => l.cls === 'err' && /^(bash|[a-z][a-z0-9_.-]*): /i.test(l.text)).map((l) => l.text);
         const expectedErr = false;
-        if (errs.length && !(cmd.startsWith('chown') || cmd.startsWith('lastb') || cmd.startsWith('nc -zv jukebox.lan 3306') || cmd.startsWith('curl -i') || cmd.startsWith('crontab -l') || cmd.includes('2>/dev/null') && false))
+        if (errs.length && !(cmd.startsWith('chown') || cmd.startsWith('lastb') || cmd.startsWith('nc -zv jukebox.lan 3306') || cmd.startsWith('curl -i') || cmd.startsWith('crontab -l') || cmd === 'sudo nginx -t' || cmd.includes('2>/dev/null') && false))
           failures.push(`[${p.name}] ${cmd} → ${errs[0]}`);
         void expectedErr;
         if (!r.lines.length && !/&&|>|rm |mv |cp |touch|mkdir|chmod|alias|sed -i|tar|tee|^IP=|^N=|^\[ |^cd |^diff -q/.test(cmd) && !cmd.includes('2>/dev/null')) failures.push(`[${p.name}] ${cmd} → nessun output`);

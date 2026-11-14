@@ -50,8 +50,14 @@ doc('uptime', {
 doc('df', {
   cat: SYS,
   short: 'spazio libero sui dischi',
-  description: ['"disk free": mostra quanto spazio è usato e libero su ogni disco/partizione. Un disco pieno blocca i log e i servizi: molti incidenti banali nascono da qui.'],
-  examples: [['df -h', 'dimensioni leggibili (G, M)']],
+  synopsis: 'df [-h] [PERCORSO]',
+  description: [
+    '"disk free": mostra quanto spazio è usato e libero su ogni disco/partizione. Un disco pieno blocca i log e i servizi: molti incidenti banali nascono da qui.',
+    'Colonne: Filesystem (il disco o la partizione), Size (dimensione), Used (usato), Avail (libero), Use% (percentuale usata), Mounted on (la cartella da cui si raggiunge). Sopra il 90% si interviene.',
+  ],
+  options: [['-h', 'dimensioni leggibili (G, M) invece che in blocchi da 1 KB']],
+  examples: [['df -h', 'dimensioni leggibili (G, M)'], ['df -h /var', 'solo la partizione che contiene /var']],
+  notes: ['df dice QUALE disco è pieno; du dice CHI lo riempie. Si usano in quest\'ordine.'],
   see: ['du', 'free'],
 });
 
@@ -60,7 +66,7 @@ doc('du', {
   short: 'spazio usato da file e cartelle',
   description: ['"disk usage": mostra quanto spazio occupano file e cartelle. Per scoprire cosa riempie un disco: du -sh *.'],
   options: [['-s', 'solo il totale di ogni argomento'], ['-h', 'dimensioni leggibili'], ['-a', 'mostra anche i singoli file']],
-  examples: [['du -sh caso web siem', 'totale per tre cartelle'], ['du -h contratti', 'dimensione di ogni sottocartella']],
+  examples: [['du -sh caso web siem', 'totale per tre cartelle'], ['du -h contratti', 'dimensione di ogni sottocartella'], ['du -sh /var/log/* | sort -h', 'le cartelle dei log, dalla più piccola alla più grande']],
   see: ['df', 'ls', 'find'],
 });
 
@@ -103,18 +109,25 @@ doc('systemctl', {
   synopsis: 'systemctl AZIONE [SERVIZIO]',
   description: [
     'Controlla i servizi, cioè i programmi che girano in background (demoni): ssh, cron, nginx, ufw. Mostra se sono attivi e permette di avviarli, fermarli o riavviarli (con privilegi di amministratore).',
+    'Gli stati: active (in funzione), inactive (spento, di proposito), failed (doveva funzionare ma è andato in errore). "enabled" invece dice se parte da solo all\'accensione: sono due cose diverse.',
+    '"status" mostra anche le ultime righe del diario di quel servizio: spesso c\'è già scritto il motivo del guasto.',
   ],
   options: [
-    ['status SERVIZIO', 'stato, da quando è attivo, processo principale'],
-    ['is-active SERVIZIO', 'risponde solo "active" o "inactive"'],
-    ['list-units', 'elenco dei servizi caricati'],
+    ['status SERVIZIO', 'stato, da quando, processo principale e ultime righe del diario'],
+    ['is-active SERVIZIO', 'risponde solo "active", "inactive" o "failed"'],
+    ['is-enabled SERVIZIO', 'parte da solo all\'accensione? enabled / disabled'],
+    ['list-units', 'elenco dei servizi caricati (con --type=service solo i servizi)'],
+    ['--failed', 'solo i servizi in errore (equivale a list-units --state=failed)'],
+    ['list-unit-files', 'tutti i servizi installati, con enabled/disabled'],
     ['start / stop / restart', 'avvia / ferma / riavvia (serve root)'],
     ['enable / disable', 'avvio automatico all\'accensione sì / no (serve root)'],
   ],
   examples: [
     ['systemctl status ssh', 'stato del servizio SSH'],
-    ['systemctl list-units', 'tutti i servizi attivi'],
+    ['systemctl list-units --type=service', 'tutti i servizi'],
+    ['systemctl --failed', 'cosa è guasto su questa macchina?'],
     ['systemctl is-active cron', 'cron è in esecuzione?'],
+    ['systemctl list-unit-files', 'cosa parte all\'accensione'],
   ],
   notes: ['Nell\'hardening si spegne e si disabilita ogni servizio non necessario. Gli attaccanti usano nuovi servizi come persistenza (Windows: evento 7045).'],
   see: ['journalctl', 'ss', 'ps'],
@@ -123,10 +136,32 @@ doc('systemctl', {
 doc('journalctl', {
   cat: SYS,
   short: 'legge il giornale di sistema (systemd)',
-  synopsis: 'journalctl [-u SERVIZIO] [-n N]',
-  description: ['Il "giornale" centralizzato di systemd: raccoglie i messaggi di kernel, servizi e programmi. Sostituisce (o affianca) la lettura dei singoli file in /var/log.'],
-  options: [['-u SERVIZIO', 'solo i messaggi di un servizio'], ['-n N', 'solo le ultime N righe'], ['-f', 'segue in tempo reale (non disponibile nel deck)']],
-  examples: [['journalctl -n 5', 'le ultime cinque righe'], ['journalctl -u ssh', 'tutto ciò che ha scritto il servizio SSH']],
+  synopsis: 'journalctl [-u SERVIZIO] [-p PRIORITÀ] [--since ORA] [-n N]',
+  description: [
+    'Il "giornale" (journal) centralizzato di systemd: raccoglie i messaggi di kernel, servizi e programmi. Sostituisce (o affianca) la lettura dei singoli file in /var/log. Il file del journal è binario: non si legge con cat, si interroga con journalctl.',
+    'Ogni messaggio ha una PRIORITÀ, da 0 (la più grave) a 7: 0 emerg, 1 alert, 2 crit, 3 err, 4 warning, 5 notice, 6 info, 7 debug. Con -p err vedi gli errori e tutto ciò che è più grave.',
+    'I filtri si combinano: "journalctl -u nginx -p err --since 06:00" vuol dire "gli errori di nginx dalle 6 in poi".',
+  ],
+  options: [
+    ['-u SERVIZIO', 'solo i messaggi di un servizio (unit)'],
+    ['-p PRIORITÀ', 'solo questa priorità e quelle più gravi (err, warning, 3, 4...)'],
+    ['--since ORA', 'dall\'ora indicata in poi, es. --since 06:00'],
+    ['--until ORA', 'fino all\'ora indicata'],
+    ['-n N', 'solo le ultime N righe'],
+    ['-r', 'dal più recente al più vecchio'],
+    ['-g TESTO', 'solo i messaggi che contengono il testo (come grep)'],
+    ['-e', 'salta alla fine (le ultime righe)'],
+    ['-x', 'aggiunge spiegazioni ai messaggi (nel vero Linux)'],
+    ['-f', 'segue in tempo reale (non disponibile nel deck)'],
+  ],
+  examples: [
+    ['journalctl -n 5', 'le ultime cinque righe'],
+    ['journalctl -u ssh', 'tutto ciò che ha scritto il servizio SSH'],
+    ['journalctl -p err', 'solo gli errori (e peggio)'],
+    ['journalctl --since 03:00 --until 04:00', 'cosa è successo tra le 3 e le 4'],
+    ['journalctl -u nginx -r -n 3', 'gli ultimi tre messaggi di nginx, dal più recente'],
+  ],
+  notes: ['In un\'indagine si parte larghi (-p warning, una fascia oraria) e si restringe. Per contare, va benissimo una pipe: journalctl -p err | grep -c backup.'],
   see: ['tail', 'grep', 'systemctl'],
 });
 
@@ -668,4 +703,19 @@ doc('python3', {
   ],
   notes: ['Se il programma ha un errore, Python mostra un "Traceback": l\'ultima riga dice il tipo di errore, quella sopra il numero di riga in cui è successo. Si legge dal basso.'],
   see: ['bash', 'nano', 'grep'],
+});
+
+doc('nginx', {
+  cat: SYS,
+  short: 'server web: controllo della configurazione',
+  synopsis: 'nginx -t',
+  description: [
+    'nginx è uno dei server web più usati: risponde alle richieste dei browser e serve i siti. Si avvia e si ferma con systemctl; il comando nginx serve soprattutto a CONTROLLARE la configurazione prima di riavviare.',
+    'La configurazione sta in /etc/nginx: nginx.conf è quella generale, i siti stanno in /etc/nginx/sites-enabled. Ogni istruzione (direttiva) finisce con ";" e i blocchi stanno tra parentesi graffe.',
+    '"nginx -t" legge tutti i file e dice se sono corretti, indicando file e riga dell\'errore. Di solito serve sudo.',
+  ],
+  options: [['-t', 'controlla la sintassi della configurazione senza toccare il servizio']],
+  examples: [['sudo nginx -t', 'la configurazione è valida?']],
+  notes: ['Regola da sistemista: dopo ogni modifica, prima "nginx -t" e solo se va bene "systemctl restart nginx". Un riavvio con un errore spegne il sito.'],
+  see: ['systemctl', 'journalctl', 'nano'],
 });

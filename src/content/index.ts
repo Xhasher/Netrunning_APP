@@ -3,6 +3,8 @@ import { CH01 } from './ch01-terminale';
 import { CH02 } from './ch02-reti';
 import { CH03 } from './ch03-linux';
 import { CH04 } from './ch04-soc';
+import { CHAM } from './chAM-amministrare';
+import { CHSOC } from './chSOC-turno';
 import { CH05 } from './ch05-script';
 import { CH06 } from './ch06-cripto';
 import { CH07 } from './ch07-web';
@@ -19,13 +21,16 @@ import { CHPY } from './chPY-python';
 import { CHPT } from './chPT-pentest';
 import { NETDEF_MISSION } from './ch09-difese';
 import { addExtra } from './ex-extra';
+import { NETDIAG_MISSION, TEXTTOOLS_MISSION } from './ch-pratica';
 import { addSchede } from './schede';
 
-export const CHAPTERS: Chapter[] = [CH01, CHF, CH02, CH03, CH04, CH05, CH06, CHPY, CH07, CH08, CH09, CH10, CH11, CHPT, CH12, CHDF, CH13];
+export const CHAPTERS: Chapter[] = [CH01, CHF, CH02, CH03, CH04, CHAM, CH05, CH06, CHPY, CH07, CH08, CHSOC, CH09, CH10, CH11, CHPT, CH12, CHDF, CH13];
 
 CH07.missions.push(...OWASP_MISSIONS);
 CH08.missions.push(PHISHING_MISSION, IR_MISSION);
 CH09.missions.push(NETDEF_MISSION);
+CH02.missions.push(NETDIAG_MISSION);
+CH05.missions.push(TEXTTOOLS_MISSION);
 
 addExtra(CHAPTERS);
 addSchede(CHAPTERS);

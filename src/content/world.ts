@@ -1,5 +1,8 @@
 // Il "deck": il computer virtuale del giocatore, con tutti i file usati dalle missioni.
 
+import { addAdmin } from './world-admin';
+import { addPracticeFiles } from './ch-pratica';
+import { addSocFiles } from './chSOC-turno';
 import '../engine/coreutils';
 import '../engine/pycmd';
 import '../engine/manual';
@@ -526,6 +529,9 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
   addPython(shell, home, mine);
   addRange(shell, home, mine);
   addNetDefense(shell, home, mine);
+  addAdmin(shell);
+  addPracticeFiles(shell);
+  addSocFiles(shell);
   return shell;
 }
 

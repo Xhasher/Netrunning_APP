@@ -101,7 +101,9 @@ export function isUnlocked(s: SaveData, missionId: string): boolean {
   const i = list.findIndex((m) => m.id === missionId);
   if (i <= 0) return i === 0;
   // una missione già completata resta sempre rigiocabile, anche se nel corso ne sono state aggiunte di nuove prima
-  return s.completed.includes(missionId) || s.completed.includes(list[i - 1].id);
+  if (s.completed.includes(missionId) || s.completed.includes(list[i - 1].id)) return true;
+  // missioni aggiunte al corso "dietro" a chi è già più avanti: restano aperte
+  return list.slice(i + 1).some((m) => s.completed.includes(m.id));
 }
 
 export function nextMissionId(s: SaveData): string | null {

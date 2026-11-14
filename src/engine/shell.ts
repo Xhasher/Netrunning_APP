@@ -590,13 +590,13 @@ export class Shell {
     return !!parent && parent.type === 'dir' && !parent.locked && (parent.owner === this.user || parent.perms[7] === 'w');
   }
 
-  writeText(abs: string, text: string, append: boolean): string | null {
+  writeText(abs: string, text: string, append: boolean, asRoot = false): string | null {
     if (abs === '/dev/null') return null;
     const parent = this.fs.get(dirnameOf(abs));
     if (!parent || parent.type !== 'dir') return 'No such file or directory';
     const node = this.fs.get(abs);
     if (node?.type === 'dir') return 'Is a directory';
-    if (!this.canWrite(abs)) return 'Permission denied';
+    if (!asRoot && !this.canWrite(abs)) return 'Permission denied';
     if (node && node.type === 'file') {
       node.content = append ? node.content + text : text;
       node.mtime = 'Nov 12 21:04';
@@ -1921,11 +1921,36 @@ export const COMMANDS: Record<string, Command> = {
       return 0;
     }
     if (c.args[0] === 'ufw') {
-      c.info('[sudo] concesso: il contratto ti autorizza ad amministrare solo il firewall (ufw).');
+      c.info('[sudo] concesso: il contratto ti autorizza ad amministrare firewall e servizi.');
       return ufw({ ...c, args: c.args.slice(1) }, true);
     }
+    // sul deck di addestramento puoi anche gestire i servizi e leggere i registri di sistema
+    const ADMIN = ['systemctl', 'journalctl', 'lastb', 'nano', 'nginx'];
+    if (!c.sh.system && ADMIN.includes(c.args[0])) {
+      if (c.args[0] === 'nano') {
+        const f = c.args[1];
+        const p = f ? c.sh.abs(f) : '';
+        if (!f || !p.startsWith('/etc/')) {
+          c.err('sudo: in questo deck, come amministratore, si modificano solo i file di configurazione in /etc.');
+          return 1;
+        }
+        if (c.sh.fs.get(p)?.type === 'dir') {
+          c.err(`nano: ${f}: Is a directory`);
+          return 1;
+        }
+        c.emit({ type: 'edit', path: p, root: true });
+        return 0;
+      }
+      const prev = c.sh.user;
+      c.sh.user = 'root';
+      try {
+        return COMMANDS[c.args[0]]({ ...c, args: c.args.slice(1) });
+      } finally {
+        c.sh.user = prev;
+      }
+    }
     c.err(`${c.sh.user} is not in the sudoers file.  This incident will be reported.`);
-    c.info('💡 Il tuo utente non ha i privilegi di amministratore (root). In questo deck sudo è permesso solo per "ufw".');
+    c.info('💡 In questo deck sudo è permesso solo per amministrare firewall (ufw), servizi (systemctl, nginx -t), registri (journalctl, lastb) e i file di configurazione in /etc (nano).');
     return 1;
   },
 

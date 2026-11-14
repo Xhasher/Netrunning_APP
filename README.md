@@ -4,20 +4,22 @@ Un gioco per Android che insegna **ethical hacking, penetration testing e cyber 
 
 Si gioca in un **terminale Linux simulato**: comandi, file, rete e bersagli sono tutti finti, quindi si può sperimentare senza rischi e senza connessione.
 
-## Contenuti (v1.2)
+## Contenuti (v1.14)
 
 | Capitolo | Missioni | Argomenti |
 |---|---|---|
 | 01 · Jack-in | 6 | cos'è Linux, il terminale, il prompt, `whoami`, `pwd`, `ls`, `cd`, percorsi, `cat`, file nascosti, `man`, `ls -l`, `echo`, `history`, `mkdir`, `touch`, `>` e `>>`, `cp`, `mv`, `rm`, `tree`, prima CTF |
 | F · Fondamenti di sicurezza | 5 | triade CIA, AAA e non ripudio, asset/minacce/vulnerabilità/rischio, controlli, difesa in profondità, minimo privilegio, attori di minaccia, malware, ingegneria sociale, Kill Chain, MFA e password, ciclo di vita degli account, art. 615-ter, perimetro, divulgazione responsabile, GDPR, ISO 27001, NIST CSF, ruoli |
-| 02 · Rete di quartiere | 3 | reti, indirizzi IP, `ip a`, `ping`, DNS, firewall, porte, TCP, scope e legge (art. 615-ter c.p.), `nmap`, CVE, report di pentest |
+| 02 · Rete di quartiere | 4 | reti, indirizzi IP, `ip a`, `ping`, DNS, firewall, porte, TCP, scope e legge (art. 615-ter c.p.), `nmap`, CVE, report di pentest, scala del troubleshooting (`ip route`, `nslookup`, `nc -zv`, `curl -I`, `traceroute`, `ss -tlnp`) |
 | 03 · Linux in profondità | 3 | utenti e gruppi, `id`, `/etc/passwd`, `/etc/shadow` e hash, permessi e `chmod`, audit, minimo privilegio, `find`, pipe, `grep`, `wc`, `ps aux` |
 | 04 · Primo turno al SOC | 3 | log e `/var/log`, `head`/`tail`, brute force, `cut \| sort \| uniq -c`, intrusione, cryptominer, timeline, `sudo ufw`, incident response, rapporto d'incidente |
-| 05 · Scripting | 3 | variabili, `$(...)`, stdout/stderr, `2>/dev/null`, `nano`, shebang, `chmod +x`, argomenti `$1`, cicli `for`, `if` e `test`, script di allarme |
+| AM · Amministrare Linux | 4 | `uname`, `uptime` e load average, `free`, `df`, `which`; servizi e systemd (`systemctl` status/--failed/restart/is-enabled), diario di sistema (`journalctl` -u/-p/--since/-g), `nginx -t`, `sudo nano` su /etc, change management; `last`, `lastb`; disco pieno con `du \| sort -h`, `/etc/crontab`, `tar` czf/tzf, logrotate |
+| 05 · Scripting | 4 | variabili, `$(...)`, stdout/stderr, `2>/dev/null`, `nano`, shebang, `chmod +x`, argomenti `$1`, cicli `for`, `if` e `test`, script di allarme, `awk` (campi, condizioni, -F), `sed` (sostituzioni, -E, anonimizzazione), `tr -s`, `tee`, `xargs`, `diff` |
 | 06 · Crittografia e password | 3 | codifica vs cifratura vs hash, `base64`, cifratura simmetrica e asimmetrica, TLS/HTTPS, SHA-256, `sha256sum -c`, supply chain attack, sale e hash lenti, password manager, MFA |
 | PY · Python per la sicurezza | 4 | `python3`, variabili e tipi, f-string, traceback, if/for/while, liste e dizionari, funzioni, file con `with open`, `split`, `Counter`, `re`, `set`, `sys.argv`, `hashlib`, `os`, `json`, `try/except` |
 | 07 · Web security | 5 | URL e HTTP, codici di stato, header, `curl`, information disclosure, robots.txt, security through obscurity, `access.log`, scanner, SQL injection, XSS, path traversal; OWASP Top 10 completa; audit autorizzato di un negozio (IDOR, versioni esposte, file di backup, SSRF, password nei log) e struttura del report |
 | 08 · Blue Team avanzato | 5 | SIEM e normalizzazione, regole di rilevamento, password spraying, Cyber Kill Chain, MITRE ATT&CK, threat intelligence, IOC, threat hunting nei log DNS e per hash, IDS; analisi del phishing (intestazioni, SPF/DKIM/DMARC, link, campagna, risposta); gestione completa di un incidente (NIST SP 800-61) |
+| SO · Il turno al SOC | 4 | livelli L1/L2/L3, alert fatigue, raggruppamento degli allarmi, severità e priorità (impatto × urgenza), vero/falso positivo, vero positivo benigno, falso negativo, tuning, EDR e catena dei processi, beaconing, playbook, IOC, nota di escalation, passaggio di consegne, MTTD/MTTR |
 | 09 · Reti avanzate | 5 | modello OSI e TCP/IP, incapsulamento, MAC e ARP, ARP spoofing, routing, CIDR e sottoreti con `ipcalc`, segmentazione e VLAN, `tcpdump`, flag TCP, protocolli in chiaro, scansioni SYN, chiavi SSH, known_hosts, tunnel e VPN; firewall, DMZ, NAT, proxy, IDS/IPS, regole Suricata, VPN aziendali |
 | 10 · Ricognizione e OSINT | 4 | OSINT e limiti etici/legali (GDPR), `whois`, `dig` (A, MX, TXT, NS), SPF/DKIM/DMARC, certificate transparency (`crtsh`), shadow IT, metadati con `exiftool`, effetto mosaico, CVE, CVSS, NVD e KEV, priorità delle correzioni |
 | 11 · Rinforzare i sistemi | 4 | cosa fa un attaccante dopo l'accesso (dal punto di vista di chi difende), `sudo -l` e regole pericolose, file SUID, credenziali nei file, `ss -tlnp`, `apt list --upgradable`, configurazione SSH sicura, CIS Benchmarks, riuso delle credenziali, difesa in profondità, EDR, backup 3-2-1, zero trust |
@@ -38,7 +40,7 @@ Altre modalità:
 - **Progressi condivisi tra telefono e PC**: in Opzioni › Gioca su più dispositivi si collega un token GitHub con il solo permesso `gist`. I progressi vengono salvati in un Gist privato dell'utente e **uniti** (non sovrascritti) tra i dispositivi: missioni, XP, Memoria ed esami si sommano. Nessun server esterno (`src/game/sync.ts`).
 - **Effetti visivi** discreti (transizioni, conteggio XP, promozioni di rango), disattivabili in Opzioni e spenti automaticamente se il sistema chiede di ridurre il movimento.
 - **Competenze**: ogni comando e concetto ha cinque stati (introdotta, compresa, esercitata, acquisita, consolidata) calcolati da ciò che fai davvero; "acquisita" richiede due situazioni diverse risolte senza suggerimenti. Nei primi capitoli i suggerimenti sono liberi, poi si sbloccano dopo un tentativo, infine si chiedono con una conferma.
-- **Palestra dei comandi**: 57 esercizi brevi generati a caso su 27 comandi e concetti, in tre livelli, con dati sempre nuovi; serie su un comando o allenamento misto sui punti deboli.
+- **Palestra dei comandi**: 69 esercizi brevi generati a caso su 35 comandi e concetti (anche systemctl, journalctl, df, du, tar, crontab, tee, xargs), in tre livelli, con dati sempre nuovi; serie su un comando o allenamento misto sui punti deboli.
 - **Memoria**: allenamento quotidiano di 5 minuti a ripetizione spaziata. Esercizi in tre livelli (scegli, ricomponi, scrivi) su comandi, opzioni e codici da sapere a memoria; le carte tornano poco prima di essere dimenticate, con serie di giorni consecutivi.
 - **Simulazioni**: sfide pratiche generate a caso, sempre diverse, sui capitoli scelti, con tre livelli di difficoltà (Facile, Medio, Difficile). Riepilogo finale con le soluzioni.
 - **Giochi**: *Phishing o no?* (riconoscere email e SMS truffa), *Turno al SOC* (triage degli allarmi), *Allenamento* (quiz di ripasso).

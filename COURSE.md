@@ -116,3 +116,13 @@ Il programma previsto in questo documento è completo. Prossimi passi possibili:
 - **Palestra dei comandi** (`src/content/palestra.ts`): 57 esercizi brevi generati a caso su 27 competenze (navigazione, file, redirezioni, grep in 7 varianti, find, head/tail, wc, sort/uniq, cut, awk, sed, tr, diff, chmod, base64, sha256sum), in tre livelli. Serie su un comando (dal livello 1 al 3) o allenamento misto sulle competenze più deboli.
 - **Interpreta l'output / correggi l'errore**: 29 esercizi nuovi nelle missioni dei capitoli 01-04, prima delle verifiche finali. Gli esercizi esistenti restano tutti.
 - I progressi salvati con le versioni precedenti vengono spostati sullo stesso passo (`src/game/migrate.ts`), anche quando arrivano dal cloud o da un backup.
+
+## Aggiunto nella 1.14 (riprogettazione didattica, fase 2)
+
+- **Capitolo AM · Amministrare Linux** (dopo il 04, `src/content/chAM-amministrare.ts`): stato della macchina (uname, uptime, free, df, which); il servizio che non parte (systemctl --failed/status, journalctl -u e -g, chi ha cambiato il file, correzione con `sudo nano`, `nginx -t`, restart); il diario di sistema (priorità, --since/--until, last, lastb); il disco pieno (df, du | sort -h, ls -lhS, /etc/crontab, tar czf/tzf, togliere la causa senza buttare le prove). Gli scenari sono collegati: il backup fallisce perché /var è pieno, /var è pieno per un log di debug lanciato da cron.
+- **Motore**: servizi e diario di sistema guidati da file del deck (`src/engine/sysinfo.ts`): stati active/failed/inactive, enabled, restart che fallisce finché la configurazione è sbagliata, voci con priorità e filtri reali; `df` per partizione; `sort -h`; comando `nginx -t`; sudo anche per systemctl, journalctl, lastb, nginx e nano sui file di /etc. Le modifiche ai file di sistema (/etc/nginx, /etc/crontab, servizi, diario) si salvano con il deck.
+- **2.4 Diagnosi di rete**: la scala del troubleshooting (ip route, ping -c, nslookup, nc -zv, curl -I, traceroute, ss -tlnp).
+- **5.4 Gli attrezzi del testo**: awk (campi, condizioni, -F), sed (sostituzioni, -E, anonimizzazione GDPR), tr -s, tee, xargs, diff.
+- **Capitolo SO · Il turno al SOC** (dopo l'08, `src/content/chSOC-turno.ts`): coda degli allarmi, raggruppamento e priorità; vero/falso positivo, benigno, falso negativo, con le prove (VPN, trasferte, change, EDR, proxy); escalation con playbook e nota completa; passaggio di consegne e metriche MTTD/MTTR.
+- Palestra: 12 esercizi nuovi (systemctl, journalctl, df, du, tar, crontab, tee, xargs). Glossario: 17 termini nuovi. Esami: 6 domande a scenario nuove.
+- Le missioni aggiunte prima di quelle già completate restano aperte: chi è più avanti non viene bloccato.

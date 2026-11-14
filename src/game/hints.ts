@@ -5,7 +5,7 @@
 export type HintPolicy = 'libero' | 'dopo-tentativo' | 'su-richiesta';
 
 const FREE = new Set(['ch01', 'chF', 'ch02', 'ch03']);
-const AFTER_TRY = new Set(['ch04', 'ch05', 'ch06', 'chPY', 'ch07']);
+const AFTER_TRY = new Set(['ch04', 'chAM', 'ch05', 'ch06', 'chPY', 'ch07']);
 
 export function hintPolicy(chapterId: string): HintPolicy {
   return FREE.has(chapterId) ? 'libero' : AFTER_TRY.has(chapterId) ? 'dopo-tentativo' : 'su-richiesta';
