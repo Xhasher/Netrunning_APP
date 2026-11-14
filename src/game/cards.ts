@@ -13,7 +13,7 @@ import '../content/world';
 import '../engine/manual';
 import { MANPAGES } from '../engine/manpages';
 import { COMMANDS } from '../engine/shell';
-import { commandsInLine, commandsInMarkup } from './commands';
+import { commandsInLine, commandsInMarkup } from './cmdparse';
 
 export type CardKind = 'fact' | 'cmd' | 'opt' | 'ex';
 

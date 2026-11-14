@@ -2219,9 +2219,18 @@ export const COMMANDS: Record<string, Command> = {
   },
 
   ssh(c) {
-    const target = c.args.find((a) => !a.startsWith('-'));
+    // opzioni reali accettate (e ignorate dal simulatore): -p PORTA, -i CHIAVE, -l UTENTE, -o OPZIONE, -v
+    const rest: string[] = [];
+    let login: string | null = null;
+    for (let i = 0; i < c.args.length; i++) {
+      const a = c.args[i];
+      if (['-p', '-i', '-o'].includes(a)) i++;
+      else if (a === '-l') login = c.args[++i] ?? null;
+      else if (!a.startsWith('-')) rest.push(a);
+    }
+    const target = rest[0] && login && !rest[0].includes('@') ? `${login}@${rest[0]}` : rest[0];
     if (!target) {
-      c.err('usage: ssh [utente@]host');
+      c.err('usage: ssh [-p porta] [-i chiave] [utente@]host');
       return 255;
     }
     const at = target.indexOf('@');

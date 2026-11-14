@@ -46,3 +46,11 @@ nascosti, quiz, almeno una Operazione, test automatici (partita completa) e voci
 
 - **Memoria** (pannello a parte): carte a ripetizione spaziata generate dal Manuale (nomi dei comandi, opzioni, esempi) e da mazzi di codici (porte, codici HTTP, Event ID, permessi, sottoreti, percorsi dei log, tattiche ATT&CK, CVSS). Tre livelli per carta: riconoscere, ricomporre, scrivere. Le carte si sbloccano avanzando nel corso; i comandi del Manuale non trattati in una missione entrano alla fine del capitolo più vicino.
 - **Simulazioni con una storia**: ogni sfida casuale ha un committente e un motivo.
+
+## Aggiunto nella 1.4
+
+- **Schede di studio**: prima del primo esercizio che usa un comando (o un concetto come pipe, redirezioni, variabili) il corso inserisce una lezione completa presa dal Manuale: a cosa serve, sintassi, tutte le opzioni, esempi diversi dall'esercizio, errori comuni. L'esercizio che segue ha il comando sfocato. 45 schede in tutto il corso (`src/content/schede.ts`).
+- **Capitolo F · Fondamenti di sicurezza** (dopo il capitolo 01): triade CIA e AAA, rischio e controlli, attori e tipi di attacco, Kill Chain, autenticazione e ciclo di vita degli account, legge, perimetro, GDPR, standard e ruoli. Tre nuovi mazzi di Memoria.
+- Schede del Manuale approfondite per ssh, ssh-keygen, whois, exiftool, crtsh, cve, nano.
+
+Restano da fare: riscrittura narrativa a mano delle lezioni 01–04, OWASP Top 10 completo, analisi del phishing, ciclo di vita del SOC, reti avanzate, pentest in laboratorio, forensics, Python, esami a tempo.

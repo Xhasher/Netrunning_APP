@@ -6,6 +6,11 @@ import { evaluate } from '../src/game/logic';
 // Soluzione di ogni passo "task", in ordine, per ogni missione.
 const SOLUTIONS: Record<string, string[][]> = {
   'ch01-m1': [['whoami'], ['hostname'], ['Whoami'], ['help']],
+  'chF-m1': [['cat fondamenti/incidenti.txt', 'flag Disponibilità'], ['flag integrita'], ['flag riservatezza']],
+  'chF-m2': [['cat fondamenti/rischi.txt', 'flag r2']],
+  'chF-m3': [],
+  'chF-m4': [['cat fondamenti/accessi.txt', 'flag svc.backup']],
+  'chF-m5': [['cat fondamenti/ingaggio.txt', 'flag 10.20.0.50']],
   'ch01-m2': [['pwd'], ['ls'], ['cd missioni'], ['cd ..'], ['cd /etc', 'ls'], ['cd /root'], ['cd']],
   'ch01-m3': [
     ['cat missioni/benvenuto.txt'],

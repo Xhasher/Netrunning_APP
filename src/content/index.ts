@@ -12,8 +12,12 @@ import { CH10 } from './ch10-osint';
 import { CH11 } from './ch11-hardening';
 import { CH12 } from './ch12-windows';
 import { CH13 } from './ch13-carriera';
+import { CHF } from './chF-fondamenti';
+import { addSchede } from './schede';
 
-export const CHAPTERS: Chapter[] = [CH01, CH02, CH03, CH04, CH05, CH06, CH07, CH08, CH09, CH10, CH11, CH12, CH13];
+export const CHAPTERS: Chapter[] = [CH01, CHF, CH02, CH03, CH04, CH05, CH06, CH07, CH08, CH09, CH10, CH11, CH12, CH13];
+
+addSchede(CHAPTERS);
 
 /** Il resto del corso: capitoli pianificati, mostrati nella mappa come "in arrivo". */
 /** Capitoli futuri, mostrati nella mappa come "in arrivo" (al momento il corso è completo). */

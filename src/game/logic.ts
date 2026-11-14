@@ -5,7 +5,12 @@ import type { Step } from './types';
 export type StepOutcome = 'pass' | 'wrong-answer' | 'no-question' | null;
 
 export function normalizeAnswer(s: string): string {
-  return s.trim().toLowerCase().replace(/\s+/g, ' ');
+  return s
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ');
 }
 
 /** Valuta gli eventi prodotti da un comando rispetto al passo attuale della missione. */

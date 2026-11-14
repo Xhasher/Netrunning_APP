@@ -534,3 +534,120 @@ doc('jolly', {
 doc('flag', { cat: 'Gioco', description: ['Comando del gioco: nelle gare CTF ("Capture The Flag") si cercano codici segreti nel formato NC{...}. Con flag RISPOSTA invii la risposta a una domanda della missione.'], game: true });
 doc('hint', { cat: 'Gioco', description: ['Comando del gioco: mostra il suggerimento successivo per l\'obiettivo in corso (e nelle Simulazioni dimezza i punti).'], game: true });
 doc('report', { cat: 'Gioco', description: ['Comando del gioco: nelle Operazioni registra un problema trovato. Sii preciso: percorso completo, nome utente, indirizzo IP o impostazione.'], game: true });
+
+// ---------------------------------------------------------------- approfondimenti (schede di studio)
+
+doc('ssh', {
+  synopsis: 'ssh [-p PORTA] [-i CHIAVE] [UTENTE@]HOST',
+  description: [
+    '"Secure Shell": apre un terminale su un altro computer attraverso una connessione cifrata. È il modo in cui si amministrano quasi tutti i server del mondo: non ci si siede davanti al server, ci si collega con ssh.',
+    'Dopo il collegamento il prompt cambia e mostra utente e nome del server: da quel momento ogni comando viene eseguito LÀ, non sul tuo computer. Con "exit" chiudi la connessione e torni al tuo deck.',
+    'Se non indichi l\'utente, ssh usa il tuo nome utente locale. Il server ascolta di solito sulla porta 22.',
+    'Ci si autentica in due modi: con la password dell\'utente sul server, oppure con una coppia di chiavi (vedi ssh-keygen). Le chiavi sono più sicure: non si possono indovinare a tentativi e la parte privata non viaggia mai in rete.',
+    'Al primo collegamento ssh mostra l\'impronta (fingerprint) del server e chiede conferma: la salva in ~/.ssh/known_hosts. Se un giorno l\'impronta cambia, ssh avvisa con un messaggio allarmante: o il server è stato reinstallato, o qualcuno si è messo in mezzo. Non va mai ignorato.',
+  ],
+  options: [
+    ['-p PORTA', 'collegati a una porta diversa dalla 22'],
+    ['-i CHIAVE', 'usa questo file di chiave privata invece di quella predefinita'],
+    ['-l UTENTE', 'l\'utente con cui entrare (equivale a scrivere UTENTE@HOST)'],
+    ['-v', '"verbose": mostra i passaggi del collegamento, utile per capire perché fallisce'],
+  ],
+  examples: [
+    ['ssh audit@market.lan', 'collegati come utente audit (nelle Operazioni)'],
+    ['ssh -p 22 studente@lab.lan', 'lo stesso, indicando la porta in modo esplicito'],
+    ['ssh -l studente lab.lan', 'l\'utente indicato con -l invece che con la @'],
+  ],
+  notes: [
+    'Preferisci SEMPRE le chiavi alle password, e disattiva il login diretto di root (PermitRootLogin no) nel file /etc/ssh/sshd_config.',
+    '"Connection refused" = sul server nessuno ascolta su quella porta. "Permission denied" = il server c\'è, ma utente, password o chiave sono sbagliati. "Connection timed out" = un firewall scarta i pacchetti o l\'host è spento.',
+    'Collegarsi a un sistema senza autorizzazione è reato (art. 615-ter c.p.), anche se la password era banale o scritta su un foglietto.',
+  ],
+  see: ['ssh-keygen', 'exit', 'nmap'],
+});
+
+doc('ssh-keygen', {
+  synopsis: 'ssh-keygen [-t TIPO] [-C COMMENTO]',
+  description: [
+    'Crea una coppia di chiavi per entrare nei server senza password. Le due chiavi sono legate matematicamente: ciò che viene verificato con la pubblica può essere prodotto solo da chi possiede la privata.',
+    'La chiave PRIVATA (~/.ssh/id_ed25519) resta sul tuo computer, non si copia e non si invia a nessuno: chi la ottiene entra al posto tuo. Deve avere permessi 600 (rw-------), altrimenti ssh si rifiuta di usarla.',
+    'La chiave PUBBLICA (~/.ssh/id_ed25519.pub) si può dare a chiunque: va aggiunta sul server nel file ~/.ssh/authorized_keys dell\'utente con cui vuoi entrare.',
+    'Nel vero Linux il comando chiede anche una "passphrase": una password che protegge il file della chiave privata, nel caso ti rubino il computer.',
+  ],
+  options: [
+    ['-t TIPO', 'algoritmo della chiave: ed25519 (consigliato, moderno) oppure rsa'],
+    ['-C COMMENTO', 'un\'etichetta per riconoscere la chiave, di solito nome e computer'],
+    ['-b BIT', 'lunghezza della chiave (per rsa almeno 3072)'],
+  ],
+  examples: [['ssh-keygen', 'genera la coppia di chiavi'], ['ssh-keygen -t ed25519 -C "deck di lavoro"', 'sceglie l\'algoritmo e aggiunge un\'etichetta']],
+  notes: [
+    'In un\'indagine, una riga sconosciuta in authorized_keys è una persistenza: qualcuno si è lasciato una porta per rientrare anche dopo il cambio delle password.',
+    'Non riusare la stessa chiave privata su più computer: se uno viene compromesso, li revochi uno per uno.',
+  ],
+  see: ['ssh', 'chmod'],
+});
+
+doc('whois', {
+  synopsis: 'whois DOMINIO',
+  description: [
+    'Interroga i registri pubblici dei domini. Ogni dominio viene registrato presso un "registrar", e alcune informazioni sulla registrazione sono consultabili da chiunque.',
+    'Cosa leggere nella risposta: Registrar (presso chi è registrato), Creation Date (un dominio creato pochi giorni fa che imita una banca è quasi sempre phishing), Expiry Date (un dominio scaduto può essere ricomprato da altri), Name Server (chi gestisce il DNS), e i contatti Registrant / Admin / Tech.',
+    'Con il GDPR i dati delle persone sono quasi sempre oscurati ("REDACTED"); quelli delle aziende spesso no, e rivelano nomi, email e formati degli indirizzi.',
+    'È ricognizione PASSIVA: interroghi un registro pubblico, non i sistemi del bersaglio, che non può accorgersene.',
+  ],
+  examples: [['whois neonottica.nc', 'chi ha registrato il dominio'], ['whois neonottica.nc | grep -i email', 'solo le righe con gli indirizzi email']],
+  notes: ['Difesa: usa un indirizzo di ruolo (es. dominio@azienda) e non quello personale di un dipendente, e attiva il rinnovo automatico del dominio.'],
+  see: ['dig', 'crtsh'],
+});
+
+doc('exiftool', {
+  synopsis: 'exiftool FILE',
+  description: [
+    'Legge i metadati di un file: informazioni che non vedi aprendo il documento ma che viaggiano insieme a lui.',
+    'Nei documenti (PDF, Word) trovi autore, nome utente, software e versione usati, date di creazione e modifica, a volte percorsi interni di rete. Nelle foto trovi modello della fotocamera, data e spesso le coordinate GPS dello scatto.',
+    'Per chi difende sono informazioni da non regalare: il nome utente rivela il formato degli account, la versione del software dice quali vulnerabilità cercare, un percorso come \\\\server\\cartella rivela nomi di macchine interne.',
+    'Nelle indagini servono al contrario: date e autore aiutano a ricostruire chi ha prodotto un file e quando (ma si possono falsificare, quindi sono un indizio e non una prova).',
+  ],
+  examples: [['exiftool osint/catalogo_2077.pdf', 'cosa rivela un catalogo pubblico'], ['exiftool osint/catalogo_2077.pdf | grep -i author', 'solo l\'autore']],
+  notes: ['Prima di pubblicare un documento i metadati vanno rimossi. Nel vero exiftool: exiftool -all= FILE li cancella tutti.'],
+  see: ['file', 'strings'],
+});
+
+doc('crtsh', {
+  synopsis: 'crtsh DOMINIO',
+  description: [
+    'Cerca i certificati HTTPS rilasciati per un dominio, come fa il sito crt.sh.',
+    'Perché esiste: ogni volta che un\'autorità emette un certificato deve scriverlo in registri pubblici e non modificabili, la "Certificate Transparency". Serve a scoprire certificati emessi per errore o con l\'inganno.',
+    'Effetto collaterale: chiunque può leggere l\'elenco di tutti i nomi per cui un\'azienda ha chiesto un certificato, compresi sottodomini di test, vecchi o dimenticati (dev, staging, old, vpn...). Sono spesso i meno aggiornati e quindi i più deboli.',
+    'È ricognizione passiva: non tocchi i sistemi dell\'azienda. Guarda le date: un certificato vecchio e mai rinnovato indica un servizio abbandonato.',
+  ],
+  examples: [['crtsh neonottica.nc', 'tutti i nomi con un certificato'], ['crtsh neonottica.nc | grep -i old', 'cerca i nomi che sanno di dimenticato']],
+  notes: ['Difesa: fai tu per primo questa ricerca sul tuo dominio, e spegni ciò che non serve più.'],
+  see: ['dig', 'whois'],
+});
+
+doc('cve', {
+  synopsis: 'cve PRODOTTO VERSIONE',
+  description: [
+    'Cerca nel database (simulato) delle vulnerabilità note.',
+    'CVE sta per "Common Vulnerabilities and Exposures": ogni vulnerabilità pubblica riceve un identificativo unico, nella forma CVE-ANNO-NUMERO, così tutti parlano della stessa cosa.',
+    'Il punteggio CVSS misura la gravità da 0 a 10: 0.1-3.9 bassa, 4.0-6.9 media, 7.0-8.9 alta, 9.0-10 critica. Conta anche il contesto: una vulnerabilità critica su un server esposto a Internet viene prima della stessa vulnerabilità su una macchina isolata.',
+    'Il metodo è sempre lo stesso: scopri prodotto e versione (banner, nmap -sV, intestazioni HTTP), poi cerchi se quella versione ha vulnerabilità note. Nel mondo reale si usano nvd.nist.gov e gli avvisi del produttore.',
+  ],
+  notes: ['Difesa: la cura quasi sempre è aggiornare. Un inventario di cosa hai installato e in quale versione vale più di qualsiasi scanner.'],
+  see: ['nmap', 'apt'],
+});
+
+doc('nano', {
+  synopsis: 'nano FILE',
+  description: [
+    'Editor di testo semplice, presente su quasi tutti i Linux: serve a modificare un file senza uscire dal terminale. È il modo normale di cambiare una configurazione su un server.',
+    'Nel vero nano i comandi sono elencati in basso: ^ significa il tasto Ctrl. Ctrl+O salva ("write Out"), Ctrl+X esce, Ctrl+W cerca una parola, Ctrl+K taglia la riga. In questo deck usi i pulsanti Salva ed Esci.',
+    'Se il file non esiste viene creato al salvataggio. Se non hai il permesso di scrittura, il salvataggio fallisce: per i file di sistema serve sudo.',
+    'Dopo aver modificato la configurazione di un servizio, la modifica vale solo quando il servizio viene riavviato o ricaricato (systemctl restart NOME).',
+  ],
+  notes: [
+    'Prima di toccare un file di configurazione fanne una copia (cp file file.bak): se sbagli, torni indietro in un secondo.',
+    'L\'altro editor che troverai ovunque è vi/vim. Se ci finisci dentro per sbaglio: premi Esc, scrivi :q! e Invio per uscire senza salvare.',
+  ],
+  see: ['cat', 'echo', 'cp'],
+});

@@ -412,6 +412,85 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
   );
   fs.writeFile(`${home}/windows/security.csv`, buildWinEvents(), mine);
 
+  // Capitolo F — fondamenti di sicurezza
+  fs.writeFile(
+    `${home}/fondamenti/incidenti.txt`,
+    [
+      'SEGNALAZIONI DI STAMATTINA (raccolte da Rook)',
+      '',
+      'CASO A - Clinica Santa Vesta',
+      '  Alle 06:10 tutti i server mostrano una richiesta di riscatto.',
+      '  I file sono cifrati. Non risulta che siano stati copiati o modificati.',
+      '  I medici non riescono ad aprire le cartelle dei pazienti da due giorni.',
+      '',
+      'CASO B - Officina Kowalski',
+      '  Il titolare ha pagato la fattura di un fornitore abituale: 18.400 eddies.',
+      '  Il fornitore non ha ricevuto nulla. La fattura era quella vera, arrivata',
+      '  per posta come sempre, ma l\'IBAN al suo interno era stato sostituito.',
+      '',
+      'CASO C - Studio commercialisti Hale',
+      '  Una segretaria ha inviato il file "clienti_2077.xlsx" a un indirizzo',
+      '  sbagliato: un concorrente con un nome simile. Il file contiene nomi,',
+      '  codici fiscali e redditi di 340 clienti. Nulla è stato cancellato o alterato.',
+    ].join('\n') + '\n',
+    mine,
+  );
+  fs.writeFile(
+    `${home}/fondamenti/rischi.txt`,
+    [
+      'REGISTRO DEI RISCHI - Emporio Tanaka        (scala da 1 a 5)',
+      '',
+      'SIGLA  PROBABILITA  IMPATTO  DESCRIZIONE',
+      'R1     3            4        Portatile del titolare senza cifratura del disco',
+      'R2     4            5        Server web esposto a Internet, non aggiornato da due anni',
+      'R3     1            5        Allagamento del locale dove sta il server',
+      'R4     3            3        Stagista con permessi di amministratore',
+    ].join('\n') + '\n',
+    mine,
+  );
+  fs.writeFile(
+    `${home}/fondamenti/accessi.txt`,
+    [
+      'ACCOUNT - Studio dentistico Kabuki       (esportazione del 2077-11-12)',
+      '',
+      'ACCOUNT       RUOLO            MFA  PASSWORD_DEL  STATO   NOTE',
+      'a.moretti     amministratore   si   2077-09-02    attivo  titolare',
+      'g.ferri       segreteria       si   2077-06-18    attivo',
+      'p.sala        igienista        no   2077-10-01    attivo',
+      'l.conti       assistente       no   2075-03-11    attivo  ha lasciato lo studio nel 2076',
+      'svc.backup    amministratore   no   2071-04-30    attivo  creato dal vecchio fornitore, password mai cambiata',
+      'radiologia    servizio         no   2076-12-05    attivo  solo lettura sulle lastre',
+    ].join('\n') + '\n',
+    mine,
+  );
+  fs.writeFile(
+    `${home}/fondamenti/ingaggio.txt`,
+    [
+      'REGOLE D\'INGAGGIO - Clinica Santa Vesta',
+      'Verifica di sicurezza autorizzata dal direttore sanitario (firma in allegato)',
+      '',
+      'PERIMETRO',
+      '  Rete interna 10.20.0.0/24',
+      '  Sito pubblico www.santavesta.nc',
+      '',
+      'ESCLUSIONI',
+      '  10.20.0.50  macchinario per dialisi: NON scansionare, NON contattare',
+      '  Tutti i sistemi dei fornitori esterni',
+      '',
+      'FINESTRA',
+      '  Dalle 22:00 alle 06:00, dal lunedi al giovedi',
+      '',
+      'VIETATO',
+      '  Attacchi che mettono fuori servizio (DoS)',
+      '  Ingegneria sociale sul personale medico',
+      '  Copiare dati dei pazienti fuori dalla rete',
+      '',
+      'EMERGENZE',
+      '  Se un sistema smette di rispondere: fermarsi e chiamare il reperibile, 555-0142',
+    ].join('\n') + '\n',
+    mine,
+  );
+
   // Capitolo 13 — configurazione cloud esportata di Neon Ottica
   fs.writeFile(
     `${home}/cloud/bucket-policy.json`,

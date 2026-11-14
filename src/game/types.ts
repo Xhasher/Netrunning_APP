@@ -17,6 +17,8 @@ export interface LessonStep {
   kind: 'lesson';
   title: string;
   body: Markup;
+  /** scheda di studio generata dal Manuale per questo comando */
+  scheda?: string;
 }
 
 export interface TaskStep {

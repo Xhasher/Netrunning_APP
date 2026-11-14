@@ -1,6 +1,6 @@
 import { CAREER, CHAPTERS, PLANNED, allMissions, findMission } from '../content';
 import { GAMES } from '../content/games';
-import { LEVELS, generateSession, normalizeDrillAnswer, type Drill, type Level } from '../content/drills';
+import { GENERATORS, LEVELS, generateSession, normalizeDrillAnswer, type Drill, type Level } from '../content/drills';
 import { TIPS, randomTip } from '../content/tips';
 import { OPERATIONS, matchFinding, type Operation } from '../content/operations';
 import { buildWorld } from '../content/world';
@@ -1127,7 +1127,7 @@ export class App {
 
   private showSimSetup(): void {
     this.sim = null;
-    const avail = CHAPTERS.filter((ch) => ch.missions.some((m) => this.save.completed.includes(m.id)));
+    const avail = CHAPTERS.filter((ch) => GENERATORS[ch.id]?.length && ch.missions.some((m) => this.save.completed.includes(m.id)));
     if (!avail.length) {
       this.page('sim-setup', 'Simulazioni', '// sfide sempre diverse', '<p class="empty">Le simulazioni ripassano i capitoli che hai iniziato. Completa la prima missione e torna qui.</p>');
       return;

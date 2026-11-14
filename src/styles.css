@@ -2142,7 +2142,7 @@ pre.code {
   margin-bottom: 0.4rem;
 }
 
-.chip {
+.memory .chip {
   font-family: var(--mono);
   font-size: 0.92rem;
   padding: 0.5rem 0.7rem;
@@ -2155,15 +2155,15 @@ pre.code {
   overflow-wrap: anywhere;
 }
 
-.chip.on {
+.memory .chip.on {
   border-color: var(--yellow);
 }
 
-.chip.used {
+.memory .chip.used {
   visibility: hidden;
 }
 
-.chip:disabled {
+.memory .chip:disabled {
   opacity: 0.6;
 }
 
