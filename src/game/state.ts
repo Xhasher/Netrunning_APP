@@ -19,10 +19,14 @@ export interface SaveData {
   hideKnown: boolean;
   /** ultime impostazioni delle simulazioni */
   sim: { chapters: string[]; level: 1 | 2 | 3 };
+  /** Palestra della memoria: per ogni carta [scatola, giorno in cui torna] */
+  srs: Record<string, [number, number]>;
+  /** giorni consecutivi di allenamento */
+  streak: { day: number; count: number; best: number };
 }
 
 export function defaultSave(): SaveData {
-  return { handle: null, xp: 0, completed: [], progress: {}, fontScale: 1, ops: [], best: {}, known: [], hideKnown: true, sim: { chapters: [], level: 1 } };
+  return { handle: null, xp: 0, completed: [], progress: {}, fontScale: 1, ops: [], best: {}, known: [], hideKnown: true, sim: { chapters: [], level: 1 }, srs: {}, streak: { day: 0, count: 0, best: 0 } };
 }
 
 export function loadSave(): SaveData {

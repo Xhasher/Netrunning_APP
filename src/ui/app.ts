@@ -27,6 +27,7 @@ import type { Chapter, Mission, QuizStep, Step } from '../game/types';
 import { MANPAGES } from '../engine/manpages';
 import { PROSE_SKIP, cmdName, commandsInLine, commandsInMarkup, taughtBefore } from '../game/commands';
 import { openManual } from './manual';
+import { dueCount, renderMemoryHome } from './memory';
 import { inline, renderMarkup } from './markup';
 import { TerminalView } from './terminal';
 
@@ -110,6 +111,9 @@ export class App {
         return true;
       case 'sim':
         this.showSimSetup();
+        return true;
+      case 'memory-run':
+        this.showMemory();
         return true;
       default:
         this.showMap();
@@ -220,6 +224,7 @@ export class App {
     const nextInfo = next ? findMission(next) : null;
     const total = allMissions().length;
     const tip = randomTip();
+    const due = dueCount(s);
 
     const node = el(html`
       <div class="screen map">
@@ -232,6 +237,7 @@ export class App {
           </div>
         </header>
         <nav class="mapnav">
+          <button data-act="memory" class="${due ? 'has-due' : ''}">Memoria${due ? `<b class="badge">${due}</b>` : ''}</button>
           <button data-act="ops">Operazioni</button>
           <button data-act="manual">Manuale</button>
           <button data-act="sandbox">Terminale</button>
@@ -322,6 +328,7 @@ export class App {
       else if (t.dataset.act === 'ops') this.showOps();
       else if (t.dataset.act === 'manual') openManual();
       else if (t.dataset.act === 'games') this.showGames();
+      else if (t.dataset.act === 'memory') this.showMemory();
       else if (t.dataset.act === 'career') this.showCareer();
       else if (t.dataset.act === 'settings') this.showSettings();
       else if (t.dataset.act === 'title') this.showTitle();
@@ -992,6 +999,11 @@ export class App {
         <span class="op-title">Simulazioni</span>
         <span class="op-client">Sfide pratiche generate a caso sui capitoli che scegli, con tre livelli di difficoltà. Ogni partita ha dati nuovi.</span>
       </button>
+      <button class="opcard" data-g="memory">
+        <span class="op-top"><span class="op-code">OGNI GIORNO · 5 MINUTI</span></span>
+        <span class="op-title">Memoria</span>
+        <span class="op-client">Esercizi brevi per fissare comandi, opzioni e codici: scegli, ricomponi, scrivi. Le carte tornano poco prima che tu le dimentichi.</span>
+      </button>
       <button class="opcard" data-g="train">
         <span class="op-top"><span class="op-code">RIPASSO</span></span>
         <span class="op-title">Allenamento</span>
@@ -1008,7 +1020,8 @@ export class App {
     const node = this.page('games', 'Giochi', '// allenarsi giocando', `<div class="oplist">${cards}</div>`);
     node.addEventListener('click', (e) => {
       const id = (e.target as HTMLElement).closest<HTMLElement>('[data-g]')?.dataset.g;
-      if (id === 'train') this.showTraining();
+      if (id === 'memory') this.showMemory();
+      else if (id === 'train') this.showTraining();
       else if (id === 'sim') this.showSimSetup();
       else if (id) this.showGame(id);
     });
@@ -1093,6 +1106,21 @@ export class App {
         <div class="step-actions"><button class="next" data-t="next">${idx + 1 < deck.length ? 'Prossimo ▸' : 'Risultato ▸'}</button></div>`;
     });
     render();
+  }
+
+  // ------------------------------------------------------------- palestra della memoria
+
+  private showMemory(): void {
+    const node = this.page('memory', 'Memoria', '// allenamento quotidiano', '<div class="train memory"></div>');
+    renderMemoryHome(node.querySelector<HTMLElement>('.memory')!, {
+      save: this.save,
+      persist: () => this.persist(),
+      home: () => this.showMemory(),
+      enter: () => {
+        this.screen = 'memory-run';
+        this.root.scrollTop = 0;
+      },
+    });
   }
 
   // ------------------------------------------------------------- simulazioni
@@ -1209,6 +1237,7 @@ export class App {
       </div>
       <h2 class="step-title">${d.title}</h2>
       <div class="step-body">
+        ${d.story ? `<div class="prose sim-story">${renderMarkup(d.story)}</div>` : ''}
         <div class="objective ${s.solvedNow ? 'complete' : ''}">
           <span class="o-label">${s.solvedNow ? '✔ RISOLTA' : '▶ OBIETTIVO'}</span>
           <span class="o-text">${renderMarkup(d.prompt)}</span>

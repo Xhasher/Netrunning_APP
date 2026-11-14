@@ -1920,3 +1920,298 @@ pre.code {
 .mapnav button:last-child:nth-child(odd) {
   grid-column: span 3;
 }
+
+/* ---------------------------------------------------------------- palestra della memoria */
+
+.mapnav .badge {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--pink);
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.mapnav .has-due {
+  border-color: var(--pink);
+}
+
+.mem-top {
+  display: grid;
+  gap: 0.7rem;
+  margin-bottom: 0.9rem;
+}
+
+.mem-streak {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.7rem;
+  align-items: baseline;
+  padding: 0.8rem 0.9rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--muted);
+}
+
+.mem-streak.on {
+  border-left-color: var(--yellow);
+}
+
+.mem-num {
+  font-family: var(--mono);
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--muted);
+  grid-row: span 2;
+  align-self: center;
+}
+
+.mem-streak.on .mem-num {
+  color: var(--yellow);
+}
+
+.mem-lab {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.mem-sub {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.mem-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.mem-stats > div {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 0.55rem 0.4rem;
+  text-align: center;
+}
+
+.mem-stats b {
+  display: block;
+  font-family: var(--mono);
+  font-size: 1.35rem;
+  color: var(--cyan);
+}
+
+.mem-stats span {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.mem-go {
+  width: 100%;
+  margin: 0 0 1.1rem;
+}
+
+.mem-h {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+}
+
+.mem-decks {
+  list-style: none;
+  margin: 0 0 1.1rem;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.mem-decks li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.25rem 0.6rem;
+  font-size: 0.92rem;
+}
+
+.md-n {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.md-bar {
+  grid-column: 1 / -1;
+  position: relative;
+  height: 5px;
+  background: var(--panel-2);
+  overflow: hidden;
+}
+
+.md-bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--green);
+}
+
+.md-bar i.seen {
+  background: var(--cyan-dim);
+  opacity: 0.45;
+}
+
+.mem-how {
+  border: 1px solid var(--line);
+  padding: 0.6rem 0.8rem;
+  font-size: 0.92rem;
+}
+
+.mem-how summary {
+  color: var(--cyan);
+  cursor: pointer;
+}
+
+.mem-prog {
+  height: 4px;
+  background: var(--panel-2);
+  margin-bottom: 0.7rem;
+}
+
+.mem-prog i {
+  display: block;
+  height: 100%;
+  background: var(--yellow);
+  transition: width 0.25s;
+}
+
+.mem-q {
+  margin: 0.6rem 0 0.9rem;
+  font-size: 1.05rem;
+}
+
+.mem-code {
+  font-family: var(--mono);
+  font-size: 0.88rem;
+  background: #05060a;
+  border: 1px solid var(--line);
+  color: var(--green);
+  padding: 0.6rem 0.7rem;
+  margin: 0 0 0.8rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.options.mem-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+
+.opt.mem-codeopt {
+  justify-content: center;
+  margin: 0;
+}
+
+.opt.mem-codeopt code {
+  font-size: 1rem;
+  color: var(--green);
+  background: none;
+  border: 0;
+  padding: 0;
+  overflow-wrap: anywhere;
+}
+
+.mem-line {
+  min-height: 3.2rem;
+  border-bottom: 2px solid var(--line);
+  padding: 0.4rem 0 0.5rem;
+  margin-bottom: 0.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-content: flex-start;
+}
+
+.mem-bank {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.4rem;
+}
+
+.chip {
+  font-family: var(--mono);
+  font-size: 0.92rem;
+  padding: 0.5rem 0.7rem;
+  min-height: 2.6rem;
+  background: var(--panel);
+  border: 1px solid var(--cyan-dim);
+  border-radius: 0;
+  color: var(--green);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.chip.on {
+  border-color: var(--yellow);
+}
+
+.chip.used {
+  visibility: hidden;
+}
+
+.chip:disabled {
+  opacity: 0.6;
+}
+
+.mem-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.75rem 0.8rem;
+  font-size: 1rem;
+  background: #05060a;
+  color: var(--text, #e8eaf2);
+  border: 1px solid var(--cyan-dim);
+  border-radius: 0;
+  outline: none;
+}
+
+.mem-input.code {
+  font-family: var(--mono);
+  color: var(--green);
+}
+
+.mem-input:focus {
+  border-color: var(--cyan);
+}
+
+.mem-sol {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.mem-k {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 0.4rem 0 0.2rem;
+}
+
+.mem-self {
+  border-left: 3px solid var(--yellow);
+  background: rgba(252, 238, 10, 0.05);
+  padding: 0.7rem 0.85rem 0.1rem;
+}
+
+.mem-endline {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.sim-story {
+  margin-bottom: 0.7rem;
+}

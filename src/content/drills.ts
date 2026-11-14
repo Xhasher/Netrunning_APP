@@ -13,6 +13,8 @@ export type Level = 1 | 2 | 3;
 export interface Drill {
   chapter: string;
   title: string;
+  /** chi te lo chiede e perché (scelto a caso tra più varianti) */
+  story?: Markup;
   prompt: Markup;
   hints: string[];
   /** risposte accettate con "flag" (maiuscole ignorate) */
@@ -780,6 +782,109 @@ const G13: Gen[] = [
   },
 ];
 
+/**
+ * Il "perché" di ogni sfida: chi te la chiede e cosa è successo.
+ * Più varianti per generatore, così la stessa sfida non si presenta sempre uguale.
+ */
+export const STORIES: Record<string, string[]> = {
+  'flag-nascosta': [
+    `@nyx: Riscaldamento. Ho nascosto una cosa nel tuo deck come farebbe chi non vuole farsi trovare. Un analista guarda anche dove gli altri non guardano.`,
+    `@rook: Un cliente ha ereditato il portatile di un ex socio e giura che "non c'è niente". Io non mi fido delle cartelle che sembrano vuote. Tu?`,
+  ],
+  'conta-file': [
+    `@rook: Il ripperdoc di Kabuki chiude l'ambulatorio e deve consegnare l'archivio al nuovo proprietario. Vuole un inventario preciso prima di firmare.`,
+    `@nyx: Prima di toccare un sistema si fa l'inventario: cosa c'è e quanto. Se non sai cosa avevi, non saprai mai cosa ti manca dopo un incidente.`,
+  ],
+  crea: [
+    `@rook: Nuovo contratto in arrivo. Ogni lavoro parte con una cartella ordinata: tra sei mesi, quando l'avvocato del cliente ti chiederà una prova, dovrai trovarla in dieci secondi.`,
+    `@nyx: Le prove sparse nella home sono prove perse. Prepara la struttura del caso come ti ho insegnato.`,
+  ],
+  porta: [
+    `@rook: Il Lizzie's ha fatto installare un sistema nuovo da un "cugino esperto". La proprietaria vuole sapere cosa ha lasciato acceso. Contratto firmato, la rete è in perimetro.`,
+    `@nyx: Ogni porta aperta è una porta che qualcuno prima o poi proverà. Il cliente ci paga per trovarla prima degli altri.`,
+  ],
+  'host-attivi': [
+    `@rook: Il cliente dice di avere "quattro o cinque macchine". Dicono tutti così. Contale tu: non si protegge quello che non si sa di avere.`,
+    `@nyx: Primo giorno di un audit autorizzato: si fa il censimento della rete. I dispositivi dimenticati sono quelli che nessuno aggiorna.`,
+  ],
+  permessi: [
+    `@rook: Un dipendente del cliente ha letto le buste paga dei colleghi senza forzare nulla: il file era semplicemente aperto a tutti. Trovami quale.`,
+    `@nyx: Metà degli "attacchi" che vedrai non sono attacchi: sono permessi sbagliati. Controlla questa cartella prima che lo faccia qualcun altro.`,
+  ],
+  chiudi: [
+    `@nyx: Abbiamo trovato il file troppo aperto. Trovare un problema senza chiuderlo è lavoro a metà: sistemalo.`,
+    `@rook: L'audit del cliente è domani mattina. Quel file deve poterlo leggere solo il suo proprietario, e deve essere così stanotte.`,
+  ],
+  uid: [
+    `@nyx: Controllo di routine sugli account di un server. Cerca quello che non torna: un utente con poteri che non dovrebbe avere è la firma classica di chi è già entrato.`,
+    `@rook: Il vecchio amministratore del cliente è stato licenziato in malo modo. Voglio sapere se ha lasciato un account di scorta.`,
+  ],
+  bruteforce: [
+    `@rook: Mama Welles mi ha chiamato alle tre di notte: il server del bar è lento e il log degli accessi è esploso. Dimmi cosa sta succedendo.`,
+    `@nyx: Turno al SOC. È scattato un allarme per troppi accessi falliti. Prima di svegliare qualcuno, guarda il log e porta i numeri.`,
+  ],
+  'conta-parola': [
+    `@nyx: Un collega ti passa un file enorme e una domanda semplice. Non si conta a mano: si fa contare la macchina.`,
+    `@rook: Il cliente vuole un numero nel report, non un "tanti". Dammi il conteggio esatto.`,
+  ],
+  script: [
+    `@nyx: Questo controllo lo rifarai ogni settimana. La terza volta che ripeti un comando a mano, scrivi uno script.`,
+    `@rook: Il tecnico del cliente non sa usare il terminale. Lasciagli uno script che faccia il lavoro con un solo comando.`,
+  ],
+  base64: [
+    `@nyx: In un file di configurazione sequestrato c'è una riga che sembra rumore. Non è cifrata: è solo travestita. Leggila.`,
+    `@rook: Un cliente ha trovato questa stringa in una mail sospetta e pensa sia "un codice segreto". Digli cosa c'è scritto davvero.`,
+  ],
+  integrita: [
+    `@rook: Al cliente è arrivato un "aggiornamento urgente" da un fornitore, con tanto di impronta ufficiale sul sito. Prima di installarlo, verifica che sia quello vero.`,
+    `@nyx: Regola del mestiere: un file scaricato non è fidato finché l'impronta non coincide. Controlla questi.`,
+  ],
+  'web-log': [
+    `@rook: Il negozio online di un cliente ha avuto una notte agitata. Ho il log del server web: dimmi chi ha fatto cosa.`,
+    `@nyx: Il sito è su, ma qualcuno ci ha frugato. Il log degli accessi racconta tutto, se sai leggerlo.`,
+  ],
+  spraying: [
+    `@nyx: Turno al SOC di Arasaka Logistics. Nessun account è stato bloccato, eppure qualcosa non torna: pochi tentativi, ma su tanti utenti. Indaga.`,
+    `@rook: Il cliente dice che "le password sbagliate capitano". Vero. Ma non a venti dipendenti nello stesso minuto.`,
+  ],
+  beacon: [
+    `@nyx: Un computer dell'ufficio contabilità parla con l'esterno a intervalli troppo regolari. Le persone non sono così puntuali: il malware sì.`,
+    `@rook: L'antivirus del cliente dice che è tutto pulito. Il traffico di rete dice altro. Trovami la macchina.`,
+  ],
+  subnet: [
+    `@rook: Il cliente apre una sede nuova e mi chiede quanti dispositivi può collegare su quella rete. Fai il conto prima che compri gli switch.`,
+    `@nyx: Prima di una scansione devi sapere quanto è grande la rete. Sbagliare la maschera vuol dire uscire dal perimetro.`,
+  ],
+  scope: [
+    `@nyx: Fermo. Prima di lanciare qualsiasi cosa, controlla il contratto: quell'indirizzo è nel perimetro autorizzato o no? Fuori dal perimetro è reato, anche per sbaglio.`,
+    `@rook: Il cliente mi ha dato un elenco di indirizzi "più o meno". Io non lavoro con i più o meno. Verifica.`,
+  ],
+  spf: [
+    `@rook: A un cliente è arrivata una fattura falsa che sembrava spedita dal suo stesso dominio. Controlla se il dominio è protetto dalla falsificazione.`,
+    `@nyx: Il phishing parte spesso da un dominio configurato male. Guarda i record pubblici: è tutto consultabile senza toccare i loro server.`,
+  ],
+  crtsh: [
+    `@nyx: Fonti aperte. I certificati sono pubblici, e raccontano quali sottodomini esistono, compresi quelli che l'azienda ha dimenticato di avere.`,
+    `@rook: Il cliente giura di avere solo il sito principale. Controlla nei registri pubblici se è vero.`,
+  ],
+  suid: [
+    `@nyx: Controllo di hardening su un server prima che vada in produzione. Cerca un programma con un privilegio che non dovrebbe avere.`,
+    `@rook: Un tecnico del cliente "ha sistemato i permessi per far funzionare tutto". Trovami cosa ha lasciato aperto.`,
+  ],
+  segreto: [
+    `@rook: Il cliente sta per pubblicare il codice del suo sito. Prima che lo faccia, controlla che dentro non ci sia rimasta una password.`,
+    `@nyx: Le credenziali dimenticate nei file sono tra le cause più comuni di violazione. Cercale tu prima che le trovi un altro.`,
+  ],
+  'eventi-win': [
+    `@nyx: Stanotte tocca ai PC Windows dell'ufficio. Ho esportato il registro di sicurezza: gli Event ID raccontano la storia.`,
+    `@rook: La segretaria del cliente dice che il suo computer "si è comportato in modo strano" ieri. Guarda il registro degli eventi.`,
+  ],
+  bucket: [
+    `@rook: Un giornalista ha scritto al cliente dicendo di aver trovato i loro documenti online. Controlla le regole dello storage in cloud.`,
+    `@nyx: Nel cloud l'errore più comune non è un attacco: è una casella spuntata male. Trova lo storage aperto al mondo.`,
+  ],
+};
+
 export const GENERATORS: Record<string, Gen[]> = {
   ch01: G01,
   ch02: G02,
@@ -811,7 +916,9 @@ export function generateSession(sh: Shell, chapters: string[], level: Level, see
   while (order.length < LEVELS[level].count) order.push(...r.shuffle(pool));
   return order.slice(0, LEVELS[level].count).map(({ ch, g }, i) => {
     const ctx: Ctx = { sh, r, lv: level, dir: `sim/${i + 1}-${g.dirName}` };
-    return { chapter: ch, ...g.make(ctx) };
+    const tales = STORIES[g.id] ?? [];
+    const story = tales.length ? tales[Math.abs(seed + i * 7) % tales.length] : undefined;
+    return { chapter: ch, story, ...g.make(ctx) };
   });
 }
 

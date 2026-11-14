@@ -27,6 +27,7 @@ Altre modalità:
 - **Terminale libero**: il Linux simulato senza missioni, con esercizi liberi in `palestra/`.
 - **Manuale**: ~85 schede di comandi e concetti della shell (pipe, redirezioni, variabili, cicli, regex), con tutte le opzioni, esempi diversi dagli esercizi (verificati da un test automatico) e note sull'uso professionale. Si apre dal pulsante in mappa e dal libro 📖 in ogni schermata; le lezioni linkano le schede dei comandi che spiegano. `man COMANDO` mostra la stessa scheda nel terminale.
 - **Comandi nascosti nei compiti**: i comandi spiegati in una lezione o già usati compaiono sfocati e si aprono al tocco, per costringerti a ricordarli (si disattiva in Opzioni).
+- **Memoria**: allenamento quotidiano di 5 minuti a ripetizione spaziata. Esercizi in tre livelli (scegli, ricomponi, scrivi) su comandi, opzioni e codici da sapere a memoria; le carte tornano poco prima di essere dimenticate, con serie di giorni consecutivi.
 - **Simulazioni**: sfide pratiche generate a caso, sempre diverse, sui capitoli scelti, con tre livelli di difficoltà (Facile, Medio, Difficile). Riepilogo finale con le soluzioni.
 - **Giochi**: *Phishing o no?* (riconoscere email e SMS truffa), *Turno al SOC* (triage degli allarmi), *Allenamento* (quiz di ripasso).
 - **Codex** (glossario) e **Carriera** (laboratori legali gratuiti, certificazioni e i **Trucchi del mestiere**: consigli pratici su terminale, metodo, studio e lavoro, uno dei quali compare a caso sulla mappa).

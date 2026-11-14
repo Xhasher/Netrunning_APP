@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GENERATORS, LEVELS, generateSession, makeRng, type Level } from '../src/content/drills';
+import { GENERATORS, LEVELS, STORIES, generateSession, makeRng, type Level } from '../src/content/drills';
 import { buildWorld } from '../src/content/world';
 
 const chapters = Object.keys(GENERATORS);
@@ -50,5 +50,9 @@ describe('simulazioni', () => {
     const counts = [0, 0, 0];
     for (let i = 0; i < 3000; i++) counts[r.int(0, 2)]++;
     for (const n of counts) expect(n).toBeGreaterThan(850);
+  });
+
+  it('ogni sfida ha un perché narrativo', () => {
+    for (const gens of Object.values(GENERATORS)) for (const g of gens) expect(STORIES[g.id]?.length, g.id).toBeGreaterThanOrEqual(2);
   });
 });

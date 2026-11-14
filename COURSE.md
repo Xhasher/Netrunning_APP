@@ -41,3 +41,8 @@ di base. Questo file tiene traccia di cosa è già coperto e cosa manca.
 
 Ogni capitolo nuovo segue lo stesso schema: lezioni con esempio diverso dall'esercizio, compiti con comandi
 nascosti, quiz, almeno una Operazione, test automatici (partita completa) e voci nel Manuale.
+
+## Aggiunto nella 1.3
+
+- **Memoria** (pannello a parte): carte a ripetizione spaziata generate dal Manuale (nomi dei comandi, opzioni, esempi) e da mazzi di codici (porte, codici HTTP, Event ID, permessi, sottoreti, percorsi dei log, tattiche ATT&CK, CVSS). Tre livelli per carta: riconoscere, ricomporre, scrivere. Le carte si sbloccano avanzando nel corso; i comandi del Manuale non trattati in una missione entrano alla fine del capitolo più vicino.
+- **Simulazioni con una storia**: ogni sfida casuale ha un committente e un motivo.
