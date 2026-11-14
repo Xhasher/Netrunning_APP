@@ -47,6 +47,30 @@ export const CT: Record<string, { logged: string; name: string }[]> = {};
 
 export const CVES: CveEntry[] = [
   {
+    id: 'CVE-2077-1188',
+    product: 'jenkins',
+    affects: 'Jenkins < 2.400',
+    test: versionBelow('2.400'),
+    cvss: 9.8,
+    summary: 'Esecuzione di comandi sul server senza autenticazione attraverso il pannello. Presente nel catalogo KEV: sfruttata attivamente.',
+  },
+  {
+    id: 'CVE-2077-0731',
+    product: 'jenkins',
+    affects: 'Jenkins < 2.300',
+    test: versionBelow('2.300'),
+    cvss: 5.3,
+    summary: 'Il pannello rivela nomi dei progetti e degli utenti a chi non è autenticato.',
+  },
+  {
+    id: 'CVE-2077-0977',
+    product: 'mysql',
+    affects: 'MySQL < 5.7.40',
+    test: versionBelow('5.7.40'),
+    cvss: 6.5,
+    summary: 'Un utente autenticato con pochi privilegi può bloccare il server con query costruite ad arte.',
+  },
+  {
     id: 'CVE-2077-0142',
     product: 'apache',
     affects: 'Apache httpd < 2.4.58',

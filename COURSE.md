@@ -83,4 +83,10 @@ Restano da fare: riscrittura narrativa a mano delle lezioni 01–04, OWASP Top 1
 - Sfide Python nelle Simulazioni (sempre diverse) e mazzo di Memoria "Python essenziale".
 - Il codice in linea lungo va a capo invece di uscire dallo schermo.
 
-Restano: reti avanzate (proxy, IDS/IPS, VPN), pentest guidato in laboratorio, esami simulati a tempo.
+
+## Aggiunto nella 1.9
+
+- **Capitolo PT · Pentest guidato** (dopo l'11): incarico completo su un server di laboratorio (range.lan). Fasi PTES/NIST 800-115, black/grey/white box, regole d'ingaggio ed esclusioni; ricognizione con `nmap -sV`, robots.txt, directory listing e file di configurazione dimenticato; vulnerabilità note (`cve`), una sola prova di accesso con riuso della password, `sudo -l`, script di root modificabile, senza mai sfruttare né modificare; report con gravità; riverifica su range2.lan (risolto / parziale / aperto). Percorso di allenamento e certificazioni.
+- Nuove voci CVE (Jenkins, MySQL) e mazzo di Memoria "Pentest".
+
+Restano: reti avanzate (proxy, IDS/IPS, VPN), esami simulati a tempo.

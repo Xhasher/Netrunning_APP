@@ -133,6 +133,19 @@ const SOLUTIONS: Record<string, string[][]> = {
     ['@nano py/pubblici.py|import json\nwith open("py/storage.json") as f:\n    elenco = json.load(f)\nfor s in elenco:\n    if "*" in s["lettori"]:\n        print(s["nome"])\n', 'python3 py/pubblici.py'],
     ['@nano py/controlla.py|with open("py/da_controllare.txt") as e:\n    for p in e:\n        p = p.strip()\n        try:\n            with open(p) as f:\n                print(p, len(f.readlines()))\n        except FileNotFoundError:\n            print(p, "non trovato")\n        except PermissionError:\n            print(p, "permesso negato")\n', 'python3 py/controlla.py'],
   ],
+  'chPT-m1': [['cat pentest/regole.txt', 'flag 10.20.0.122']],
+  'chPT-m2': [['nmap -sV range.lan', 'flag 4'], ['curl http://range.lan/robots.txt', 'flag /old/'], ['curl http://range.lan/old/', 'curl http://range.lan/old/config.php.save', 'flag webapp']],
+  'chPT-m3': [
+    ['cve jenkins 2.150', 'flag CVE-2077-1188'],
+    ['ssh webapp@range.lan'],
+    ['sudo -l', 'flag /usr/bin/vim'],
+    ['cat /etc/crontab', 'ls -l /opt/backup/backup.sh', 'flag /opt/backup/backup.sh', 'exit'],
+  ],
+  'chPT-m4': [
+    ['@nano pentest/report.md|# Report\n## Problemi\n- Jenkins esposto (CVE-2077-1188): critica\n- password in /old/config.php.save riusata per SSH: alta\n- sudo vim per webapp: alta\n## Raccomandazioni\n'],
+    ['nmap -sV range2.lan', 'curl http://range2.lan/old/', 'flag 3306'],
+    ['ssh verifica@range2.lan', 'cat /etc/sudoers.d/webapp', 'ls -l /opt/backup/backup.sh', 'flag /opt/backup/backup.sh', 'exit'],
+  ],
   'ch08-m5': [
     ['cat ir/allarme.txt'],
     ['cat ir/*.log | sort | grep 198.51.100.23', 'flag 02:09:41'],

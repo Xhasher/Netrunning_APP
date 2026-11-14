@@ -17,6 +17,25 @@ export interface FactDeck {
 
 export const FACT_DECKS: FactDeck[] = [
   {
+    id: 'pentest',
+    title: 'Pentest',
+    unlock: 'chPT-m4',
+    typeFwd: true,
+    ask: (q) => `Come si chiama ${q}?`,
+    items: [
+      { q: 'il test in cui il cliente non dà nessuna informazione interna', a: 'black box' },
+      { q: 'il test con qualche informazione e spesso un account normale', a: 'grey box', accept: ['gray box'] },
+      { q: 'il test con accesso a codice e configurazioni', a: 'white box' },
+      { q: 'il documento che fissa perimetro, orari, divieti e contatti', a: 'regole d\'ingaggio', accept: ['rules of engagement', 'roe'] },
+      { q: 'la fase in cui si ripetono le prove dopo le correzioni', a: 'riverifica', accept: ['retest'] },
+      { q: 'la pagina del report scritta per la direzione, senza gergo', a: 'executive summary', accept: ['sintesi per la direzione', 'sintesi'] },
+      { q: 'il server che mostra l\'elenco dei file di una cartella web', a: 'directory listing' },
+      { q: 'il catalogo dei programmi pericolosi se concessi via sudo o SUID', a: 'GTFOBins' },
+      { q: 'il catalogo delle vulnerabilità sfruttate attivamente', a: 'KEV', accept: ['known exploited vulnerabilities'] },
+      { q: 'la simulazione lunga e furtiva di un avversario reale', a: 'red team' },
+    ],
+  },
+  {
     id: 'python',
     title: 'Python essenziale',
     unlock: 'chPY-m3',

@@ -524,6 +524,7 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
   addShopAndMail(shell, home, mine);
   addIncident(shell, home, mine);
   addPython(shell, home, mine);
+  addRange(shell, home, mine);
   return shell;
 }
 
@@ -1149,3 +1150,147 @@ function addPython(sh: Shell, home: string, mine: { owner: string; group: string
     mine,
   );
 }
+
+/** Capitolo PT: il server di Kang Tao da sottoporre a penetration test, e la sua versione corretta. */
+function addRange(sh: Shell, home: string, mine: { owner: string; group: string }): void {
+  const host = (ip: string, names: string[], ports: [number, string, string][]): Host => ({
+    ip,
+    names,
+    mac: '',
+    pingable: true,
+    latency: 2.2,
+    ttl: 64,
+    ports: ports.map(([port, service, version]) => ({ port, service, version })),
+    inScope: true,
+  });
+  sh.net.hosts.push(
+    host('10.20.0.120', ['range.lan', 'range'], [
+      [22, 'ssh', 'OpenSSH 7.6p1 Ubuntu 4ubuntu0.7'],
+      [80, 'http', 'Apache httpd 2.4.29 ((Ubuntu))'],
+      [3306, 'mysql', 'MySQL 5.7.33-0ubuntu0.18.04.1'],
+      [8080, 'http', 'Jetty 9.4 (Jenkins 2.150)'],
+    ]),
+    host('10.20.0.121', ['range2.lan', 'range2'], [
+      [22, 'ssh', 'OpenSSH 8.9p1 Ubuntu 3ubuntu0.10'],
+      [80, 'http', 'Apache httpd 2.4.58 ((Ubuntu))'],
+      [8080, 'http', 'Jetty 10.0 (Jenkins 2.440)'],
+    ]),
+  );
+  addSite('10.20.0.120', {
+    headers: ['Server: Apache/2.4.29 (Ubuntu)'],
+    pages: {
+      '/': { body: '<html><head><title>Kang Tao Logistica</title></head><body><h1>Kang Tao Logistica</h1><p>Portale spedizioni - in allestimento.</p></body></html>' },
+      '/robots.txt': { type: 'text/plain', body: 'User-agent: *\nDisallow: /old/' },
+      '/old/': {
+        body: [
+          '<html><head><title>Index of /old</title></head><body>',
+          '<h1>Index of /old</h1>',
+          '<pre>',
+          '<a href="../">Parent Directory</a>',
+          '<a href="config.php.save">config.php.save</a>      2077-10-02 11:40  412',
+          '<a href="logo_vecchio.png">logo_vecchio.png</a>     2077-09-20 09:12  18K',
+          '</pre></body></html>',
+        ].join('\n'),
+      },
+      '/old/config.php.save': {
+        type: 'text/plain',
+        body: ['<?php', '// configurazione del portale (copia di nano prima delle modifiche)', "$db_host = 'localhost';", "$db_user = 'webapp';", "$db_pass = 'Spedizioni2077!';", '// TODO: stessa password dell\'utente di sistema webapp, cambiarla', '?>'].join('\n'),
+      },
+    },
+  });
+  addSite('10.20.0.121', {
+    headers: ['Server: Apache'],
+    pages: {
+      '/': { body: '<html><head><title>Kang Tao Logistica</title></head><body><h1>Kang Tao Logistica</h1><p>Portale spedizioni.</p></body></html>' },
+      '/robots.txt': { type: 'text/plain', body: 'User-agent: *\nDisallow:' },
+    },
+  });
+
+  const mkServer = (name: string, user: string, fixed: boolean) => {
+    const v = new Vfs();
+    for (const d of ['/bin', '/tmp', '/var/log', '/root', '/home', '/etc/ssh', '/etc/sudoers.d', '/opt/backup', '/var/www/html'])
+      v.mkdirp(d, d === '/root' ? { perms: 'rwx------', locked: true } : d === '/tmp' ? { perms: 'rwxrwxrwt' } : {});
+    v.writeFile('/etc/hostname', name + '\n');
+    v.writeFile(
+      '/etc/passwd',
+      ['root:x:0:0:root:/root:/bin/bash', 'www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin', 'webapp:x:1001:1001:Portale:/home/webapp:/bin/bash', 'verifica:x:1002:1002:Riverifica:/home/verifica:/bin/bash'].join('\n') + '\n',
+    );
+    v.writeFile('/etc/shadow', '(hash delle password)\n', { perms: 'rw-r-----', locked: true });
+    v.writeFile('/etc/crontab', ['# m h dom mon dow user  command', '17 *  * * *  root  cd / && run-parts --report /etc/cron.hourly', '*/5 * * * *  root  /opt/backup/backup.sh'].join('\n') + '\n');
+    v.writeFile('/opt/backup/backup.sh', '#!/bin/bash\n# copia notturna del portale\ntar czf /var/backups/portale.tgz /var/www/html\n', { perms: 'rwxrwxrwx' });
+    v.writeFile(
+      '/etc/sudoers.d/webapp',
+      fixed ? '# 2077-11-15 rimosso dopo il pentest (rischio: vim come root)\n# webapp ALL=(root) NOPASSWD: /usr/bin/vim\n' : 'webapp ALL=(root) NOPASSWD: /usr/bin/vim\n',
+      { perms: 'r--r-----' },
+    );
+    v.mkdirp(`/home/${user}`, { owner: user, group: user });
+    v.writeFile(`/home/${user}/LEGGIMI.txt`, fixed ? 'Account per la riverifica del pentest. Sola lettura.\n' : 'Portale spedizioni. Non toccare /old senza avvisare.\n', { owner: user });
+    v.writeFile('/var/www/html/index.html', '<h1>Kang Tao Logistica</h1>\n', { owner: 'www-data' });
+    v.writeFile('/var/log/auth.log', 'Nov 14 15:40:02 range sshd[2201]: Accepted password for webapp from 192.168.1.50 port 50544 ssh2\n', { perms: 'rw-r-----', locked: true });
+    sh.remotes.set(fixed ? '10.20.0.121' : '10.20.0.120', {
+      hostname: name,
+      fs: v,
+      users: [user],
+      banner: fixed
+        ? ['Welcome to Ubuntu 22.04.4 LTS (GNU/Linux)', '', ' * Server ricostruito dopo il pentest. Account "verifica": sola lettura.']
+        : ['Welcome to Ubuntu 18.04.6 LTS (GNU/Linux)', '', ' * Password accettata: è la stessa trovata in /old/config.php.save.'],
+      sudo: fixed ? {} : { webapp: ['(root) NOPASSWD: /usr/bin/vim'] },
+      listening: fixed ? [[22, 'sshd'], [80, 'apache2'], [8080, 'java']] : [[22, 'sshd'], [80, 'apache2'], [3306, 'mysqld'], [8080, 'java']],
+    });
+  };
+  mkServer('range', 'webapp', false);
+  mkServer('range2', 'verifica', true);
+
+  fs(sh).writeFile(
+    `${home}/pentest/regole.txt`,
+    [
+      'CONTRATTO DI PENETRATION TEST - Kang Tao Logistica',
+      'Autorizza: T. Hanako, direttrice IT (firma digitale allegata). Esegue: team di Rook.',
+      '',
+      'TIPO DI TEST',
+      '  grey box: conosciamo l\'indirizzo del server e il suo scopo, nessun account fornito',
+      '',
+      'PERIMETRO',
+      '  range.lan (10.20.0.120): nuovo server del portale spedizioni, prima della messa in produzione',
+      '  dopo le correzioni: range2.lan (10.20.0.121), account "verifica" fornito per la riverifica',
+      '',
+      'ESCLUSO',
+      '  10.20.0.122  server di produzione: non scansionare, non contattare',
+      '',
+      'FINESTRA',
+      '  dal 14/11 al 16/11, 09:00 - 18:00',
+      '',
+      'VIETATO',
+      '  negazione del servizio; ingegneria sociale; modificare o cancellare dati;',
+      '  sfruttare vulnerabilità che possono bloccare i servizi (documentarle)',
+      '',
+      'CREDENZIALI TROVATE',
+      '  consentita UNA prova di accesso, da annotare con data e ora; nessuna modifica al sistema',
+      '',
+      'EMERGENZE E DATI SENSIBILI',
+      '  fermarsi e chiamare T. Hanako, 555-0188',
+    ].join('\n') + '\n',
+    mine,
+  );
+  fs(sh).writeFile(
+    `${home}/pentest/report.md`,
+    [
+      '# Penetration test - Kang Tao Logistica (range.lan)',
+      '',
+      '## Sintesi per la direzione',
+      'Il server non è pronto per la produzione: un problema critico e una catena di problemi che porta ai pieni poteri.',
+      '',
+      '## Perimetro e metodo',
+      'Grey box, 14/11/2077, range.lan (10.20.0.120). Escluso 10.20.0.122.',
+      '',
+      '## Problemi',
+      '',
+      '',
+      '## Raccomandazioni',
+      '',
+    ].join('\n'),
+    mine,
+  );
+}
+
+const fs = (sh: Shell) => sh.fs;
