@@ -13,12 +13,28 @@ export interface CloudConfig {
   login?: string;
   lastSync?: number;
   lastError?: string;
+  /** chi ha scritto per ultimo nel cloud, e quando (per capire se la sincronizzazione funziona) */
+  remoteDevice?: string;
+  remoteAt?: number;
 }
 
 export interface CloudPayload {
   v: 1;
   save: SaveData;
   deck: unknown;
+  /** dispositivo che ha scritto e quando */
+  device?: string;
+  savedAt?: number;
+}
+
+/** Nome leggibile del dispositivo, per lo stato della sincronizzazione. */
+export function deviceName(): string {
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  const native = typeof window !== 'undefined' && (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
+  if (native) return 'app Android';
+  if (/Android/i.test(ua)) return 'browser del telefono';
+  if (/iPhone|iPad/i.test(ua)) return 'browser iPhone';
+  return 'browser del PC';
 }
 
 export function loadCloud(): CloudConfig | null {
@@ -126,6 +142,8 @@ export class GistClient {
     let res: Response;
     try {
       res = await this.fetchFn(`https://api.github.com${path}`, {
+        // mai risposte in cache: GitHub le permetterebbe fino a 60 secondi, e leggeremmo un salvataggio vecchio
+        cache: 'no-store',
         ...init,
         headers: {
           Accept: 'application/vnd.github+json',
@@ -169,7 +187,7 @@ export class GistClient {
     if (!f) return null;
     let text = f.content ?? '';
     if (f.truncated && f.raw_url) {
-      const r = await this.fetchFn(f.raw_url);
+      const r = await this.fetchFn(f.raw_url, { cache: 'no-store' });
       text = await r.text();
     }
     try {
@@ -205,7 +223,7 @@ export async function syncOnce(
   cfg: CloudConfig,
   local: CloudPayload,
   fetchFn?: Fetch,
-): Promise<{ save: SaveData; remoteDeck: unknown | null; cfg: CloudConfig; created: boolean }> {
+): Promise<{ save: SaveData; remoteDeck: unknown | null; cfg: CloudConfig; created: boolean; remote: CloudPayload | null }> {
   const gc = new GistClient(cfg.token, fetchFn);
   const next: CloudConfig = { ...cfg };
   if (!next.login) next.login = await gc.login();
@@ -223,13 +241,22 @@ export async function syncOnce(
   const merged = remote ? mergeSaves(local.save, remote.save) : local.save;
   const remoteNewer = !!remote && (remote.save.updatedAt ?? 0) > (local.save.updatedAt ?? 0);
   const deck = remoteNewer ? remote!.deck : local.deck;
-  const payload: CloudPayload = { v: 1, save: merged, deck };
-  if (next.gistId) await gc.write(next.gistId, payload);
+  if (remote) {
+    next.remoteDevice = remote.device;
+    next.remoteAt = remote.savedAt;
+  }
+  const payload: CloudPayload = { v: 1, save: merged, deck, device: local.device ?? deviceName(), savedAt: Date.now() };
+  // niente da aggiornare? niente scrittura (la sincronizzazione parte spesso)
+  const strip = (x: SaveData) => JSON.stringify({ ...x, updatedAt: 0, fontScale: 0, effects: true, hideKnown: true });
+  const unchanged = !!remote && strip(merged) === strip(remote.save) && JSON.stringify(deck ?? null) === JSON.stringify(remote.deck ?? null);
+  if (next.gistId && unchanged) {
+    /* il cloud è già aggiornato */
+  } else if (next.gistId) await gc.write(next.gistId, payload);
   else {
     next.gistId = await gc.create(payload);
     created = true;
   }
   next.lastSync = Date.now();
   next.lastError = undefined;
-  return { save: merged, remoteDeck: remoteNewer ? remote!.deck : null, cfg: next, created };
+  return { save: merged, remoteDeck: remoteNewer ? remote!.deck : null, cfg: next, created, remote };
 }

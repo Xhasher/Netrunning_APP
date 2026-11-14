@@ -2883,3 +2883,24 @@ html.fx .gl-pop {
 .cloud-token {
   margin: 0.4rem 0;
 }
+
+.toast {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+  left: 1rem;
+  right: 1rem;
+  margin: 0 auto;
+  width: fit-content;
+  z-index: 60;
+  padding: 0.6rem 1rem;
+  background: var(--panel-2);
+  border: 1px solid var(--cyan-dim);
+  border-left: 3px solid var(--cyan);
+  color: var(--text, #e8eaf2);
+  font-size: 0.92rem;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+}
+
+html.fx .toast {
+  animation: fx-rise 0.2s ease-out both;
+}

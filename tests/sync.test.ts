@@ -73,6 +73,13 @@ describe('sincronizzazione con il Gist', () => {
     expect(gh.calls).toContain('PATCH /gists/g1');
   });
 
+  it('se non è cambiato niente non riscrive il cloud', async () => {
+    const save = mk({ updatedAt: 50, xp: 300, completed: ['ch01-m1'] });
+    const gh = fakeGitHub({ v: 1, save, deck: null });
+    await syncOnce({ token: 't', gistId: 'g1', login: 'x' }, { v: 1, save: { ...save, updatedAt: 99, fontScale: 1.3 }, deck: null }, gh.f);
+    expect(gh.calls.filter((c) => c.startsWith('PATCH'))).toEqual([]);
+  });
+
   it('token non valido: errore chiaro', async () => {
     const f = (async () => new Response('{}', { status: 401 })) as unknown as typeof fetch;
     await expect(syncOnce({ token: 'x' }, { v: 1, save: mk({}), deck: null }, f)).rejects.toThrow('Token non valido');

@@ -30,7 +30,7 @@ import { analyze, type Analysis, type LogEntry } from '../game/coach';
 import { EXAMS } from '../game/exam';
 import { today } from '../game/cards';
 import { recordExam, renderExamsHome } from './exam';
-import { SyncError, describe as describeSave, loadCloud, saveCloud, syncOnce, type CloudConfig } from '../game/sync';
+import { SyncError, describe as describeSave, deviceName, loadCloud, saveCloud, syncOnce, type CloudConfig } from '../game/sync';
 import { annotateGlossary, bindGlossarySearch, glossaryHtml, installGlossary } from './glossary';
 import { openManual } from './manual';
 import { dueCount, renderMemoryHome } from './memory';
@@ -130,10 +130,18 @@ export class App {
       if (t.closest('input, textarea, select, .editor, .gl-pop') || document.querySelector('.gl-pop, .editor')) return;
       this.back();
     });
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') void this.syncNow();
-    });
+    // sincronizzazione: quando lasci il gioco invia, quando ci torni riceve, e ogni minuto mentre giochi
+    document.addEventListener('visibilitychange', () => void this.syncNow());
+    window.addEventListener('focus', () => void this.syncNow());
+    window.setInterval(() => {
+      if (document.visibilityState === 'visible') void this.syncNow();
+    }, 60_000);
     if (loadCloud()) void this.syncNow(true);
+  }
+
+  /** Chiamata dall'app Android quando va in background o torna in primo piano. */
+  appLifecycle(): void {
+    void this.syncNow();
   }
 
   // ------------------------------------------------------------- salvataggio nel cloud
@@ -145,10 +153,35 @@ export class App {
     const cfg = loadCloud();
     if (!cfg || cfg.lastError === 'auth') return;
     window.clearTimeout(this.syncTimer);
-    this.syncTimer = window.setTimeout(() => void this.syncNow(), 8000);
+    this.syncTimer = window.setTimeout(() => void this.syncNow(), 2500);
   }
 
   /** Legge il cloud, unisce, scrive. All'avvio applica anche i file del deck se nel cloud sono più recenti. */
+  /** Ridisegna la schermata corrente se è una pagina "ferma" (mai durante una missione o un esame). */
+  private refreshScreen(): void {
+    const redraw: Record<string, () => void> = {
+      title: () => this.showTitle(),
+      map: () => this.showMap(),
+      games: () => this.showGames(),
+      memory: () => this.showMemory(),
+      exams: () => this.showExams(),
+      codex: () => this.showCodex(),
+      ops: () => this.showOps(),
+      career: () => this.showCareer(),
+    };
+    redraw[this.screen]?.();
+  }
+
+  private toast(text: string): void {
+    document.querySelector('.toast')?.remove();
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.setAttribute('role', 'status');
+    t.textContent = text;
+    document.body.appendChild(t);
+    window.setTimeout(() => t.remove(), 4000);
+  }
+
   private async syncNow(startup = false, cfgOverride?: CloudConfig): Promise<string> {
     const cfg = cfgOverride ?? loadCloud();
     if (!cfg || this.syncing || (!cfgOverride && cfg.lastError === 'auth')) return '';
@@ -158,14 +191,17 @@ export class App {
     try {
       this.persistDeck();
       const localDeck = this.deckData() ?? loadDeck();
-      const r = await syncOnce(cfg, { v: 1, save: this.save, deck: localDeck });
+      const r = await syncOnce(cfg, { v: 1, save: this.save, deck: localDeck, device: deviceName() });
       Object.assign(this.save, r.save);
       writeSave(this.save);
       const deckApplied = !!r.remoteDeck && (startup || !localDeck) && !this.shell;
       if (deckApplied && typeof r.remoteDeck === 'object') saveDeck(r.remoteDeck);
       saveCloud(r.cfg);
       const changed = this.save.xp !== before.xp || this.save.completed.length !== before.done;
-      if (changed && ['title', 'map'].includes(this.screen)) (this.screen === 'map' ? this.showMap() : this.showTitle());
+      if (changed && !startup) {
+        this.toast(`☁ Progressi aggiornati da ${r.remote?.device ?? 'un altro dispositivo'}`);
+        this.refreshScreen();
+      } else if (changed) this.refreshScreen();
       return r.created ? 'Salvataggio creato nel tuo GitHub.' : changed ? `Progressi uniti: ${describeSave(this.save)}.` : 'Tutto sincronizzato.';
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Errore sconosciuto.';
@@ -1870,9 +1906,11 @@ export class App {
       const when = cfg.lastSync ? new Date(cfg.lastSync).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' }) : 'mai';
       const err = cfg.lastError ? `<p class="small cloud-err">${cfg.lastError === 'auth' ? 'Il token non è più valido: scollega e collega di nuovo con un token nuovo.' : inline(cfg.lastError)}</p>` : '';
       return html`
-        <p>Collegato a GitHub come <b>${cfg.login ?? '...'}</b>. Ultima sincronizzazione: ${when}.</p>
+        <p>Collegato a GitHub come <b>${cfg.login ?? '...'}</b>. Questo dispositivo: <b>${deviceName()}</b>.</p>
+        <p class="small">Ultima sincronizzazione: ${when}.${cfg.remoteAt ? ` Prima di allora il cloud era stato aggiornato da <b>${cfg.remoteDevice ?? '?'}</b> il ${new Date(cfg.remoteAt).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' })}.` : ''}</p>
+        <p class="small">Progressi in questo dispositivo: ${describeSave(this.save)}.</p>
         ${err}
-        <p class="small">I progressi si sincronizzano da soli all'avvio, qualche secondo dopo ogni salvataggio e quando chiudi l'app. Versione da browser: <a href="${web}" target="_blank" rel="noopener">${web}</a></p>
+        <p class="small">I progressi si sincronizzano da soli: all'avvio, pochi secondi dopo ogni salvataggio, quando lasci o riapri il gioco e ogni minuto mentre giochi. Quando arrivano progressi da un altro dispositivo compare un avviso in alto. Versione da browser: <a href="${web}" target="_blank" rel="noopener">${web}</a></p>
         <div class="step-actions">
           <button class="ghost" data-act="cloud-sync">Sincronizza ora</button>
           <button class="ghost" data-act="cloud-off">Scollega</button>

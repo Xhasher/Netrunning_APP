@@ -15,4 +15,7 @@ if (Capacitor.isNativePlatform()) {
   void CapApp.addListener('backButton', () => {
     if (!app.back()) void CapApp.exitApp();
   });
+  // in background invia i progressi, al ritorno riceve quelli degli altri dispositivi
+  void CapApp.addListener('pause', () => app.appLifecycle());
+  void CapApp.addListener('resume', () => app.appLifecycle());
 }
