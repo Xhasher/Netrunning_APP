@@ -727,4 +727,5 @@ export const ALIASES: Record<string, string> = {
   vim: 'nano',
   export: 'env',
   suggerimento: 'hint',
+  python: 'python3',
 };

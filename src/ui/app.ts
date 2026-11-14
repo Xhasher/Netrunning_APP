@@ -1,6 +1,7 @@
 import { CAREER, CHAPTERS, PLANNED, allMissions, findMission } from '../content';
 import { GAMES } from '../content/games';
 import { GENERATORS, LEVELS, generateSession, normalizeDrillAnswer, type Drill, type Level } from '../content/drills';
+import { PALESTRA_SKILLS, exercisesFor, generatePalestra } from '../content/palestra';
 import { TIPS, randomTip } from '../content/tips';
 import { OPERATIONS, matchFinding, type Operation } from '../content/operations';
 import { buildWorld } from '../content/world';
@@ -21,15 +22,19 @@ import {
   rankFor,
   validHandle,
   writeSave,
+  CONTENT_VER,
   type SaveData,
 } from '../game/state';
-import type { Chapter, Mission, QuizStep, Step } from '../game/types';
+import { migrateProgress } from '../game/migrate';
+import { CONFIRM_TEXT, NO_HINTS_UNLOCK, POLICY_NOTE, hintGate, hintPolicy, type HintGate } from '../game/hints';
+import type { Chapter, Mission, QuizStep, Step, TaskStep } from '../game/types';
 import { MANPAGES } from '../engine/manpages';
 import { PROSE_SKIP, cmdName, commandsInLine, commandsInMarkup, taughtBefore } from '../game/commands';
 import { analyze, type Analysis, type LogEntry } from '../game/coach';
 import { EXAMS } from '../game/exam';
 import { today } from '../game/cards';
 import { recordExam, renderExamsHome } from './exam';
+import { MODULES, STATES, backfill, introduced, moduleSummary, nextStep, recordSuccess, recordUnderstood, skillsInLine, stateOf, type SkillContext } from '../game/skills';
 import { SyncError, describe as describeSave, deviceName, loadCloud, saveCloud, syncOnce, type CloudConfig } from '../game/sync';
 import { annotateGlossary, bindGlossarySearch, glossaryHtml, installGlossary } from './glossary';
 import { openManual } from './manual';
@@ -45,6 +50,12 @@ interface MissionRun {
   reached: number; // passo più avanzato raggiunto
   done: boolean; // il passo mostrato è completato?
   hintLevel: number;
+  /** comandi provati nel passo mostrato senza superarlo */
+  tries: number;
+  /** fase "su richiesta": il giocatore ha già visto l'avviso per questo passo */
+  hintArmed: boolean;
+  /** mostra il motivo per cui il suggerimento è bloccato */
+  hintNote: boolean;
   quizPicked: number | null;
   minimized: boolean;
   /** termini del glossario già evidenziati, per passo */
@@ -95,6 +106,8 @@ export class App {
     minimized: boolean;
     solvedNow: boolean;
     log: LogEntry[];
+    /** Palestra dei comandi: competenza scelta (null = allenamento misto) */
+    pal?: { skill: string | null };
     /** prova pratica a tempo */
     exam: { started: number; deadline: number } | null;
   } | null = null;
@@ -120,6 +133,16 @@ export class App {
   }
 
   start(): void {
+    if ((this.save.contentVer ?? 0) < CONTENT_VER) {
+      this.save = migrateProgress(this.save);
+      writeSave(this.save);
+    }
+    if (!this.save.skillsBackfilled) {
+      // chi ha già giocato non riparte da zero: le competenze si ricostruiscono dal diario delle missioni
+      backfill(this.save.skills, this.save.logs ?? {}, today());
+      this.save.skillsBackfilled = true;
+      writeSave(this.save);
+    }
     this.showTitle();
     // su PC, Esc fa da tasto "indietro" (ma non mentre scrivi nel terminale o in un campo)
     document.addEventListener('keydown', (e) => {
@@ -232,7 +255,11 @@ export class App {
         this.showGames();
         return true;
       case 'sim':
-        this.showSimSetup();
+        if (this.sim?.pal) this.showPalestra();
+        else this.showSimSetup();
+        return true;
+      case 'palestra':
+        this.showGames();
         return true;
       case 'memory-run':
         this.showMemory();
@@ -404,6 +431,7 @@ export class App {
           <button data-act="sandbox">Terminale</button>
           <button data-act="games">Giochi</button>
           <button data-act="exams">Esami</button>
+          <button data-act="skills">Competenze</button>
           <button data-act="codex">Codex</button>
           <button data-act="career">Carriera</button>
           <button data-act="settings">Opzioni</button>
@@ -494,6 +522,7 @@ export class App {
       else if (t.dataset.act === 'games') this.showGames();
       else if (t.dataset.act === 'memory') this.showMemory();
       else if (t.dataset.act === 'exams') this.showExams();
+      else if (t.dataset.act === 'skills') this.showSkills();
       else if (t.dataset.act === 'career') this.showCareer();
       else if (t.dataset.act === 'settings') this.showSettings();
       else if (t.dataset.act === 'title') this.showTitle();
@@ -668,6 +697,11 @@ export class App {
         o.term.system(`Già segnalato: ${f.title}.`, 'info');
       } else {
         o.found.add(f.id);
+        {
+          const lastP = o.log.slice(0, -1).map((e) => e.k).lastIndexOf('p');
+          const used = o.log.slice(lastP + 1).filter((e) => e.l && !e.e).flatMap((e) => skillsInLine(e.l));
+          this.credit(used, `op:${o.op.id}`, (o.hints[f.id] ?? 0) > 0);
+        }
         o.term.system(`✔ PROBLEMA CONFERMATO (${o.found.size}/${o.op.findings.length}): ${f.title}`, 'ok');
         o.minimized = false;
         this.renderOp(true);
@@ -755,6 +789,9 @@ export class App {
       reached: replay ? found.mission.steps.length : step,
       done: false,
       hintLevel: 0,
+      tries: 0,
+      hintArmed: false,
+      hintNote: false,
       quizPicked: null,
       minimized: false,
       glByStep: new Map(),
@@ -823,6 +860,8 @@ export class App {
       actions = `<button class="next" data-act="next">Avanti ▸</button>`;
     } else if (step.kind === 'task') {
       const hints = step.hints.slice(0, r.hintLevel);
+      const gate = this.hintGateFor(step);
+      const policyNote = POLICY_NOTE[hintPolicy(r.chapter.id)];
       body = html`
         ${renderMarkup(step.body)}
         <div class="objective ${done ? 'complete' : ''}">
@@ -832,11 +871,14 @@ export class App {
         ${hints.length && !done
           ? `<ol class="hints">${hints.map((h) => `<li>${inline(h)}</li>`).join('')}</ol>`
           : ''}
+        ${!done && r.hintArmed && !hints.length ? `<p class="hint-gate">${CONFIRM_TEXT}</p>` : ''}
+        ${!done && gate.reason && r.hintNote ? `<p class="hint-gate">${gate.reason}</p>` : ''}
+        ${!done && policyNote && r.mission.steps.find((x) => x.kind === 'task') === step ? `<p class="small hint-policy">💡 ${policyNote}</p>` : ''}
         ${done ? `<div class="success">${renderMarkup(step.success)}</div>` : ''}`;
       actions = done
         ? `<button class="next" data-act="next">Avanti ▸</button>`
-        : `<button class="ghost" data-act="hint" ${r.hintLevel >= step.hints.length ? 'disabled' : ''}>
-             Suggerimento ${Math.min(r.hintLevel + 1, step.hints.length)}/${step.hints.length}</button>
+        : `<button class="ghost ${gate.ok ? '' : 'locked'}" data-act="hint" ${r.hintLevel >= step.hints.length ? 'disabled' : ''}>
+             ${gate.ok ? '' : '🔒 '}Suggerimento ${Math.min(r.hintLevel + 1, step.hints.length)}/${step.hints.length}</button>
            <button class="ghost" data-act="terminal">Vai al terminale ⌨</button>`;
     } else {
       const picked = done && r.quizPicked === null ? step.correct : r.quizPicked;
@@ -923,6 +965,9 @@ export class App {
     r.step = Math.max(0, Math.min(i, r.mission.steps.length - 1));
     r.done = false;
     r.hintLevel = 0;
+    r.tries = 0;
+    r.hintArmed = false;
+    r.hintNote = false;
     r.quizPicked = null;
     r.minimized = false;
     this.renderStep();
@@ -953,7 +998,15 @@ export class App {
     const r = this.run!;
     const step = this.currentStep();
     if (step?.kind !== 'quiz') return;
+    const firstTry = r.quizPicked === null;
     r.quizPicked = i;
+    if (i === step.correct && firstTry) {
+      const list = (step.skills ?? commandsInMarkup(step.question + '\n' + step.options.map((o) => '`' + o + '`').join('\n'))).map((c) => skillsInLine(c)).flat();
+      if (list.length) {
+        recordUnderstood(this.save.skills, list);
+        this.persist();
+      }
+    }
     if (i === step.correct) this.markDone();
     else this.renderStep(true);
   }
@@ -962,6 +1015,14 @@ export class App {
     const r = this.run;
     const step = this.currentStep();
     if (!r || step?.kind !== 'task' || this.stepIsDone()) return null;
+    const gate = this.hintGateFor(step);
+    if (!gate.ok) return gate.reason ?? null;
+    if (gate.confirm) {
+      r.hintArmed = true;
+      queueMicrotask(() => this.renderStep(true));
+      return 'Sicuro? Rileggi l\'obiettivo e prova ancora: un passo risolto senza suggerimenti rende la competenza "acquisita". Scrivi di nuovo "hint" per vederlo.';
+    }
+    if (r.hintLevel === 0) this.pushLog(r.mission.id, { l: '', d: this.shell?.cwd ?? '', s: r.step, k: 'h' });
     const h = step.hints[Math.min(r.hintLevel, step.hints.length - 1)];
     if (r.hintLevel < step.hints.length) {
       r.hintLevel++;
@@ -971,10 +1032,24 @@ export class App {
     return h;
   }
 
+  private hintGateFor(step: TaskStep): HintGate {
+    const r = this.run!;
+    return hintGate(hintPolicy(r.chapter.id), { tries: r.tries, level: r.hintLevel, armed: r.hintArmed, noHints: step.noHints });
+  }
+
   private showHint(): void {
     const r = this.run!;
     const step = this.currentStep();
     if (step?.kind !== 'task') return;
+    const gate = this.hintGateFor(step);
+    if (!gate.ok) {
+      r.hintNote = true;
+      return this.renderStep(true);
+    }
+    if (gate.confirm) {
+      r.hintArmed = true;
+      return this.renderStep(true);
+    }
     r.hintLevel = Math.min(r.hintLevel + 1, step.hints.length);
     this.pushLog(r.mission.id, { l: '', d: this.shell?.cwd ?? '', s: r.step, k: 'h' });
     this.renderStep(true);
@@ -1111,6 +1186,7 @@ export class App {
     this.logCommand(outcome, events);
     if (outcome === 'pass') {
       term.system('✔ OBIETTIVO COMPLETATO', 'ok');
+      this.creditMission(step);
       this.markDone();
     } else if (outcome === 'wrong-answer') {
       term.system('✘ Risposta non corretta. Riprova, oppure scrivi "hint" per un suggerimento.', 'err');
@@ -1122,11 +1198,41 @@ export class App {
     }
   }
 
+  /** Prove di competenza da un passo superato in una missione. */
+  private creditMission(step: Step | undefined): void {
+    const r = this.run;
+    if (!r || step?.kind !== 'task') return;
+    const log = this.save.logs[r.mission.id] ?? [];
+    const used = log.filter((e) => e.s === r.step && e.l && !e.e).flatMap((e) => skillsInLine(e.l));
+    if (step.ex) recordUnderstood(this.save.skills, used);
+    this.credit(used, r.mission.id, r.hintLevel > 0);
+  }
+
+  /** Registra le competenze usate e festeggia quelle appena acquisite o consolidate. */
+  private credit(used: string[], ctx: string, helped: boolean): void {
+    if (!used.length) return;
+    const promoted = recordSuccess(this.save.skills, used, ctx, helped, today());
+    this.persist();
+    if (promoted.length) {
+      const names = promoted.map((p) => `${p} (${STATES[stateOf(this.skillCtx(), p)]})`).join(', ');
+      this.toast(`★ Competenza: ${names}`);
+    }
+  }
+
+  private skillCtx(): SkillContext {
+    return { skills: this.save.skills, intro: introduced(this.save.completed, this.save.progress), srs: this.save.srs };
+  }
+
   /** Annota nel diario della missione il comando appena eseguito (per l'analisi finale). */
   private logCommand(outcome: string | null, events: ShellEvent[]): void {
     const r = this.run;
     const e = this.shell ? entryOf(this.shell, r?.step ?? 0, outcome, events) : null;
     if (r && e) this.pushLog(r.mission.id, e);
+    if (r && e?.l && outcome !== 'pass' && this.currentStep()?.kind === 'task' && !this.stepIsDone()) {
+      r.tries++;
+      // il suggerimento era bloccato in attesa di un tentativo: aggiorna il pulsante
+      if (r.tries === 1 || r.tries === NO_HINTS_UNLOCK) queueMicrotask(() => this.renderStep(true));
+    }
   }
 
   private pushLog(id: string, e: LogEntry): void {
@@ -1283,6 +1389,11 @@ export class App {
     const best = (id: string, total: number) =>
       this.save.best[id] !== undefined ? `<span class="op-xp">record: ${this.save.best[id]}/${total}</span>` : '';
     const cards = html`
+      <button class="opcard sim-card" data-g="palestra">
+        <span class="op-top"><span class="op-code">UN COMANDO ALLA VOLTA</span></span>
+        <span class="op-title">Palestra dei comandi</span>
+        <span class="op-client">Esercizi brevi e sempre diversi sui comandi che hai incontrato, in tre livelli. È qui che i comandi diventano automatici.</span>
+      </button>
       <button class="opcard sim-card" data-g="sim">
         <span class="op-top"><span class="op-code">SEMPRE DIVERSE</span></span>
         <span class="op-title">Simulazioni</span>
@@ -1318,6 +1429,7 @@ export class App {
       else if (id === 'memory') this.showMemory();
       else if (id === 'train') this.showTraining();
       else if (id === 'sim') this.showSimSetup();
+      else if (id === 'palestra') this.showPalestra();
       else if (id) this.showGame(id);
     });
   }
@@ -1403,6 +1515,49 @@ export class App {
     render();
   }
 
+  // ------------------------------------------------------------- competenze
+
+  private showSkills(): void {
+    const ctx = this.skillCtx();
+    const mods = moduleSummary(ctx);
+    const total = [0, 0, 0, 0, 0, 0];
+    for (const m of mods) m.counts.forEach((n, i) => (total[i] += n));
+    const all = total.reduce((a, b) => a + b, 0);
+    const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+    const bar = (counts: number[], n: number) =>
+      `<span class="sk-bar">${counts.map((c, i) => (i && c ? `<i class="st${i}" style="width:${(c / n) * 100}%"></i>` : '')).join('')}</span>`;
+    const legend = STATES.slice(1)
+      .map((name, i) => `<span class="sk-key"><i class="st${i + 1}"></i>${name}</span>`)
+      .join('');
+    const content = html`
+      <div class="prose sk-intro">${renderMarkup('Ogni comando e ogni concetto è una **competenza**. Lo stato si calcola da quello che fai: un esercizio riuscito la rende *esercitata*; due situazioni diverse risolte **senza suggerimenti** la rendono *acquisita*; riusarla bene a distanza di almeno una settimana la rende *consolidata*.')}</div>
+      <div class="sk-total">${bar(total, all)}<span class="sk-nums">${total[4] + total[5]} acquisite o consolidate su ${all}</span></div>
+      <div class="sk-legend">${legend}</div>
+      ${mods
+        .map(
+          (m) => html`
+            <details class="sk-mod" ${m.counts[3] + m.counts[4] + m.counts[1] + m.counts[2] > 0 ? 'open' : ''}>
+              <summary><span class="sk-mid">${m.id}</span><span class="sk-mname">${esc(m.name)}${m.core ? '' : ' <em>· avanzato</em>'}</span>${bar(m.counts, m.skills.length || 1)}</summary>
+              <ul class="sk-list">
+                ${m.skills
+                  .map(
+                    (sk) => `<li><button class="sk-item" data-man="${esc(sk.id)}"><span class="sk-dot st${sk.state}"></span><code>${esc(sk.id)}</code><span class="sk-state">${STATES[sk.state]}</span><span class="sk-next">${esc(nextStep(ctx, sk.id))}</span></button></li>`,
+                  )
+                  .join('')}
+              </ul>
+            </details>`,
+        )
+        .join('')}
+      <p class="small">Tocca una competenza per aprire la sua scheda nel Manuale. Per allenarle senza aiuti: Palestra dei comandi, Simulazioni ed esami.</p>
+      <div class="step-actions"><button class="next" data-palestra="1">Palestra dei comandi ▸</button></div>`;
+    const node = this.page('skills', 'Competenze', '// cosa sai fare davvero', content);
+    node.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('[data-palestra]')) return this.showPalestra();
+      const m = (e.target as HTMLElement).closest<HTMLElement>('[data-man]')?.dataset.man;
+      if (m) openManual(m);
+    });
+  }
+
   // ------------------------------------------------------------- esami simulati
 
   private showExams(): void {
@@ -1440,6 +1595,58 @@ export class App {
   }
 
   // ------------------------------------------------------------- simulazioni
+
+  // ------------------------------------------------------------- palestra dei comandi
+
+  /** Competenze allenabili: quelle già incontrate nel corso (almeno "introdotte"). */
+  private palestraPool(): { skill: string; weight: number }[] {
+    const ctx = this.skillCtx();
+    return PALESTRA_SKILLS.map((sk) => ({ skill: sk, st: stateOf(ctx, sk) }))
+      .filter((x) => x.st >= 1)
+      .map((x) => ({ skill: x.skill, weight: 6 - x.st }));
+  }
+
+  private palestraVerdict(drills: Drill[]): string {
+    const ctx = this.skillCtx();
+    const sk = [...new Set(drills.map((d) => d.skill).filter((x): x is string => !!x))];
+    return sk.map((k) => `<code>${k}</code>: ${STATES[stateOf(ctx, k)]}`).join(' · ');
+  }
+
+  private showPalestra(): void {
+    this.sim = null;
+    const ctx = this.skillCtx();
+    const pool = this.palestraPool();
+    const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+    const mods = MODULES.map((m) => ({ m, list: m.skills.filter((sk) => PALESTRA_SKILLS.includes(sk)) })).filter((x) => x.list.length);
+    const row = (sk: string) => {
+      const st = stateOf(ctx, sk);
+      const n = exercisesFor(sk);
+      const lv = [...new Set(n.map((e) => e.lv))].join('·');
+      return st >= 1
+        ? `<li><button class="sk-item pal-item" data-pal="${esc(sk)}"><span class="sk-dot st${st}"></span><code>${esc(sk)}</code><span class="sk-state">${STATES[st]}</span><span class="sk-next">${n.length === 1 ? '1 esercizio' : `${n.length} esercizi`} · ${lv.length > 1 ? 'livelli' : 'livello'} ${lv}</span></button></li>`
+        : `<li><div class="sk-item pal-item locked"><span class="sk-dot st0"></span><code>${esc(sk)}</code><span class="sk-state">da incontrare</span><span class="sk-next">si sblocca quando lo vedi nel corso</span></div></li>`;
+    };
+    const content = html`
+      <div class="prose sk-intro">${renderMarkup('Qui si allena **un comando alla volta**: cinque esercizi brevi che salgono dal livello 1 (la forma base) al 3 (opzioni e combinazioni). I dati cambiano ogni volta, quindi la risposta non si ricorda: si ricorda il comando.\n\nSenza suggerimenti ogni esercizio vale per rendere la competenza *acquisita*. L\'**allenamento misto** sceglie per te i comandi più deboli.')}</div>
+      <div class="step-actions"><button class="next" data-mix="1" ${pool.length ? '' : 'disabled'}>Allenamento misto ▸</button></div>
+      ${pool.length ? '' : '<p class="empty">Inizia la prima missione: i comandi che incontri compaiono qui.</p>'}
+      ${mods
+        .map(
+          ({ m, list }) => html`
+            <details class="sk-mod" ${list.some((sk) => stateOf(ctx, sk) >= 1) ? 'open' : ''}>
+              <summary><span class="sk-mid">${m.id}</span><span class="sk-mname">${esc(m.name)}</span></summary>
+              <ul class="sk-list">${list.map(row).join('')}</ul>
+            </details>`,
+        )
+        .join('')}`;
+    const node = this.page('palestra', 'Palestra dei comandi', '// ripetere finché diventa automatico', content);
+    node.addEventListener('click', (e) => {
+      const t = (e.target as HTMLElement).closest<HTMLElement>('[data-pal],[data-mix]');
+      if (!t) return;
+      if (t.dataset.mix) this.startSim([], 1, false, { skill: null });
+      else if (t.dataset.pal) this.startSim([], 1, false, { skill: t.dataset.pal });
+    });
+  }
 
   private showSimSetup(): void {
     this.sim = null;
@@ -1500,21 +1707,26 @@ export class App {
     sync();
   }
 
-  private startSim(chapters: string[], level: Level, exam = false): void {
+  private startSim(chapters: string[], level: Level, exam = false, pal?: { skill: string | null }): void {
     const shell = buildWorld(this.save.handle!, () => this.simHint(true));
     const seed = (Date.now() ^ Math.floor(Math.random() * 2 ** 31)) >>> 0;
-    const drills = generateSession(shell, chapters, level, seed);
+    const drills = pal ? generatePalestra(shell, pal.skill ? { skill: pal.skill, seed } : { pool: this.palestraPool(), seed }) : generateSession(shell, chapters, level, seed);
+    if (!drills.length) return this.showPalestra();
     const term = new TerminalView(shell, (ev) => this.onSimEvents(ev));
-    this.sim = { drills, idx: 0, level, chapters, results: [], hinted: drills.map(() => false), hintLevel: 0, term, shell, minimized: false, solvedNow: false, log: [], exam: exam ? { started: Date.now(), deadline: Date.now() + EXAMS.pratico.minutes * 60_000 } : null };
-    term.system(exam ? `── ESAME · PROVA PRATICA · ${drills.length} sfide ──` : `── SIMULAZIONE · ${LEVELS[level].name.toUpperCase()} · ${drills.length} sfide ──`, 'banner');
-    term.system('I file delle sfide sono nella cartella sim/. Le risposte si inviano con "flag".', 'info');
+    this.sim = { drills, idx: 0, level, chapters, results: [], hinted: drills.map(() => false), hintLevel: 0, term, shell, minimized: false, solvedNow: false, log: [], pal, exam: exam ? { started: Date.now(), deadline: Date.now() + EXAMS.pratico.minutes * 60_000 } : null };
+    const palName = pal ? (pal.skill ? `PALESTRA · ${pal.skill}` : 'PALESTRA · ALLENAMENTO MISTO') : '';
+    if (pal) {
+      term.system(`── ${palName} · ${drills.length} esercizi ──`, 'banner');
+      term.system('I file degli esercizi sono nella cartella pal/. Le risposte si inviano con "flag".', 'info');
+    } else term.system(exam ? `── ESAME · PROVA PRATICA · ${drills.length} sfide ──` : `── SIMULAZIONE · ${LEVELS[level].name.toUpperCase()} · ${drills.length} sfide ──`, 'banner');
+    if (!pal) term.system('I file delle sfide sono nella cartella sim/. Le risposte si inviano con "flag".', 'info');
     const node = el(html`
       <div class="screen mission mode-task operation sim">
         <header class="topbar">
           <button class="iconbtn" data-act="back" aria-label="Esci dalla simulazione">◂</button>
           <div class="tb-title">
-            <div class="tb-kicker">${exam ? 'ESAME · PROVA PRATICA' : `SIMULAZIONE · ${LEVELS[level].name.toUpperCase()}`}</div>
-            <div class="tb-name">${exam ? `${EXAMS.pratico.count} sfide, ${EXAMS.pratico.minutes} minuti` : 'Sfide sempre diverse'}</div>
+            <div class="tb-kicker">${pal ? palName : exam ? 'ESAME · PROVA PRATICA' : `SIMULAZIONE · ${LEVELS[level].name.toUpperCase()}`}</div>
+            <div class="tb-name">${pal ? 'Esercizi brevi, dati sempre nuovi' : exam ? `${EXAMS.pratico.count} sfide, ${EXAMS.pratico.minutes} minuti` : 'Sfide sempre diverse'}</div>
           </div>
           <div class="tb-xp sim-score"></div>
         </header>
@@ -1524,7 +1736,8 @@ export class App {
       </div>`);
     node.querySelector('.term-area')!.appendChild(term.el);
     node.querySelector('[data-act="back"]')!.addEventListener('click', () => {
-      if (confirm('Uscire dalla simulazione? I progressi di questa partita andranno persi.')) this.showSimSetup();
+      if (pal) this.showPalestra();
+      else if (confirm('Uscire dalla simulazione? I progressi di questa partita andranno persi.')) this.showSimSetup();
     });
     this.addManualButton(node);
     this.mount('sim', node);
@@ -1563,8 +1776,8 @@ export class App {
     const panel = screen.querySelector<HTMLElement>('.lesson')!;
     panel.innerHTML = html`
       <div class="step-head">
-        <span class="step-kind k-task">SFIDA ${s.idx + 1}/${total}</span>
-        <span class="step-num">cap ${chapter?.code ?? ''} · ${chapter?.title ?? ''}</span>
+        <span class="step-kind k-task">${s.pal ? 'ESERCIZIO' : 'SFIDA'} ${s.idx + 1}/${total}</span>
+        <span class="step-num">${s.pal ? `${d.skill} · livello ${d.lv}` : `cap ${chapter?.code ?? ''} · ${chapter?.title ?? ''}`}</span>
         <button class="iconbtn small" data-act="minimize" aria-label="Riduci pannello">${s.minimized ? '▾' : '▴'}</button>
       </div>
       <h2 class="step-title">${d.title}</h2>
@@ -1663,7 +1876,11 @@ export class App {
     if (entry) s.log.push(entry);
     if (!solved) return;
     s.solvedNow = true;
-    s.term.system(`✔ SFIDA RISOLTA (${s.idx + 1}/${s.drills.length})`, 'ok');
+    {
+      const used = s.log.filter((e) => e.s === s.idx && e.l && !e.e).flatMap((e) => skillsInLine(e.l));
+      this.credit(used, s.exam ? 'esame' : s.pal ? (d.gid ?? 'pal') : `sim:${d.gid ?? d.title}`, s.hinted[s.idx] || s.hintLevel > 0);
+    }
+    s.term.system(`✔ ${s.pal ? 'ESERCIZIO RISOLTO' : 'SFIDA RISOLTA'} (${s.idx + 1}/${s.drills.length})`, 'ok');
     this.renderSim();
     setTimeout(() => this.nextDrill('ok'), 1100);
   }
@@ -1677,7 +1894,7 @@ export class App {
     s.solvedNow = false;
     s.minimized = false;
     if (s.idx >= s.drills.length) return this.finishSim();
-    s.term.system(`── SFIDA ${s.idx + 1}/${s.drills.length}: ${s.drills[s.idx].title.toUpperCase()} ──`, 'banner');
+    s.term.system(`── ${s.pal ? 'ESERCIZIO' : 'SFIDA'} ${s.idx + 1}/${s.drills.length}: ${s.drills[s.idx].title.toUpperCase()} ──`, 'banner');
     this.renderSim();
   }
 
@@ -1690,8 +1907,9 @@ export class App {
       if (r === 'ok') xp += L.hints === 'cost' && s.hinted[i] ? L.xp / 2 : L.xp;
     });
     xp = Math.round(xp);
+    if (s.pal) xp = ok * 5;
     const key = `sim-${s.level}`;
-    const record = ok > 0 && (this.save.best[key] === undefined || ok > this.save.best[key]);
+    const record = !s.pal && ok > 0 && (this.save.best[key] === undefined || ok > this.save.best[key]);
     if (record && !s.exam) this.save.best[key] = ok;
     const ex = s.exam;
     const pct = Math.round((ok / s.drills.length) * 100);
@@ -1722,26 +1940,27 @@ export class App {
     const node = el(html`
       <div class="screen complete">
         <div class="panel">
-          <div class="kicker">${ex ? '// esame · prova pratica' : `// simulazione · ${L.name}`}</div>
+          <div class="kicker">${s.pal ? `// palestra · ${s.pal.skill ?? 'allenamento misto'}` : ex ? '// esame · prova pratica' : `// simulazione · ${L.name}`}</div>
           ${ex ? `<div class="ex-verdict ${passed ? 'ok' : 'ko'}">${passed ? 'SUPERATA' : 'NON SUPERATA'}</div>` : ''}
-          <h2>${ok}/${s.drills.length} sfide risolte${ex ? ` · ${pct}%` : ''}</h2>
+          <h2>${ok}/${s.drills.length} ${s.pal ? 'esercizi risolti' : 'sfide risolte'}${ex ? ` · ${pct}%` : ''}</h2>
           <div class="xp-gain">+${xp} XP</div>
-          <div class="rank-now">${ex ? `Soglia ${EXAMS.pratico.pass}%. Le sfide non risolte hanno la soluzione qui sotto: provale di nuovo nelle Simulazioni.` : record ? 'Nuovo record personale per questo livello!' : this.save.best[key] !== undefined ? `Record: ${this.save.best[key]}/${s.drills.length}` : 'Riprova: ogni partita è diversa.'}</div>
+          <div class="rank-now">${s.pal ? this.palestraVerdict(s.drills) : ex ? `Soglia ${EXAMS.pratico.pass}%. Le sfide non risolte hanno la soluzione qui sotto: provale di nuovo nelle Simulazioni.` : record ? 'Nuovo record personale per questo livello!' : this.save.best[key] !== undefined ? `Record: ${this.save.best[key]}/${s.drills.length}` : 'Riprova: ogni partita è diversa.'}</div>
           <ol class="findings">${rows}</ol>
           ${coach ? `<h3>Il parere di Nyx sul tuo lavoro</h3>${this.statsHtml(coach)}<div class="coach">${this.coachHtml(coach, 4)}</div>` : ''}
           <div class="step-actions">
-            <button class="ghost" data-act="setup">${ex ? 'Esami' : 'Impostazioni'}</button>
-            <button class="next" data-act="again">${ex ? 'Un\'altra prova ▸' : 'Nuova partita ▸'}</button>
+            <button class="ghost" data-act="setup">${s.pal ? 'Palestra' : ex ? 'Esami' : 'Impostazioni'}</button>
+            <button class="next" data-act="again">${s.pal ? 'Altri esercizi ▸' : ex ? 'Un\'altra prova ▸' : 'Nuova partita ▸'}</button>
           </div>
         </div>
       </div>`);
     const chapters = s.chapters;
     const level = s.level;
+    const pal = s.pal;
     this.sim = null;
     node.addEventListener('click', (e) => {
       const act = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset.act;
-      if (act === 'setup') (ex ? this.showExams() : this.showSimSetup());
-      if (act === 'again') this.startSim(chapters, level, !!ex);
+      if (act === 'setup') (pal ? this.showPalestra() : ex ? this.showExams() : this.showSimSetup());
+      if (act === 'again') this.startSim(chapters, level, !!ex, pal);
     });
     this.fillCoachCode(node);
     this.mount('sim-done', node);
@@ -2062,7 +2281,7 @@ export class App {
           return;
         }
         if (!confirm(`Ripristinare il backup di «${parsed.save.handle ?? '?'}» (${parsed.save.xp} XP, ${parsed.save.completed.length} missioni)? I progressi attuali verranno sostituiti.`)) return;
-        this.save = parsed.save;
+        this.save = migrateProgress(parsed.save);
         this.persist();
         if (parsed.deck && typeof parsed.deck === 'object') saveDeck(parsed.deck);
         this.shell = null;

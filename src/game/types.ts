@@ -19,10 +19,17 @@ export interface LessonStep {
   body: Markup;
   /** scheda di studio generata dal Manuale per questo comando */
   scheda?: string;
+  /** versione dei contenuti in cui il passo è stato aggiunto (per spostare i progressi salvati) */
+  since?: number;
 }
 
 export interface TaskStep {
   kind: 'task';
+  since?: number;
+  /** esercizio di interpretazione di un output o di correzione di un errore */
+  ex?: 'interpreta' | 'correggi';
+  /** esercizio senza suggerimenti, qualunque sia la fase del corso */
+  noHints?: boolean;
   title: string;
   body: Markup;
   /** cosa fare, in una riga */
@@ -40,10 +47,17 @@ export interface TaskStep {
   answer?: string[];
   /** spiegazione mostrata quando l'obiettivo è raggiunto */
   success: Markup;
+  /** soluzione di riferimento (per i test) */
+  solve?: string[];
 }
 
 export interface QuizStep {
   kind: 'quiz';
+  since?: number;
+  /** competenze che la domanda verifica (se assente: i comandi citati) */
+  skills?: string[];
+  /** esercizio di interpretazione di un output o di correzione di un errore */
+  ex?: 'interpreta' | 'correggi';
   title: string;
   question: Markup;
   options: string[];

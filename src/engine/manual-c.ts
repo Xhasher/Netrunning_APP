@@ -651,3 +651,21 @@ doc('nano', {
   ],
   see: ['cat', 'echo', 'cp'],
 });
+
+doc('python3', {
+  cat: SH,
+  short: 'esegue programmi scritti in Python',
+  synopsis: 'python3 FILE.py [ARGOMENTI]',
+  description: [
+    'Avvia l\'interprete Python: legge un file .py ed esegue le istruzioni una dopo l\'altra. In questo deck c\'è un interprete vero, con una parte della libreria standard (sys, os, re, hashlib, base64, json, collections, math, random, string, time, ipaddress).',
+    'Gli argomenti dopo il nome del file arrivano al programma nella lista sys.argv: sys.argv[0] è il nome dello script, sys.argv[1] il primo argomento.',
+    'Python è il linguaggio più usato in sicurezza per automatizzare: contare eventi nei log, calcolare impronte, controllare liste di IP. Quando un comando di shell diventa troppo lungo, si passa a Python.',
+  ],
+  options: [['-c CODICE', 'esegue una riga di codice senza file (nel vero Python)']],
+  examples: [
+    ['python3 py/ciao.py', 'esegue lo script'],
+    ['python3 py/conta.py caso/auth.log', 'passa un file come argomento'],
+  ],
+  notes: ['Se il programma ha un errore, Python mostra un "Traceback": l\'ultima riga dice il tipo di errore, quella sopra il numero di riga in cui è successo. Si legge dal basso.'],
+  see: ['bash', 'nano', 'grep'],
+});

@@ -2,6 +2,7 @@
 // sincronizza i progressi tra l'APK e la versione browser. Nessun server nostro:
 // i dati restano nell'account GitHub del giocatore.
 
+import { migrateProgress } from './migrate';
 import type { SaveData } from './state';
 
 export const GIST_FILE = 'netrunning-save.json';
@@ -65,7 +66,10 @@ const union = <T>(a: readonly T[], b: readonly T[]): T[] => [...new Set([...a, .
  * le carte di Memoria tengono lo stato più avanzato. Le preferenze del dispositivo
  * (dimensione del testo, effetti) restano quelle locali.
  */
-export function mergeSaves(local: SaveData, remote: SaveData): SaveData {
+export function mergeSaves(localIn: SaveData, remoteIn: SaveData): SaveData {
+  // i due salvataggi possono venire da versioni diverse del corso
+  const local = migrateProgress(localIn);
+  const remote = migrateProgress(remoteIn);
   const newer = (remote.updatedAt ?? 0) > (local.updatedAt ?? 0) ? remote : local;
   const older = newer === remote ? local : remote;
   const completed = union(newer.completed ?? [], older.completed ?? []);
@@ -92,9 +96,22 @@ export function mergeSaves(local: SaveData, remote: SaveData): SaveData {
   const examKey = (e: SaveData['exams'][number]) => `${e.kind}|${e.day}|${e.pct}|${e.secs}`;
   const exams = [...new Map([...(older.exams ?? []), ...(newer.exams ?? [])].map((e) => [examKey(e), e])).values()].sort((a, b) => a.day - b.day).slice(-30);
 
+  const skills: SaveData['skills'] = { ...(older.skills ?? {}) };
+  for (const [k, v] of Object.entries(newer.skills ?? {})) {
+    const o = skills[k];
+    if (!o) {
+      skills[k] = v;
+      continue;
+    }
+    const acq = o.acq === undefined ? v.acq : v.acq === undefined ? o.acq : Math.min(o.acq, v.acq);
+    skills[k] = { ex: Math.max(o.ex, v.ex), solo: [...new Set([...o.solo, ...v.solo])].slice(-8), acq, cons: o.cons || v.cons, comp: o.comp || v.comp };
+  }
+
   return {
     ...older,
     ...newer,
+    skills,
+    skillsBackfilled: !!(local.skillsBackfilled || remote.skillsBackfilled),
     handle: newer.handle ?? older.handle,
     xp: Math.max(local.xp ?? 0, remote.xp ?? 0),
     completed,

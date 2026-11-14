@@ -43,3 +43,35 @@ export function commandsInMarkup(md: string): string[] {
   return [...found];
 }
 
+
+/** Prima parola della chiave di un'opzione del Manuale ("-n NUM" → "-n"). */
+export const optHead = (k: string): string => k.trim().split(/[\s=,]/)[0];
+
+/**
+ * Opzioni del Manuale usate in una riga, comando per comando: "grep -in x f | sort -rn"
+ * → { grep: ['-i','-n'], sort: ['-r','-n'] }. Le opzioni unite (-rn) si separano solo
+ * se ognuna esiste da sola nel Manuale.
+ */
+export function flagsInLine(line: string): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const seg of line.split(/\||&&|\|\||;/)) {
+    const words = seg.trim().match(/"[^"]*"|'[^']*'|\S+/g) ?? [];
+    let w = words.shift() ?? '';
+    while (SKIP_WORDS.has(w) && words.length) w = words.shift()!;
+    if (w === 'sudo' && words.length) w = words.shift() ?? '';
+    const c = cmdName(w);
+    if (!c || c === 'assign' || c === 'script') continue;
+    const heads = new Set((MANPAGES[c].options ?? []).map(([k]) => optHead(k)));
+    const found: string[] = [];
+    const add = (f: string) => {
+      if (!found.includes(f)) found.push(f);
+    };
+    for (const t of words) {
+      if (heads.has(t)) add(t);
+      else if (/^-[A-Za-z]{2,}$/.test(t) && [...t.slice(1)].every((ch) => heads.has('-' + ch))) [...t.slice(1)].forEach((ch) => add('-' + ch));
+      else if (/^--?[\w-]+=/.test(t) && heads.has(t.split('=')[0])) add(t.split('=')[0]);
+    }
+    if (found.length) out[c] = [...new Set([...(out[c] ?? []), ...found])];
+  }
+  return out;
+}

@@ -230,11 +230,14 @@ describe('ogni missione è completabile', () => {
         const solutions = SOLUTIONS[mission.id];
         expect(solutions, `manca la soluzione per ${mission.id}`).toBeDefined();
         const tasks = mission.steps.filter((s) => s.kind === 'task');
-        expect(tasks.length).toBe(solutions.length);
+        // i passi aggiunti dopo (since) portano con sé la loro soluzione
+        expect(tasks.filter((t) => !t.since).length).toBe(solutions.length);
+        let k = 0;
+        const sol = tasks.map((t) => (t.since ? (t.solve ?? []) : solutions[k++]));
 
         tasks.forEach((step, i) => {
           let passed = false;
-          for (const cmd of solutions[i]) {
+          for (const cmd of sol[i]) {
             // "@nano FILE|contenuto" simula l'editor: scrive il file ed emette l'evento "saved"
             let events;
             if (cmd.startsWith('@nano ')) {
@@ -254,7 +257,7 @@ describe('ogni missione è completabile', () => {
             expect(out, `"${cmd}" non dovrebbe dare risposta errata (${step.title})`).not.toBe('wrong-answer');
             if (out === 'pass') passed = true;
           }
-          expect(passed, `passo "${step.title}" non superato con: ${solutions[i].join(' ; ')}`).toBe(true);
+          expect(passed, `passo "${step.title}" non superato con: ${sol[i].join(' ; ')}`).toBe(true);
         });
       });
     }

@@ -6,7 +6,7 @@ import { MANPAGES } from '../src/engine/manpages';
 // comandi interni o alias che non hanno bisogno di una scheda propria
 const NO_DOC = new Set(['[', 'true', 'false', 'w', 'ls-', 'groups-', 'python']);
 // esempi che richiedono interazione o un contesto speciale
-const SKIP = [/^!!/, /^nano\b/, /^ssh\b/, /^exit\b/, /^flag\b/, /^report\b/, /^hint\b/];
+const SKIP = [/^!!/, /^nano\b/, /^ssh\b/, /^exit\b/, /^flag\b/, /^report\b/, /^hint\b/, /^python3\b/];
 
 describe('manuale', () => {
   it('ogni comando ha una scheda, con descrizione', () => {

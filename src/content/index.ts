@@ -18,6 +18,7 @@ import { CHDF, IR_MISSION } from './ch-ir-forense';
 import { CHPY } from './chPY-python';
 import { CHPT } from './chPT-pentest';
 import { NETDEF_MISSION } from './ch09-difese';
+import { addExtra } from './ex-extra';
 import { addSchede } from './schede';
 
 export const CHAPTERS: Chapter[] = [CH01, CHF, CH02, CH03, CH04, CH05, CH06, CHPY, CH07, CH08, CH09, CH10, CH11, CHPT, CH12, CHDF, CH13];
@@ -26,6 +27,7 @@ CH07.missions.push(...OWASP_MISSIONS);
 CH08.missions.push(PHISHING_MISSION, IR_MISSION);
 CH09.missions.push(NETDEF_MISSION);
 
+addExtra(CHAPTERS);
 addSchede(CHAPTERS);
 
 /** Il resto del corso: capitoli pianificati, mostrati nella mappa come "in arrivo". */

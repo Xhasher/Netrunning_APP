@@ -1,6 +1,7 @@
 import { allMissions } from '../content';
 import type { LogEntry } from './coach';
 import type { ExamRecord } from './exam';
+import type { Skills } from './skills';
 
 const KEY = 'nc-edgerunner-save-v1';
 
@@ -33,17 +34,28 @@ export interface SaveData {
   effects: boolean;
   /** ultimo salvataggio, in millisecondi: serve a unire i progressi tra dispositivi */
   updatedAt: number;
+  /** prove delle competenze (vedi skills.ts) */
+  skills: Skills;
+  /** le competenze sono già state ricostruite dal diario delle missioni */
+  skillsBackfilled: boolean;
+  /** versione dei contenuti per cui sono scritti i progressi (passi inseriti dopo spostano gli indici) */
+  contentVer?: number;
 }
 
+/** Versione attuale dei contenuti (vedi game/migrate.ts). */
+export const CONTENT_VER = 13;
+
 export function defaultSave(): SaveData {
-  return { handle: null, xp: 0, completed: [], progress: {}, fontScale: 1, ops: [], best: {}, known: [], hideKnown: true, sim: { chapters: [], level: 1 }, srs: {}, streak: { day: 0, count: 0, best: 0 }, logs: {}, exams: [], effects: true, updatedAt: 0 };
+  return { handle: null, xp: 0, completed: [], progress: {}, fontScale: 1, ops: [], best: {}, known: [], hideKnown: true, sim: { chapters: [], level: 1 }, srs: {}, streak: { day: 0, count: 0, best: 0 }, logs: {}, exams: [], effects: true, updatedAt: 0, skills: {}, skillsBackfilled: false, contentVer: CONTENT_VER };
 }
 
 export function loadSave(): SaveData {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return defaultSave();
-    return { ...defaultSave(), ...JSON.parse(raw) };
+    const data = JSON.parse(raw) as Partial<SaveData>;
+    // un salvataggio senza versione è stato scritto prima dei passi aggiunti
+    return { ...defaultSave(), contentVer: 0, ...data };
   } catch {
     return defaultSave();
   }
@@ -160,7 +172,7 @@ export function parseBackup(code: string): { save: SaveData; deck: unknown } | n
     const s = data?.save;
     if (!s || typeof s !== 'object' || (s.handle !== null && typeof s.handle !== 'string')) return null;
     if (typeof s.xp !== 'number' || !Array.isArray(s.completed) || !s.completed.every((x: unknown) => typeof x === 'string')) return null;
-    const save: SaveData = { ...defaultSave(), ...s };
+    const save: SaveData = { ...defaultSave(), contentVer: 0, ...s };
     save.completed = [...new Set(save.completed)];
     return { save, deck: data.deck ?? null };
   } catch {

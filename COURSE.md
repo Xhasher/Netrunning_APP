@@ -107,3 +107,12 @@ Il programma previsto in questo documento è completo. Prossimi passi possibili:
 
 - Effetti visivi con interruttore (classe `fx`, rispetta `prefers-reduced-motion`): transizione tra schermate con linea di scansione, comparsa a cascata, conteggio degli XP, riquadro "nuovo rango", obiettivo raggiunto che pulsa, risposta sbagliata che trema, logo che sfarfalla ogni tanto.
 - Versione browser su GitHub Pages e salvataggio condiviso tramite Gist privato, con unione dei progressi tra dispositivi.
+
+## Aggiunto nella 1.13 (riprogettazione didattica, fase 1)
+
+- **Competenze** (`src/game/skills.ts`): ogni comando e concetto ha cinque stati calcolati da ciò che il giocatore fa davvero: introdotta (vista in una lezione), compresa (interpretazione, correzione o carta di Memoria salita), esercitata (un esercizio riuscito), acquisita (due situazioni diverse senza suggerimenti), consolidata (riusata senza aiuti almeno 7 giorni dopo). Pagina "Competenze" divisa per moduli; le prove si ricostruiscono dal diario delle missioni già giocate e si uniscono tra dispositivi.
+- **Schede a livelli**: la prima scheda di un comando separa le opzioni che servono subito da quelle "per quando serviranno" (non si toglie nulla); quando un esercizio chiede un'opzione mai vista compare una scheda breve "Livello nuovo" con la sola opzione nuova, un esempio e le opzioni già note.
+- **Aiuti che diminuiscono** (`src/game/hints.ts`): capitoli 01, F, 02, 03 suggerimenti liberi; 04, 05, 06, PY, 07 il suggerimento si sblocca dopo il primo tentativo; dal capitolo 08 si chiede con una conferma. Vale anche per il comando `hint`.
+- **Palestra dei comandi** (`src/content/palestra.ts`): 57 esercizi brevi generati a caso su 27 competenze (navigazione, file, redirezioni, grep in 7 varianti, find, head/tail, wc, sort/uniq, cut, awk, sed, tr, diff, chmod, base64, sha256sum), in tre livelli. Serie su un comando (dal livello 1 al 3) o allenamento misto sulle competenze più deboli.
+- **Interpreta l'output / correggi l'errore**: 29 esercizi nuovi nelle missioni dei capitoli 01-04, prima delle verifiche finali. Gli esercizi esistenti restano tutti.
+- I progressi salvati con le versioni precedenti vengono spostati sullo stesso passo (`src/game/migrate.ts`), anche quando arrivano dal cloud o da un backup.

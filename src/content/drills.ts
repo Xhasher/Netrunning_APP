@@ -12,6 +12,11 @@ export type Level = 1 | 2 | 3;
 
 export interface Drill {
   chapter: string;
+  /** generatore che l'ha prodotta (per contare le situazioni diverse) */
+  gid?: string;
+  /** solo Palestra: competenza allenata e livello dell'esercizio */
+  skill?: string;
+  lv?: Level;
   title: string;
   /** chi te lo chiede e perché (scelto a caso tra più varianti) */
   story?: Markup;
@@ -63,17 +68,17 @@ export function makeRng(seed: number): Rng {
 
 // ---------------------------------------------------------------- dati casuali
 
-const NAMES = ['anna', 'bruno', 'carla', 'dario', 'elena', 'fabio', 'gina', 'hugo', 'irene', 'jacopo', 'kira', 'luca', 'marta', 'nico', 'olga', 'paolo', 'rita', 'sara', 'teo', 'vera'];
-const WORDS = ['neon', 'cromo', 'pioggia', 'sintetico', 'circuito', 'ombra', 'vicolo', 'segnale', 'drone', 'impulso', 'riflesso', 'ruggine', 'tempesta', 'vapore'];
+export const NAMES = ['anna', 'bruno', 'carla', 'dario', 'elena', 'fabio', 'gina', 'hugo', 'irene', 'jacopo', 'kira', 'luca', 'marta', 'nico', 'olga', 'paolo', 'rita', 'sara', 'teo', 'vera'];
+export const WORDS = ['neon', 'cromo', 'pioggia', 'sintetico', 'circuito', 'ombra', 'vicolo', 'segnale', 'drone', 'impulso', 'riflesso', 'ruggine', 'tempesta', 'vapore'];
 const DIRS = ['vecchi', 'progetti', 'foto', 'contratti', 'misc', 'backup', 'note', 'archivio', 'export', 'tmp2'];
 const EXTRA = ['log', 'txt', 'cfg', 'bak', 'csv'];
 
-const pubIp = (r: Rng) => `${r.pick(['198.51.100', '203.0.113', '192.0.2'])}.${r.int(2, 250)}`;
-const intIp = (r: Rng) => `10.0.${r.int(1, 9)}.${r.int(2, 250)}`;
+export const pubIp = (r: Rng) => `${r.pick(['198.51.100', '203.0.113', '192.0.2'])}.${r.int(2, 250)}`;
+export const intIp = (r: Rng) => `10.0.${r.int(1, 9)}.${r.int(2, 250)}`;
 const pad2 = (n: number) => String(n).padStart(2, '0');
-const time = (s: number) => `${pad2(Math.floor(s / 3600) % 24)}:${pad2(Math.floor((s % 3600) / 60))}:${pad2(s % 60)}`;
+export const time = (s: number) => `${pad2(Math.floor(s / 3600) % 24)}:${pad2(Math.floor((s % 3600) / 60))}:${pad2(s % 60)}`;
 
-interface Ctx {
+export interface Ctx {
   sh: Shell;
   r: Rng;
   lv: Level;
@@ -82,11 +87,11 @@ interface Ctx {
 }
 
 const abs = (c: Ctx, rel: string) => `${c.sh.home}/${c.dir}/${rel}`;
-const write = (c: Ctx, rel: string, content: string, perms?: string) =>
+export const write = (c: Ctx, rel: string, content: string, perms?: string) =>
   c.sh.fs.writeFile(abs(c, rel), content, { owner: c.sh.user, group: c.sh.user, perms });
 
 /** Accetta il percorso completo, quello dalla home e il solo nome del file. */
-function pathAnswers(c: Ctx, rel: string): string[] {
+export function pathAnswers(c: Ctx, rel: string): string[] {
   return [`${c.dir}/${rel}`, `${c.sh.home}/${c.dir}/${rel}`, `~/${c.dir}/${rel}`, rel, rel.split('/').pop()!];
 }
 
@@ -981,7 +986,7 @@ export function generateSession(sh: Shell, chapters: string[], level: Level, see
     const ctx: Ctx = { sh, r, lv: level, dir: `sim/${i + 1}-${g.dirName}` };
     const tales = STORIES[g.id] ?? [];
     const story = tales.length ? tales[Math.abs(seed + i * 7) % tales.length] : undefined;
-    return { chapter: ch, story, ...g.make(ctx) };
+    return { chapter: ch, gid: g.id, story, ...g.make(ctx) };
   });
 }
 
