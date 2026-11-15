@@ -1,6 +1,6 @@
 // Il terminale a schermo: output, riga di input, cronologia, TAB e tasti rapidi.
 
-import { psPrompt } from '../engine/pwsh';
+import { psCompletions, psPrompt } from '../engine/pwsh';
 import type { Shell } from '../engine/shell';
 import type { Line, ShellEvent } from '../engine/types';
 
@@ -175,12 +175,43 @@ export class TerminalView {
     this.focus();
   }
 
+  /** completamento di PowerShell: Tab ripetuto passa alla proposta successiva */
+  private psCycle: { prefix: string; items: string[]; i: number; last: string } | null = null;
+
   private tab(): void {
+    if (this.shell.ps) return this.psTab();
     const { line, options } = this.shell.complete(this.input.value);
     if (options.length > 1) {
       this.echo(this.input.value);
       this.addLine(options.join('   '), 'dim');
       this.scrollToEnd();
+    }
+    this.input.value = line;
+    this.input.setSelectionRange(line.length, line.length);
+    this.focus();
+  }
+
+  private psTab(): void {
+    const cur = this.input.value;
+    const c = this.psCycle;
+    let line: string;
+    if (c && cur === c.last) {
+      c.i = (c.i + 1) % c.items.length;
+      line = c.prefix + c.items[c.i];
+      c.last = line;
+    } else {
+      const { prefix, items } = psCompletions(this.shell, cur);
+      if (!items.length) {
+        this.psCycle = null;
+        return this.focus();
+      }
+      line = prefix + items[0];
+      this.psCycle = { prefix, items, i: 0, last: line };
+      if (items.length > 1) {
+        this.echo(cur);
+        this.addLine(items.slice(0, 30).join('   ') + (items.length > 30 ? '   …' : '') + '   (Tab di nuovo per la successiva)', 'dim');
+        this.scrollToEnd();
+      }
     }
     this.input.value = line;
     this.input.setSelectionRange(line.length, line.length);

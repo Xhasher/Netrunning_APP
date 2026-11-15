@@ -752,6 +752,7 @@ doc('pwsh', {
     ['pwsh -c "Get-Process | Sort-Object WS -Descending | Select-Object -First 3"', 'i processi che usano più memoria'],
   ],
   notes: [
+    'Tab completa cmdlet, parametri (-Rec → -Recurse), valori noti (-ComputerName, -TaskName, -Group) e percorsi; premuto di nuovo passa alla proposta successiva. Nessuno scrive Get-NetTCPConnection per intero.',
     'Get- non modifica mai nulla: i verbi che cambiano lo stato sono Set-, New-, Remove-, Stop-, Disable-... Utile per leggere gli script altrui.',
     'PowerShell è amatissimo dagli attaccanti (è su ogni Windows): "-enc" con un testo Base64, finestre nascoste (-w hidden) e "iex" (Invoke-Expression) sono segnali classici negli allarmi. Gli eventi 4104 (Script Block Logging) registrano cosa ha eseguito davvero.',
   ],

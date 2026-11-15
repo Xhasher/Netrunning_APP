@@ -134,3 +134,4 @@ Il programma previsto in questo documento è completo. Prossimi passi possibili:
 - **12.4 Oggetti, non testo** e **12.5 Risposta a distanza**: sul PC del phishing del capitolo SOC si raccolgono processi, connessione al C2, persistenza, backdoor, timeline degli eventi e hash, poi si contiene senza distruggere le prove.
 - **Capitolo SJ · Una settimana da junior** (prima del 13): lunedì revisione degli accessi, martedì vulnerability assessment con priorità, mercoledì password spraying su un file server, giovedì hardening SSH, venerdì report settimanale in inglese con il lessico del mestiere. Diversi esercizi senza suggerimenti.
 - Palestra: 6 esercizi nuovi (nmap avanzato, PowerShell). Glossario e banca degli esami ampliati.
+- 1.15.1: completamento con Tab in PowerShell (cmdlet, alias, parametri, valori noti come -ComputerName/-TaskName/-Group/-LogName, percorsi con `\` su Windows); Tab ripetuto passa alla proposta successiva, come in PowerShell su Windows.

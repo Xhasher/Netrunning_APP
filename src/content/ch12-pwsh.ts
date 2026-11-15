@@ -145,7 +145,7 @@ Il prompt cambia: inizia con \`PS\` e mostra la cartella in cui sei.`,
       objective: 'Apri la console PowerShell.',
       hints: ['Il comando è pwsh.', 'pwsh'],
       check: (ev) => ev.type === 'command' && ev.name === 'pwsh-start',
-      success: 'Sei in PowerShell. I comandi di Linux continuano a funzionare (su Linux pwsh li trova), ma da qui in avanti usa i cmdlet.',
+      success: `Sei in PowerShell. I comandi di Linux continuano a funzionare (su Linux pwsh li trova), ma da qui in avanti usa i cmdlet.\n\n?? Il tasto **Tab** è il tuo migliore amico: completa i nomi dei cmdlet (\`Get-Ch\` → \`Get-ChildItem\`), i parametri (\`-Rec\` → \`-Recurse\`) e i percorsi. Se le proposte sono più di una, premilo di nuovo per passare alla successiva, come in PowerShell su Windows.`,
     },
     {
       kind: 'task',

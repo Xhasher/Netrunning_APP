@@ -842,3 +842,104 @@ Object.assign(COMMANDS, {
 (COMMANDS as Record<string, unknown>).powershell = COMMANDS.pwsh;
 
 Shell.psHook = runPs;
+
+// ---------------------------------------------------------------- completamento con Tab
+//
+// Come PowerShell su Windows: Tab completa il nome del cmdlet, il parametro, il valore o il
+// percorso con la prima proposta in ordine alfabetico; premuto di nuovo passa alla successiva.
+
+const PARAMS: Record<string, string[]> = {
+  'get-childitem': ['Path', 'Filter', 'Recurse', 'Force', 'File', 'Directory'],
+  'get-content': ['Path', 'TotalCount', 'Head', 'Tail'],
+  'select-string': ['Pattern', 'Path', 'SimpleMatch', 'CaseSensitive', 'NotMatch'],
+  'select-object': ['Property', 'First', 'Last', 'ExpandProperty', 'Unique'],
+  'sort-object': ['Property', 'Descending', 'Unique'],
+  'group-object': ['Property', 'NoElement'],
+  'measure-object': ['Property', 'Sum', 'Average', 'Maximum', 'Minimum', 'Line'],
+  'format-list': ['Property'],
+  'format-table': ['Property', 'AutoSize'],
+  'get-filehash': ['Path', 'Algorithm'],
+  'get-process': ['Name', 'Id'],
+  'stop-process': ['Id', 'Force'],
+  'get-service': ['Name'],
+  'get-scheduledtask': ['TaskName'],
+  'disable-scheduledtask': ['TaskName'],
+  'get-nettcpconnection': ['State', 'OwningProcess'],
+  'disable-localuser': ['Name'],
+  'get-localgroupmember': ['Group'],
+  'get-winevent': ['LogName', 'FilterHashtable', 'MaxEvents'],
+  'enter-pssession': ['ComputerName'],
+  'set-location': ['Path'],
+  'get-help': ['Name'],
+};
+
+/** Valori proposti per un parametro, se il deck li conosce. */
+function paramValues(sh: Shell, cmdlet: string, param: string): string[] {
+  const w = winData(sh);
+  const p = param.toLowerCase();
+  if (p === 'computername') return Object.keys(PS_COMPUTERS);
+  if (p === 'logname') return w ? [...new Set(w.events.map((e) => e.LogName))] : ['Security'];
+  if (p === 'algorithm') return ['SHA256'];
+  if (p === 'state') return ['Established', 'Listen'];
+  if (!w) return [];
+  if (p === 'taskname') return w.tasks.map((t) => t.TaskName);
+  if (p === 'group') return Object.keys(w.groups);
+  if (p === 'name' && cmdlet === 'get-process') return [...new Set(w.processes.map((x) => x.Name))];
+  if (p === 'name' && cmdlet === 'get-service') return w.services.map((x) => x.Name);
+  if (p === 'name' && cmdlet === 'disable-localuser') return w.users.map((x) => x.Name);
+  return [];
+}
+
+const quoteIfNeeded = (s: string) => (/\s/.test(s) ? `'${s}'` : s);
+
+/**
+ * Proposte di completamento per la riga scritta finora.
+ * prefix = la parte della riga che resta uguale; items = le alternative per l'ultima parola.
+ */
+export function psCompletions(sh: Shell, input: string): { prefix: string; items: string[] } {
+  const none = { prefix: input, items: [] };
+  const segStart = Math.max(input.lastIndexOf('|') + 1, 0);
+  const seg = input.slice(segStart);
+  const m = seg.match(/^(.*?)(\S*)$/s)!;
+  const before = input.slice(0, segStart) + m[1];
+  const word = m[2];
+  const words = m[1].trim().split(/\s+/).filter(Boolean);
+  const ci = (a: string, b: string) => a.toLowerCase().startsWith(b.toLowerCase());
+  const sortCi = (l: string[]) => [...new Set(l)].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }));
+
+  // 1. nome del comando: cmdlet, alias, comandi del gioco
+  if (!words.length) {
+    const names = [...Object.values(NICE), ...Object.keys(ALIAS), 'exit', 'flag', 'hint'];
+    return { prefix: before, items: sortCi(names.filter((n) => ci(n, word))) };
+  }
+  const cmdlet = ALIAS[words[0].toLowerCase()] ?? words[0].toLowerCase();
+
+  // 2. nome di un parametro
+  if (word.startsWith('-')) {
+    const params = PARAMS[cmdlet] ?? [];
+    return { prefix: before, items: sortCi(params.filter((p) => ci(p, word.slice(1)))).map((p) => `-${p}`) };
+  }
+
+  // 3. valore di un parametro noto
+  const prev = words[words.length - 1];
+  if (prev.startsWith('-')) {
+    const vals = paramValues(sh, cmdlet, prev.slice(1));
+    if (vals.length) return { prefix: before, items: sortCi(vals.filter((v) => ci(v, word.replace(/^'/, '')))).map(quoteIfNeeded) };
+  }
+
+  // 4. percorso (con la barra del sistema: \ su Windows, / sul deck)
+  const sep = isWin(sh) ? '\\' : '/';
+  const raw = word.replace(/^['"]/, '');
+  const cut = Math.max(raw.lastIndexOf('/'), raw.lastIndexOf('\\'));
+  const dirPart = cut >= 0 ? raw.slice(0, cut + 1) : '';
+  const partial = cut >= 0 ? raw.slice(cut + 1) : raw;
+  const dirAbs = toAbs(sh, dirPart || '.');
+  const dir = sh.fs.get(dirAbs);
+  if (!dir || dir.type !== 'dir' || dir.locked || sh.blocked(dirAbs)) return none;
+  const shownDir = dirPart ? dirPart.replace(/[\\/]/g, sep) : `.${sep}`;
+  const items = [...dir.children.entries()]
+    .filter(([n]) => ci(n, partial))
+    .sort(([a], [b]) => a.localeCompare(b, 'en', { sensitivity: 'base' }))
+    .map(([n, node]) => quoteIfNeeded(shownDir + n + (node.type === 'dir' ? sep : '')));
+  return { prefix: before, items };
+}
