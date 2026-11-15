@@ -83,7 +83,10 @@ describe('competenze', () => {
 describe('passi aggiunti al corso', () => {
   it('i progressi salvati prima restano sullo stesso passo', async () => {
     const { migrateProgress } = await import('../src/game/migrate');
-    const m = allMissions().find((x) => x.steps.some((s) => s.since))!;
+    const m = allMissions().find((x) => {
+      const i = x.steps.findIndex((s) => s.since);
+      return i >= 0 && x.steps.some((s, k) => k > i && !s.since);
+    })!;
     const newIdx = m.steps.findIndex((s) => s.since);
     const target = m.steps.findIndex((s, i) => i > newIdx && !s.since);
     const oldIdx = m.steps.slice(0, target).filter((s) => !s.since).length;
@@ -91,5 +94,15 @@ describe('passi aggiunti al corso', () => {
     const out = migrateProgress(save);
     expect(out.progress[m.id]).toBe(target);
     expect(migrateProgress(out).progress[m.id]).toBe(target);
+  });
+
+  it('un salvataggio della 1.15 non salta le domande aggiunte nella 1.16', async () => {
+    const { migrateProgress } = await import('../src/game/migrate');
+    const m = allMissions().find((x) => x.steps.some((s) => s.since === 16) && x.steps.some((s) => s.since === 13))!;
+    const last13 = m.steps.filter((s) => (s.since ?? 0) <= 13).length - 1;
+    const out = migrateProgress({ ...defaultSave(), contentVer: 13, progress: { [m.id]: last13 } });
+    const step = m.steps[out.progress[m.id]];
+    expect((step.since ?? 0) <= 13).toBe(true);
+    expect(m.steps.filter((s, i) => i <= out.progress[m.id] && (s.since ?? 0) <= 13).length - 1).toBe(last13);
   });
 });

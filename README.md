@@ -4,7 +4,7 @@ Un gioco per Android che insegna **ethical hacking, penetration testing e cyber 
 
 Si gioca in un **terminale Linux simulato**: comandi, file, rete e bersagli sono tutti finti, quindi si può sperimentare senza rischi e senza connessione.
 
-## Contenuti (v1.15)
+## Contenuti (v1.16)
 
 | Capitolo | Missioni | Argomenti |
 |---|---|---|
@@ -40,6 +40,8 @@ Altre modalità:
 - **Gioca anche da PC**: la versione browser è su https://xhasher.github.io/Netrunning_APP/ (pubblicata automaticamente da `.github/workflows/pages.yml`). Su PC la lezione sta a sinistra e il terminale a destra; Esc fa da tasto indietro.
 - **Progressi condivisi tra telefono e PC**: in Opzioni › Gioca su più dispositivi si collega un token GitHub con il solo permesso `gist`. I progressi vengono salvati in un Gist privato dell'utente e **uniti** (non sovrascritti) tra i dispositivi: missioni, XP, Memoria ed esami si sommano. Nessun server esterno (`src/game/sync.ts`).
 - **Effetti visivi** discreti (transizioni, conteggio XP, promozioni di rango), disattivabili in Opzioni e spenti automaticamente se il sistema chiede di ridurre il movimento.
+- **Verifica di fine capitolo**: quando chiudi un capitolo si apre un test cumulativo: 12 tra domande ed esercizi sul capitolo più 6 di ripasso dai precedenti (prima le cose più deboli in Memoria). Scelta multipla, comandi da ricomporre e da scrivere a memoria; chi sbaglia legge la spiegazione e ritrova la domanda in coda. Soglia 80% al primo tentativo, più una parte pratica nel terminale. Due stelle per capitolo in mappa.
+- **Ripasso lampo**: tre domande sulle missioni già fatte prima di iniziarne una nuova (si disattiva in Opzioni).
 - **Competenze**: ogni comando e concetto ha cinque stati (introdotta, compresa, esercitata, acquisita, consolidata) calcolati da ciò che fai davvero; "acquisita" richiede due situazioni diverse risolte senza suggerimenti. Nei primi capitoli i suggerimenti sono liberi, poi si sbloccano dopo un tentativo, infine si chiedono con una conferma.
 - **Palestra dei comandi**: 75 esercizi brevi generati a caso su 37 comandi e concetti (anche systemctl, journalctl, df, du, tar, crontab, tee, xargs, nmap avanzato e PowerShell), in tre livelli, con dati sempre nuovi; serie su un comando o allenamento misto sui punti deboli.
 - **Memoria**: allenamento quotidiano di 5 minuti a ripetizione spaziata. Esercizi in tre livelli (scegli, ricomponi, scrivi) su comandi, opzioni e codici da sapere a memoria; le carte tornano poco prima di essere dimenticate, con serie di giorni consecutivi.

@@ -2,6 +2,7 @@ import { allMissions } from '../content';
 import type { LogEntry } from './coach';
 import type { ExamRecord } from './exam';
 import type { Skills } from './skills';
+import type { ChapterTestRecord } from './chaptertest';
 
 const KEY = 'nc-edgerunner-save-v1';
 
@@ -38,15 +39,19 @@ export interface SaveData {
   skills: Skills;
   /** le competenze sono già state ricostruite dal diario delle missioni */
   skillsBackfilled: boolean;
+  /** verifiche di fine capitolo: risultato migliore per capitolo */
+  chTests: Record<string, ChapterTestRecord>;
+  /** ripasso lampo prima delle missioni nuove */
+  warmup: boolean;
   /** versione dei contenuti per cui sono scritti i progressi (passi inseriti dopo spostano gli indici) */
   contentVer?: number;
 }
 
 /** Versione attuale dei contenuti (vedi game/migrate.ts). */
-export const CONTENT_VER = 13;
+export const CONTENT_VER = 16;
 
 export function defaultSave(): SaveData {
-  return { handle: null, xp: 0, completed: [], progress: {}, fontScale: 1, ops: [], best: {}, known: [], hideKnown: true, sim: { chapters: [], level: 1 }, srs: {}, streak: { day: 0, count: 0, best: 0 }, logs: {}, exams: [], effects: true, updatedAt: 0, skills: {}, skillsBackfilled: false, contentVer: CONTENT_VER };
+  return { handle: null, xp: 0, completed: [], progress: {}, fontScale: 1, ops: [], best: {}, known: [], hideKnown: true, sim: { chapters: [], level: 1 }, srs: {}, streak: { day: 0, count: 0, best: 0 }, logs: {}, exams: [], effects: true, updatedAt: 0, skills: {}, skillsBackfilled: false, chTests: {}, warmup: true, contentVer: CONTENT_VER };
 }
 
 export function loadSave(): SaveData {

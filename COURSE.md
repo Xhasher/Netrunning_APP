@@ -135,3 +135,10 @@ Il programma previsto in questo documento è completo. Prossimi passi possibili:
 - **Capitolo SJ · Una settimana da junior** (prima del 13): lunedì revisione degli accessi, martedì vulnerability assessment con priorità, mercoledì password spraying su un file server, giovedì hardening SSH, venerdì report settimanale in inglese con il lessico del mestiere. Diversi esercizi senza suggerimenti.
 - Palestra: 6 esercizi nuovi (nmap avanzato, PowerShell). Glossario e banca degli esami ampliati.
 - 1.15.1: completamento con Tab in PowerShell (cmdlet, alias, parametri, valori noti come -ComputerName/-TaskName/-Group/-LogName, percorsi con `\` su Windows); Tab ripetuto passa alla proposta successiva, come in PowerShell su Windows.
+
+## Aggiunto nella 1.16 (più verifiche, controllo per principianti)
+
+- **Verifica di fine capitolo** (`src/game/chaptertest.ts`): test cumulativo per ogni capitolo, 12 elementi del capitolo + 6 di ripasso dei precedenti scelti tra le carte più deboli; mescola domande a scelta, "ricomponi il comando" e "scrivi il comando"; gli errori tornano in coda (fino a 3 volte) e aggiornano la ripetizione spaziata di Memoria; soglia 80% al primo tentativo, +100 XP alla prima volta. Parte pratica: 4 esercizi nel terminale sulle competenze del capitolo (Palestra e sfide generate), validi solo senza suggerimenti. Risultati in mappa (due stelle per capitolo) e uniti tra dispositivi.
+- **Ripasso lampo**: prima di ogni missione nuova, tre domande sulle missioni già completate (due carte di Memoria, prima quelle in scadenza, e una domanda); disattivabile in Opzioni.
+- **89 domande di verifica nuove** (`src/content/quiz-extra.ts`) per le missioni che ne avevano una sola: ora ogni missione ne ha almeno due. Le opzioni di tutte le domande vengono mescolate in modo stabile: la risposta giusta non è più sempre la prima nelle domande recenti.
+- **Controllo automatico per principianti**: nessun comando è richiesto prima di essere spiegato; 15 sigle senza spiegazione aggiunte al glossario (TTL, IT, DHCP, SMB, RDP, GET, POST, SANS, CRM, GPS, ZIP, PIN, SMS, GB, PDF); un suggerimento vago reso esplicito (5.3).

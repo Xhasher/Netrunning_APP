@@ -107,10 +107,23 @@ export function mergeSaves(localIn: SaveData, remoteIn: SaveData): SaveData {
     skills[k] = { ex: Math.max(o.ex, v.ex), solo: [...new Set([...o.solo, ...v.solo])].slice(-8), acq, cons: o.cons || v.cons, comp: o.comp || v.comp };
   }
 
+  const chTests: SaveData['chTests'] = { ...(older.chTests ?? {}) };
+  for (const [k, v] of Object.entries(newer.chTests ?? {})) {
+    const o = chTests[k];
+    if (!o) {
+      chTests[k] = v;
+      continue;
+    }
+    const prat = !o.prat ? v.prat : !v.prat ? o.prat : o.prat[0] / o.prat[1] >= v.prat[0] / v.prat[1] ? o.prat : v.prat;
+    chTests[k] = { best: Math.max(o.best, v.best), day: Math.max(o.day, v.day), passed: o.passed || v.passed, tries: Math.max(o.tries, v.tries), prat };
+  }
+
   return {
     ...older,
     ...newer,
     skills,
+    chTests,
+    warmup: local.warmup,
     skillsBackfilled: !!(local.skillsBackfilled || remote.skillsBackfilled),
     handle: newer.handle ?? older.handle,
     xp: Math.max(local.xp ?? 0, remote.xp ?? 0),
@@ -264,7 +277,7 @@ export async function syncOnce(
   }
   const payload: CloudPayload = { v: 1, save: merged, deck, device: local.device ?? deviceName(), savedAt: Date.now() };
   // niente da aggiornare? niente scrittura (la sincronizzazione parte spesso)
-  const strip = (x: SaveData) => JSON.stringify({ ...x, updatedAt: 0, fontScale: 0, effects: true, hideKnown: true });
+  const strip = (x: SaveData) => JSON.stringify({ ...x, updatedAt: 0, fontScale: 0, effects: true, hideKnown: true, warmup: true });
   const unchanged = !!remote && strip(merged) === strip(remote.save) && JSON.stringify(deck ?? null) === JSON.stringify(remote.deck ?? null);
   if (next.gistId && unchanged) {
     /* il cloud è già aggiornato */

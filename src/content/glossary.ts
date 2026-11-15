@@ -11,6 +11,22 @@ export interface GlossaryEntry {
 }
 
 export const GLOSSARY: GlossaryEntry[] = [
+  // --- sigle emerse dal controllo per principianti (1.16)
+  { term: 'TTL', exact: true, def: '"Time To Live": un contatore dentro ogni pacchetto, che scende di uno a ogni router attraversato. Il valore di partenza dipende dal sistema: 64 Linux, 128 Windows, 255 apparati di rete.' },
+  { term: 'IT', exact: true, def: '"Information Technology": il reparto informatico di un\'azienda, quello che gestisce computer, reti e programmi.' },
+  { term: 'DHCP', exact: true, def: 'Il servizio che assegna in automatico un indirizzo IP a ogni dispositivo che si collega alla rete. Il suo registro dice quale PC aveva un certo IP a una certa ora.' },
+  { term: 'SMB', exact: true, def: 'Il protocollo di Windows per condividere cartelle e stampanti in rete (porta 445). Molto usato, e molto preso di mira dai ransomware.' },
+  { term: 'RDP', exact: true, def: '"Remote Desktop Protocol": il desktop remoto di Windows (porta 3389). Permette di usare un PC a distanza; esposto a Internet è un rischio serio.' },
+  { term: 'GET', exact: true, def: 'Il metodo HTTP per CHIEDERE una pagina o un dato. I parametri viaggiano nell\'indirizzo, quindi finiscono nei log: mai password in una richiesta GET.' },
+  { term: 'POST', exact: true, def: 'Il metodo HTTP per INVIARE dati al server (un modulo, un login). I dati viaggiano nel corpo della richiesta, non nell\'indirizzo.' },
+  { term: 'SANS', exact: true, def: 'Istituto di formazione sulla sicurezza informatica molto noto; le sue certificazioni si chiamano GIAC.' },
+  { term: 'CRM', exact: true, def: '"Customer Relationship Management": il programma con cui un\'azienda gestisce clienti, contatti e vendite.' },
+  { term: 'GPS', exact: true, def: 'Il sistema di posizionamento satellitare. Le foto scattate con il telefono possono contenere le coordinate GPS del luogo, nei metadati.' },
+  { term: 'ZIP', exact: true, def: 'Un formato di archivio compresso: più file impacchettati in uno. I documenti Office moderni (.docx, .xlsx) sono in realtà archivi ZIP.' },
+  { term: 'PIN', exact: true, def: 'Un codice numerico breve usato come segreto (bancomat, telefono). È "qualcosa che sai", come la password.' },
+  { term: 'SMS', exact: true, def: 'I messaggi di testo del telefono. Come secondo fattore sono meglio di niente, ma si possono intercettare: meglio un\'app o una chiave fisica.' },
+  { term: 'GB', exact: true, aliases: ['MB', 'KB'], def: 'Unità di misura dei dati: 1 KB è circa mille byte, 1 MB un milione, 1 GB un miliardo.' },
+  { term: 'PDF', exact: true, def: 'Il formato dei documenti "da stampare". Può contenere collegamenti e codice: anche un PDF può essere un allegato pericoloso.' },
   // --- fase 3
   { term: 'cmdlet', aliases: ['cmdlets'], def: 'Un comando di PowerShell, sempre nella forma Verbo-Nome (Get-Process, Stop-Process). Produce oggetti con proprietà, non testo.' },
   { term: 'WinRM', exact: true, def: 'Windows Remote Management: il servizio che permette di aprire una console PowerShell su un altro PC (Enter-PSSession), porta 5985.' },

@@ -17,7 +17,7 @@ import {
 } from '../game/cards';
 import type { SaveData } from '../game/state';
 import { openManual } from './manual';
-import { inline } from './markup';
+import { inline, renderMarkup } from './markup';
 
 export interface MemoryHost {
   save: SaveData;
@@ -30,6 +30,38 @@ export interface MemoryHost {
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const days = (n: number) => (n === 1 ? '1 giorno' : `${n} giorni`);
+
+/** Una domanda a scelta multipla presa dalle missioni o dalla banca degli esami. */
+export interface QuizItem {
+  question: string;
+  options: string[];
+  correct: number;
+  explain: string;
+}
+
+/** Un elemento di una sessione: una carta di Memoria oppure una domanda. */
+export interface RunItem {
+  card?: Card;
+  quiz?: QuizItem;
+  /** etichetta mostrata in alto (argomento o capitolo) */
+  tag?: string;
+  box: number;
+  early: boolean;
+  isNew: boolean;
+}
+
+export interface RunResult {
+  firstTry: number;
+  total: number;
+  xp: number;
+  /** elementi sbagliati al primo tentativo */
+  missed: RunItem[];
+}
+
+export interface RunHost {
+  save: SaveData;
+  persist(): void;
+}
 
 const STAGE = ['Riconosci', 'Riconosci', 'Ricomponi', 'Scrivi', 'Scrivi', 'Scrivi', 'Scrivi'];
 
@@ -112,16 +144,8 @@ function runSession(box: HTMLElement, host: MemoryHost, cards: Card[], plan: Ses
   const { save } = host;
   const day = today();
   host.enter();
-  const queue: { item: SessionItem; retry: number }[] = plan.map((item) => ({ item, retry: 0 }));
-  const total = plan.length;
-  let pos = 0;
-  let firstTry = 0;
-  let xp = 0;
-  let ex: Exercise | null = null;
-  let answered = false;
-  let built: number[] = [];
-
-  const finish = () => {
+  runItems(box, host, plan, ({ firstTry, total, xp: gained }) => {
+    let xp = gained;
     const before = save.streak;
     save.streak = bumpStreak(save.streak, day);
     const bonus = before.day === day ? 5 : 15;
@@ -150,25 +174,57 @@ function runSession(box: HTMLElement, host: MemoryHost, cards: Card[], plan: Ses
         else host.home();
       }
     };
+  });
+}
+
+/**
+ * Esegue una serie di esercizi (carte di Memoria e domande) con spiegazione dopo ogni
+ * risposta. Gli errori tornano in coda finché non vengono corretti (al massimo maxRetry volte).
+ * Le carte aggiornano la ripetizione spaziata; il punteggio conta solo il primo tentativo.
+ */
+export function runItems(box: HTMLElement, host: RunHost, plan: RunItem[], onFinish: (r: RunResult) => void, opts: { maxRetry?: number; xpEach?: number } = {}): void {
+  const { save } = host;
+  const day = today();
+  const maxRetry = opts.maxRetry ?? 2;
+  const xpEach = opts.xpEach ?? 2;
+  const queue: { item: RunItem; retry: number }[] = plan.map((item) => ({ item, retry: 0 }));
+  const total = plan.length;
+  let pos = 0;
+  let firstTry = 0;
+  let xp = 0;
+  const missed: RunItem[] = [];
+  let ex: Exercise | null = null;
+  let answered = false;
+  let built: number[] = [];
+
+  const finish = () => {
+    box.onclick = null;
+    onFinish({ firstTry, total, xp, missed });
+  };
+
+  const quizExercise = (q: QuizItem): Exercise => {
+    const order = q.options.map((_, i) => i).sort(() => Math.random() - 0.5);
+    return { type: 'choice', prompt: q.question, options: order.map((i) => q.options[i]), correct: order.indexOf(q.correct), optionsCode: false };
   };
 
   const render = () => {
     if (pos >= queue.length) return finish();
     const { item, retry } = queue[pos];
     // al secondo tentativo si torna a un esercizio più facile
-    ex = exerciseFor(item.card, retry ? Math.min(item.box, 1) : item.box);
+    ex = item.quiz ? quizExercise(item.quiz) : exerciseFor(item.card!, retry ? Math.min(item.box, 1) : item.box);
     answered = false;
     built = [];
+    const left = queue.length - total;
     const head = `
       <div class="mem-prog"><i style="width:${(Math.min(pos, total) / total) * 100}%"></i></div>
-      <div class="train-head"><span>${esc(item.card.deck)}</span><span>${retry ? 'RIPROVA' : item.isNew ? 'NUOVA' : STAGE[item.box].toUpperCase()}</span></div>
-      <div class="question mem-q"><p>${inline(ex.prompt)}</p></div>`;
+      <div class="train-head"><span>${esc(item.tag ?? item.card?.deck ?? '')}</span><span>${retry ? `DA RIVEDERE${left > 1 ? ` · ${queue.length - pos} rimaste` : ''}` : item.quiz ? `${pos + 1}/${total}` : item.isNew ? 'NUOVA' : STAGE[item.box].toUpperCase()}</span></div>
+      <div class="question mem-q">${item.quiz ? renderMarkup(ex.prompt) : `<p>${inline(ex.prompt)}</p>`}</div>`;
     let body = '';
     if (ex.type === 'choice') {
       const code = ex.optionsCode;
       body = `${ex.code ? `<pre class="mem-code">${esc(ex.code)}</pre>` : ''}
         <div class="options ${code ? 'mem-grid' : ''}">
-          ${ex.options.map((o, i) => `<button class="opt ${code ? 'mem-codeopt' : ''}" data-o="${i}"><span>${code ? `<code>${esc(o)}</code>` : esc(o)}</span></button>`).join('')}
+          ${ex.options.map((o, i) => `<button class="opt ${code ? 'mem-codeopt' : ''}" data-o="${i}"><span>${code ? `<code>${esc(o)}</code>` : item.quiz ? inline(o) : esc(o)}</span></button>`).join('')}
         </div>`;
     } else if (ex.type === 'build') {
       body = `<div class="mem-line" data-m="line"></div>
@@ -202,28 +258,32 @@ function runSession(box: HTMLElement, host: MemoryHost, cards: Card[], plan: Ses
   const settle = (ok: boolean, given?: string) => {
     const cur = queue[pos];
     const card = cur.item.card;
+    const quiz = cur.item.quiz;
     answered = true;
     if (cur.retry === 0) {
-      review(save.srs, card.id, ok, day, cur.item.early);
+      if (card) review(save.srs, card.id, ok, day, cur.item.early);
       if (ok) {
         firstTry++;
-        xp += 2;
-        save.xp += 2;
-      }
+        xp += xpEach;
+        save.xp += xpEach;
+      } else missed.push(cur.item);
       host.persist();
     }
-    if (!ok && cur.retry < 2) queue.push({ item: cur.item, retry: cur.retry + 1 });
+    if (!ok && cur.retry < maxRetry) queue.push({ item: cur.item, retry: cur.retry + 1 });
     box.querySelectorAll<HTMLButtonElement>('.opt, .chip, [data-m="check"], [data-m="dunno"]').forEach((b) => (b.disabled = true));
     const input = box.querySelector<HTMLInputElement>('.mem-input');
     if (input) input.disabled = true;
-    const sol = card.code ? `<pre class="mem-code">${esc(card.answer)}</pre>` : `<p class="mem-sol">${esc(card.answer)}</p>`;
-    const note = card.note ? `<p>${inline(card.note)}</p>` : '';
-    const man = card.cmd ?? (card.kind === 'cmd' ? card.answer : null);
+    const sol = !card ? '' : card.code ? `<pre class="mem-code">${esc(card.answer)}</pre>` : `<p class="mem-sol">${esc(card.answer)}</p>`;
+    const note = card?.note ? `<p>${inline(card.note)}</p>` : '';
+    const man = card ? (card.cmd ?? (card.kind === 'cmd' ? card.answer : null)) : null;
+    const again = !ok && cur.retry < maxRetry ? '<p class="mem-again">Tornerà tra poco: l\'obiettivo è chiudere la sessione sapendola.</p>' : '';
     box.querySelector('.train-explain')!.innerHTML = `
       <div class="${ok ? 'success' : 'feedback wrong'}">
         <p>${ok ? 'Giusto.' : 'Non ancora.'}${!ok && given ? ` Hai scritto: <code>${esc(given)}</code>` : ''}</p>
-        ${ok && ex?.type === 'choice' && !card.note ? '' : `${ok ? '' : '<p>Risposta corretta:</p>'}${ok && ex?.type !== 'type' ? '' : sol}${note}`}
-        ${card.kind === 'opt' && card.desc ? `<p><code>${esc(card.cmd!)} ${esc(card.answer)}</code>: ${inline(card.desc)}</p>` : ''}
+        ${quiz ? renderMarkup(quiz.explain) : ''}
+        ${!card ? '' : ok && ex?.type === 'choice' && !card.note ? '' : `${ok ? '' : '<p>Risposta corretta:</p>'}${ok && ex?.type !== 'type' ? '' : sol}${note}`}
+        ${card && card.kind === 'opt' && card.desc ? `<p><code>${esc(card.cmd!)} ${esc(card.answer)}</code>: ${inline(card.desc)}</p>` : ''}
+        ${again}
       </div>
       <div class="step-actions">
         ${man ? `<button class="ghost" data-m="man" data-cmd="${esc(man)}">Manuale: ${esc(man)}</button>` : ''}
@@ -235,7 +295,7 @@ function runSession(box: HTMLElement, host: MemoryHost, cards: Card[], plan: Ses
   /** Risposta scritta diversa da quella attesa ma forse equivalente: decide il giocatore. */
   const selfGrade = (given: string) => {
     answered = true;
-    const card = queue[pos].item.card;
+    const card = queue[pos].item.card!;
     box.querySelectorAll<HTMLButtonElement>('[data-m="check"], [data-m="dunno"]').forEach((b) => (b.disabled = true));
     box.querySelector<HTMLInputElement>('.mem-input')!.disabled = true;
     box.querySelector('.train-explain')!.innerHTML = `

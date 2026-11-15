@@ -26,6 +26,7 @@ import { NETDEF_MISSION } from './ch09-difese';
 import { addExtra } from './ex-extra';
 import { NETDIAG_MISSION, TEXTTOOLS_MISSION } from './ch-pratica';
 import { addSchede } from './schede';
+import { addExtraQuizzes, shuffleQuizOptions } from './quiz-extra';
 
 export const CHAPTERS: Chapter[] = [CH01, CHF, CH02, CH03, CH04, CHAM, CH05, CH06, CHPY, CH07, CH08, CHSOC, CH09, CH10, CH11, CHPT, CH12, CHDF, CHSJ, CH13];
 
@@ -38,7 +39,9 @@ CHPT.missions.push(RECON_MISSION);
 CH12.missions.push(PWSH_MISSION, PSIR_MISSION);
 
 addExtra(CHAPTERS);
+addExtraQuizzes(CHAPTERS);
 addSchede(CHAPTERS);
+shuffleQuizOptions(CHAPTERS);
 
 /** Il resto del corso: capitoli pianificati, mostrati nella mappa come "in arrivo". */
 /** Capitoli futuri, mostrati nella mappa come "in arrivo" (al momento il corso è completo). */

@@ -382,7 +382,7 @@ if [ -f /etc/shadow ]; then echo "shadow esiste"; fi
 if [ -f caso/auth.log ]; then echo "Log presente"; else echo "Log mancante!"; fi
 \`\`\``,
           objective: 'Esegui una struttura if.',
-          hints: ['Copia l\'esempio facendo attenzione agli spazi dentro [ ].'],
+          hints: ['Copia l\'esempio facendo attenzione agli spazi: uno dopo [ e uno prima di ]. Ogni pezzo (then, else, fi) è separato da un punto e virgola.', 'if [ -f caso/auth.log ]; then echo "Log presente"; else echo "Log mancante!"; fi'],
           check: (ev) => ev.type === 'command' && ev.name === 'if',
           success: `La shell ha controllato la condizione e scelto il ramo giusto. Ora mettiamo insieme tutto.`,
         },

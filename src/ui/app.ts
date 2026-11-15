@@ -2,6 +2,9 @@ import { CAREER, CHAPTERS, PLANNED, allMissions, findMission } from '../content'
 import { GAMES } from '../content/games';
 import { GENERATORS, LEVELS, generateSession, normalizeDrillAnswer, type Drill, type Level } from '../content/drills';
 import { SYS_ROOTS } from '../content/world-admin';
+import { CHAPTER_TEST, buildChapterTest, chapterComplete, practicalPlan, recordChapterTest, recordPractical, stars } from '../game/chaptertest';
+import { runItems, type RunItem } from './memory';
+import { buildCards } from '../game/cards';
 import { PALESTRA_SKILLS, exercisesFor, generatePalestra } from '../content/palestra';
 import { TIPS, randomTip } from '../content/tips';
 import { OPERATIONS, matchFinding, type Operation } from '../content/operations';
@@ -109,6 +112,8 @@ export class App {
     log: LogEntry[];
     /** Palestra dei comandi: competenza scelta (null = allenamento misto) */
     pal?: { skill: string | null };
+    /** parte pratica della verifica di questo capitolo */
+    ctest?: string;
     /** prova pratica a tempo */
     exam: { started: number; deadline: number } | null;
   } | null = null;
@@ -256,7 +261,8 @@ export class App {
         this.showGames();
         return true;
       case 'sim':
-        if (this.sim?.pal) this.showPalestra();
+        if (this.sim?.ctest) this.showChapterTest(this.sim.ctest);
+        else if (this.sim?.pal) this.showPalestra();
         else this.showSimSetup();
         return true;
       case 'palestra':
@@ -264,6 +270,9 @@ export class App {
         return true;
       case 'memory-run':
         this.showMemory();
+        return true;
+      case 'chtest-run':
+        if (confirm('Uscire dalla verifica? Dovrai ricominciarla.')) this.showChapterTest(this.chTestId ?? CHAPTERS[0].id);
         return true;
       case 'exam-run':
         if (confirm('Uscire dall\'esame? Le risposte date finora andranno perse.')) this.showExams();
@@ -474,7 +483,7 @@ export class App {
             <span class="ch-count">${doneCount}/${ch.missions.length}</span>
           </div>
           <ol class="missions"></ol>
-          ${doneCount === ch.missions.length ? `<button class="ch-debrief" data-debrief="${ch.id}">Debriefing del capitolo ▸</button>` : ''}
+          ${doneCount === ch.missions.length ? this.chapterTestButton(ch.id) + `<button class="ch-debrief" data-debrief="${ch.id}">Debriefing del capitolo ▸</button>` : ''}
         </article>`);
       const ol = art.querySelector('ol')!;
       ch.missions.forEach((m, i) => {
@@ -518,8 +527,9 @@ export class App {
     }
 
     node.addEventListener('click', (e) => {
-      const t = (e.target as HTMLElement).closest<HTMLElement>('[data-act],[data-mission],[data-debrief]');
+      const t = (e.target as HTMLElement).closest<HTMLElement>('[data-act],[data-mission],[data-debrief],[data-chtest]');
       if (!t) return;
+      if (t.dataset.chtest) return this.showChapterTest(t.dataset.chtest);
       if (t.dataset.debrief) this.showDebrief(t.dataset.debrief);
       else if (t.dataset.mission) this.showMission(t.dataset.mission);
       else if (t.dataset.act === 'codex') this.showCodex();
@@ -781,9 +791,62 @@ export class App {
     if (finePointer()) term.focus();
   }
 
+  /** missioni per cui il ripasso lampo è già stato proposto in questa sessione */
+  private warmed = new Set<string>();
+
+  /**
+   * Ripasso lampo: tre domande sulle missioni già fatte, prima di iniziarne una nuova.
+   * Richiamare alla mente le cose vecchie proprio mentre se ne imparano di nuove è ciò che le fissa.
+   */
+  private warmupItems(): RunItem[] {
+    const s = this.save;
+    const day = today();
+    const cards = buildCards(s.completed, s.known);
+    const due = cards.filter((c) => s.srs[c.id] && s.srs[c.id][1] <= day).sort(() => Math.random() - 0.5);
+    const seen = cards.filter((c) => s.srs[c.id] && s.srs[c.id][1] > day).sort((a, b) => s.srs[a.id][0] - s.srs[b.id][0]);
+    const fresh = cards.filter((c) => !s.srs[c.id]).sort(() => Math.random() - 0.5);
+    const picked = [...due, ...fresh, ...seen].slice(0, 2);
+    const items: RunItem[] = picked.map((card) => ({ card, tag: `Ripasso · ${card.deck}`, box: s.srs[card.id]?.[0] ?? 0, isNew: !s.srs[card.id], early: !!s.srs[card.id] && s.srs[card.id][1] > day }));
+    const quizzes: { q: QuizStep; title: string }[] = [];
+    for (const m of allMissions()) if (s.completed.includes(m.id)) for (const st of m.steps) if (st.kind === 'quiz') quizzes.push({ q: st, title: m.title });
+    for (const { q, title } of quizzes.sort(() => Math.random() - 0.5).slice(0, 3 - items.length))
+      items.push({ quiz: { question: q.question, options: q.options, correct: q.correct, explain: q.explain }, tag: `Ripasso · ${title}`, box: 0, isNew: false, early: false });
+    return items.sort(() => Math.random() - 0.5);
+  }
+
+  private showWarmup(id: string): void {
+    const found = findMission(id)!;
+    const items = this.warmupItems();
+    this.warmed.add(id);
+    if (items.length < 2) return this.showMission(id);
+    const node = this.page(
+      'warmup',
+      'Ripasso lampo',
+      `// prima di ${found.mission.title}`,
+      html`<p class="small warm-note">Tre domande veloci sulle missioni già fatte: un minuto che vale più di una rilettura. <button class="linkbtn" data-w="skip">Salta</button></p><div class="train warm-run"></div>`,
+    );
+    const box = node.querySelector<HTMLElement>('.warm-run')!;
+    node.querySelector('[data-w="skip"]')!.addEventListener('click', () => this.showMission(id));
+    runItems(
+      box,
+      { save: this.save, persist: () => this.persist() },
+      items,
+      (res) => {
+        box.innerHTML = html`
+          <div class="train-end">
+            <p><strong>${res.firstTry}/${res.total}</strong> al primo colpo${res.firstTry === res.total ? '. Memoria in forma.' : '. Quelle sbagliate le ritroverai in Memoria.'}</p>
+            <div class="step-actions"><button class="next" data-w="go">Inizia la missione ▸</button></div>
+          </div>`;
+        box.querySelector('[data-w="go"]')!.addEventListener('click', () => this.showMission(id));
+      },
+      { maxRetry: 1 },
+    );
+  }
+
   private showMission(id: string): void {
     const found = findMission(id);
     if (!found || !isUnlocked(this.save, id)) return;
+    if (this.save.warmup && !this.warmed.has(id) && !this.save.completed.includes(id) && !(this.save.progress[id] > 0) && this.save.completed.length >= 2) return this.showWarmup(id);
     const shell = this.ensureShell();
     const term = this.term!;
     const replay = this.save.completed.includes(id);
@@ -1362,6 +1425,7 @@ export class App {
             ${m.recap.map(([k, v]) => `<div><dt>${inline(k)}</dt><dd>${inline(v)}</dd></div>`).join('')}
           </dl>
           ${coach ? `<h3>Il parere di Nyx sul tuo lavoro</h3><div class="coach">${this.coachHtml(coach, 3)}</div>` : ''}
+          ${lastOfChapter ? `<button class="continue chtest-go" data-act="chtest"><span class="c-kicker">FISSA IL CAPITOLO ${ch.code}</span><span class="c-title">Verifica di capitolo ▸</span><span class="c-tag">Un test su tutto il capitolo, più un ripasso dei precedenti. Quello che sbagli torna finché non lo sai.</span></button>` : ''}
           ${lastOfChapter ? `<button class="continue debrief-go" data-act="debrief"><span class="c-kicker">FINE CAPITOLO ${ch.code}</span><span class="c-title">Debriefing del capitolo ▸</span><span class="c-tag">L'analisi completa di come hai lavorato: statistiche, abitudini da tenere e da correggere.</span></button>` : ''}
           <div class="step-actions">
             <button class="ghost" data-act="map">Mappa</button>
@@ -1374,6 +1438,7 @@ export class App {
       if (t?.dataset.act === 'map') this.showMap();
       if (t?.dataset.act === 'next' && nextInfo) this.showMission(nextInfo.mission.id);
       if (t?.dataset.act === 'debrief') this.showDebrief(ch.id);
+      if (t?.dataset.act === 'chtest') this.showChapterTest(ch.id);
     });
     this.fillCoachCode(node);
     this.mount('complete', node);
@@ -1394,6 +1459,107 @@ export class App {
     node.querySelector('[data-act="map"]')!.addEventListener('click', () => this.showMap());
     this.mount(screen, node);
     return node;
+  }
+
+  // ------------------------------------------------------------- verifica di capitolo
+
+  private chTestId: string | null = null;
+
+  private chapterTestButton(chId: string): string {
+    const r = this.save.chTests[chId];
+    const st = stars(r);
+    const hasPrat = (() => {
+      const p = practicalPlan(chId);
+      return p.pool.length > 0 || p.drills;
+    })();
+    const max = hasPrat ? 2 : 1;
+    const label = !r ? 'da fare' : r.passed ? `superata · ${r.best}%` : `record ${r.best}% · soglia ${CHAPTER_TEST.pass}%`;
+    return `<button class="ch-test ${r?.passed ? 'ok' : r ? 'tried' : 'todo'}" data-chtest="${chId}"><span class="ct-stars">${'★'.repeat(st)}${'☆'.repeat(max - st)}</span><span class="ct-name">Verifica di capitolo</span><span class="ct-state">${label}</span></button>`;
+  }
+
+  private showChapterTest(chId: string): void {
+    const ch = CHAPTERS.find((c) => c.id === chId);
+    if (!ch) return this.showMap();
+    this.chTestId = chId;
+    const r = this.save.chTests[chId];
+    const plan = practicalPlan(chId);
+    const hasPrat = plan.pool.length > 0 || plan.drills;
+    const ready = chapterComplete(ch, this.save.completed);
+    const items = buildChapterTest(chId, this.save.completed, this.save.known, this.save.srs, today());
+    const own = items.filter((i) => !i.tag.startsWith('Ripasso')).length;
+    const node = this.page(
+      'chtest',
+      `Verifica · ${ch.title}`,
+      `// capitolo ${ch.code}`,
+      html`
+        <div class="prose">
+          ${renderMarkup(
+            `@nyx: Finire un capitolo non vuol dire ricordarlo. Questa verifica serve a **fissare**: ${own} domande ed esercizi sul capitolo${items.length > own ? `, più ${items.length - own} di ripasso sui capitoli precedenti` : ''}. Ci sono domande a scelta, comandi da ricomporre e comandi da scrivere a memoria.\n\nSe sbagli, leggi la spiegazione: la domanda **torna in coda** finché non la sai. Il punteggio conta solo il primo tentativo; la soglia è il **${CHAPTER_TEST.pass}%**. Puoi rifarla quando vuoi: ogni volta le domande cambiano.`,
+          )}
+        </div>
+        <div class="ct-box">
+          <div class="ct-row"><span class="ct-k">TEORIA</span><span class="ct-v">${r ? `${r.passed ? '★ superata' : 'non ancora superata'} · record ${r.best}% · ${r.tries} ${r.tries === 1 ? 'tentativo' : 'tentativi'}` : 'mai tentata'}</span></div>
+          ${hasPrat ? `<div class="ct-row"><span class="ct-k">PRATICA</span><span class="ct-v">${r?.prat ? `${r.prat[0] / r.prat[1] >= 0.75 ? '★ superata' : 'non ancora superata'} · ${r.prat[0]}/${r.prat[1]} senza suggerimenti` : 'mai tentata'}</span></div>` : ''}
+        </div>
+        ${ready ? '' : '<p class="small">Non hai ancora completato tutte le missioni di questo capitolo: la verifica contiene anche argomenti che non hai visto.</p>'}
+        <div class="step-actions">
+          ${hasPrat ? `<button class="ghost" data-ct="prat">Parte pratica · ${CHAPTER_TEST.practical} esercizi nel terminale</button>` : ''}
+          <button class="next" data-ct="go" ${items.length ? '' : 'disabled'}>${r ? 'Rifai la verifica ▸' : 'Inizia la verifica ▸'}</button>
+        </div>
+        <div class="train ct-run"></div>`,
+    );
+    node.addEventListener('click', (e) => {
+      const a = (e.target as HTMLElement).closest<HTMLElement>('[data-ct]')?.dataset.ct;
+      if (a === 'prat') return this.startSim([], 1, false, undefined, chId);
+      if (a !== 'go') return;
+      const box = node.querySelector<HTMLElement>('.ct-run')!;
+      node.querySelectorAll<HTMLElement>('.prose, .ct-box, .step-actions, .small').forEach((x) => x.remove());
+      this.screen = 'chtest-run';
+      this.root.scrollTop = 0;
+      runItems(
+        box,
+        { save: this.save, persist: () => this.persist() },
+        items as RunItem[],
+        (res) => {
+          const before = rankFor(this.save.xp).name;
+          const out = recordChapterTest(this.save.chTests, chId, res.firstTry, res.total, today());
+          const bonus = out.firstPass ? CHAPTER_TEST.xpPass : 0;
+          this.save.xp += bonus;
+          this.persist();
+          this.screen = 'chtest';
+          const missed = res.missed
+            .map((m) => `<li>${m.quiz ? inline(m.quiz.question.split('\n')[0]) : inline(m.card!.prompt)}${m.card ? ` → <code>${m.card.answer.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!)}</code>` : ''}</li>`)
+            .join('');
+          box.innerHTML = html`
+            <div class="train-end">
+              <div class="ex-verdict ${out.passed ? 'ok' : 'ko'}">${out.passed ? 'SUPERATA' : 'DA RIFARE'}</div>
+              <h2>${res.firstTry}/${res.total} al primo colpo · ${out.pct}%</h2>
+              <div class="xp-gain">+${res.xp + bonus} XP</div>
+              <p>${
+                out.passed
+                  ? out.firstPass
+                    ? 'Capitolo fissato. Le carte di Memoria sono state aggiornate: torneranno poco prima che tu le dimentichi.'
+                    : 'Superata di nuovo: ogni ripasso allunga la memoria.'
+                  : `Soglia ${CHAPTER_TEST.pass}%. Le risposte sbagliate sono qui sotto e torneranno in Memoria nei prossimi giorni. Riprova tra qualche ora: la memoria lavora anche mentre fai altro.`
+              }</p>
+              ${missed ? `<h3>Da rivedere</h3><ul class="ct-missed">${missed}</ul>` : ''}
+              <div class="step-actions">
+                <button class="ghost" data-ct2="map">Mappa</button>
+                ${hasPrat ? '<button class="ghost" data-ct2="prat">Parte pratica ▸</button>' : ''}
+                <button class="next" data-ct2="again">${out.passed ? 'Rifai' : 'Riprova'} ▸</button>
+              </div>
+            </div>`;
+          box.onclick = (ev) => {
+            const b = (ev.target as HTMLElement).closest<HTMLElement>('[data-ct2]')?.dataset.ct2;
+            if (b === 'map') this.showMap();
+            if (b === 'prat') this.startSim([], 1, false, undefined, chId);
+            if (b === 'again') this.showChapterTest(chId);
+          };
+          if (rankFor(this.save.xp).name !== before) this.toast(`▲ Nuovo rango: ${rankFor(this.save.xp).name}`);
+        },
+        { maxRetry: 3 },
+      );
+    });
   }
 
   // ------------------------------------------------------------- giochi
@@ -1720,17 +1886,26 @@ export class App {
     sync();
   }
 
-  private startSim(chapters: string[], level: Level, exam = false, pal?: { skill: string | null }): void {
+  private startSim(chapters: string[], level: Level, exam = false, pal?: { skill: string | null }, ctest?: string): void {
     const shell = buildWorld(this.save.handle!, () => this.simHint(true));
     const seed = (Date.now() ^ Math.floor(Math.random() * 2 ** 31)) >>> 0;
-    const drills = pal ? generatePalestra(shell, pal.skill ? { skill: pal.skill, seed } : { pool: this.palestraPool(), seed }) : generateSession(shell, chapters, level, seed);
-    if (!drills.length) return this.showPalestra();
+    let drills: Drill[];
+    if (ctest) {
+      // parte pratica della verifica di capitolo: esercizi sulle competenze del capitolo, o le sue sfide
+      const plan = practicalPlan(ctest);
+      const fromPal = plan.pool.length ? generatePalestra(shell, { pool: plan.pool, count: plan.drills ? CHAPTER_TEST.practical - 1 : CHAPTER_TEST.practical, seed }) : [];
+      const fromSim = plan.drills ? generateSession(shell, [ctest], 1, seed).slice(0, CHAPTER_TEST.practical - fromPal.length) : [];
+      drills = [...fromPal, ...fromSim];
+      pal = { skill: null };
+    } else drills = pal ? generatePalestra(shell, pal.skill ? { skill: pal.skill, seed } : { pool: this.palestraPool(), seed }) : generateSession(shell, chapters, level, seed);
+    if (!drills.length) return ctest ? this.showChapterTest(ctest) : this.showPalestra();
     const term = new TerminalView(shell, (ev) => this.onSimEvents(ev));
-    this.sim = { drills, idx: 0, level, chapters, results: [], hinted: drills.map(() => false), hintLevel: 0, term, shell, minimized: false, solvedNow: false, log: [], pal, exam: exam ? { started: Date.now(), deadline: Date.now() + EXAMS.pratico.minutes * 60_000 } : null };
-    const palName = pal ? (pal.skill ? `PALESTRA · ${pal.skill}` : 'PALESTRA · ALLENAMENTO MISTO') : '';
+    this.sim = { drills, idx: 0, level, chapters, results: [], hinted: drills.map(() => false), hintLevel: 0, term, shell, minimized: false, solvedNow: false, log: [], pal, ctest, exam: exam ? { started: Date.now(), deadline: Date.now() + EXAMS.pratico.minutes * 60_000 } : null };
+    const palName = ctest ? 'VERIFICA · PARTE PRATICA' : pal ? (pal.skill ? `PALESTRA · ${pal.skill}` : 'PALESTRA · ALLENAMENTO MISTO') : '';
     if (pal) {
       term.system(`── ${palName} · ${drills.length} esercizi ──`, 'banner');
-      term.system('I file degli esercizi sono nella cartella pal/. Le risposte si inviano con "flag".', 'info');
+      term.system(`I file degli esercizi sono nelle cartelle pal/${ctest ? ' e sim/' : ''}. Le risposte si inviano con "flag".`, 'info');
+      if (ctest) term.system('Vale come superato solo un esercizio risolto senza suggerimenti.', 'info');
     } else term.system(exam ? `── ESAME · PROVA PRATICA · ${drills.length} sfide ──` : `── SIMULAZIONE · ${LEVELS[level].name.toUpperCase()} · ${drills.length} sfide ──`, 'banner');
     if (!pal) term.system('I file delle sfide sono nella cartella sim/. Le risposte si inviano con "flag".', 'info');
     const node = el(html`
@@ -1749,7 +1924,8 @@ export class App {
       </div>`);
     node.querySelector('.term-area')!.appendChild(term.el);
     node.querySelector('[data-act="back"]')!.addEventListener('click', () => {
-      if (pal) this.showPalestra();
+      if (ctest) this.showChapterTest(ctest);
+      else if (pal) this.showPalestra();
       else if (confirm('Uscire dalla simulazione? I progressi di questa partita andranno persi.')) this.showSimSetup();
     });
     this.addManualButton(node);
@@ -1790,7 +1966,7 @@ export class App {
     panel.innerHTML = html`
       <div class="step-head">
         <span class="step-kind k-task">${s.pal ? 'ESERCIZIO' : 'SFIDA'} ${s.idx + 1}/${total}</span>
-        <span class="step-num">${s.pal ? `${d.skill} · livello ${d.lv}` : `cap ${chapter?.code ?? ''} · ${chapter?.title ?? ''}`}</span>
+        <span class="step-num">${s.pal && d.skill ? `${d.skill} · livello ${d.lv}` : `cap ${chapter?.code ?? ''} · ${chapter?.title ?? ''}`}</span>
         <button class="iconbtn small" data-act="minimize" aria-label="Riduci pannello">${s.minimized ? '▾' : '▴'}</button>
       </div>
       <h2 class="step-title">${d.title}</h2>
@@ -1921,6 +2097,11 @@ export class App {
     });
     xp = Math.round(xp);
     if (s.pal) xp = ok * 5;
+    const clean = s.results.filter((r, i) => r === 'ok' && !s.hinted[i]).length;
+    if (s.ctest) {
+      recordPractical(this.save.chTests, s.ctest, clean, s.drills.length, today());
+      xp = clean * 10;
+    }
     const key = `sim-${s.level}`;
     const record = !s.pal && ok > 0 && (this.save.best[key] === undefined || ok > this.save.best[key]);
     if (record && !s.exam) this.save.best[key] = ok;
@@ -1953,15 +2134,15 @@ export class App {
     const node = el(html`
       <div class="screen complete">
         <div class="panel">
-          <div class="kicker">${s.pal ? `// palestra · ${s.pal.skill ?? 'allenamento misto'}` : ex ? '// esame · prova pratica' : `// simulazione · ${L.name}`}</div>
+          <div class="kicker">${s.ctest ? '// verifica di capitolo · parte pratica' : s.pal ? `// palestra · ${s.pal.skill ?? 'allenamento misto'}` : ex ? '// esame · prova pratica' : `// simulazione · ${L.name}`}</div>
           ${ex ? `<div class="ex-verdict ${passed ? 'ok' : 'ko'}">${passed ? 'SUPERATA' : 'NON SUPERATA'}</div>` : ''}
           <h2>${ok}/${s.drills.length} ${s.pal ? 'esercizi risolti' : 'sfide risolte'}${ex ? ` · ${pct}%` : ''}</h2>
           <div class="xp-gain">+${xp} XP</div>
-          <div class="rank-now">${s.pal ? this.palestraVerdict(s.drills) : ex ? `Soglia ${EXAMS.pratico.pass}%. Le sfide non risolte hanno la soluzione qui sotto: provale di nuovo nelle Simulazioni.` : record ? 'Nuovo record personale per questo livello!' : this.save.best[key] !== undefined ? `Record: ${this.save.best[key]}/${s.drills.length}` : 'Riprova: ogni partita è diversa.'}</div>
+          <div class="rank-now">${s.ctest ? `${clean}/${s.drills.length} senza suggerimenti. ${clean / s.drills.length >= 0.75 ? '★ Parte pratica superata.' : 'Per la stella ne servono almeno tre quarti senza aiuti: riprova, gli esercizi cambiano.'}` : s.pal ? this.palestraVerdict(s.drills) : ex ? `Soglia ${EXAMS.pratico.pass}%. Le sfide non risolte hanno la soluzione qui sotto: provale di nuovo nelle Simulazioni.` : record ? 'Nuovo record personale per questo livello!' : this.save.best[key] !== undefined ? `Record: ${this.save.best[key]}/${s.drills.length}` : 'Riprova: ogni partita è diversa.'}</div>
           <ol class="findings">${rows}</ol>
           ${coach ? `<h3>Il parere di Nyx sul tuo lavoro</h3>${this.statsHtml(coach)}<div class="coach">${this.coachHtml(coach, 4)}</div>` : ''}
           <div class="step-actions">
-            <button class="ghost" data-act="setup">${s.pal ? 'Palestra' : ex ? 'Esami' : 'Impostazioni'}</button>
+            <button class="ghost" data-act="setup">${s.ctest ? 'Verifica' : s.pal ? 'Palestra' : ex ? 'Esami' : 'Impostazioni'}</button>
             <button class="next" data-act="again">${s.pal ? 'Altri esercizi ▸' : ex ? 'Un\'altra prova ▸' : 'Nuova partita ▸'}</button>
           </div>
         </div>
@@ -1969,11 +2150,12 @@ export class App {
     const chapters = s.chapters;
     const level = s.level;
     const pal = s.pal;
+    const ctest = s.ctest;
     this.sim = null;
     node.addEventListener('click', (e) => {
       const act = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset.act;
-      if (act === 'setup') (pal ? this.showPalestra() : ex ? this.showExams() : this.showSimSetup());
-      if (act === 'again') this.startSim(chapters, level, !!ex, pal);
+      if (act === 'setup') (ctest ? this.showChapterTest(ctest) : pal ? this.showPalestra() : ex ? this.showExams() : this.showSimSetup());
+      if (act === 'again') this.startSim(chapters, level, !!ex, ctest ? undefined : pal, ctest);
     });
     this.fillCoachCode(node);
     this.mount('sim-done', node);
@@ -2185,6 +2367,10 @@ export class App {
           <input type="checkbox" data-act="hideknown" ${this.save.hideKnown ? 'checked' : ''} />
           <span>Nei compiti, nascondi i comandi che hai già usato (si vedono toccandoli)</span>
         </label>
+        <label class="toggle">
+          <input type="checkbox" data-act="warmup" ${this.save.warmup ? 'checked' : ''} />
+          <span>Ripasso lampo: tre domande sulle missioni precedenti prima di iniziarne una nuova</span>
+        </label>
         <p class="small">Comandi che conosci: ${this.save.known.filter((k) => MANPAGES[k]).length}</p>
       </section>
       <section class="setting">
@@ -2233,6 +2419,11 @@ export class App {
       const act = (e.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset.act;
       if (act === 'hideknown') {
         this.save.hideKnown = (e.target as HTMLInputElement).checked;
+        this.persist();
+        return;
+      }
+      if (act === 'warmup') {
+        this.save.warmup = (e.target as HTMLInputElement).checked;
         this.persist();
         return;
       }
