@@ -158,7 +158,7 @@ Il programma previsto in questo documento è completo. Prossimi passi possibili:
 - I compiti raccontano cosa fare e perché, senza ripetere la lezione di Nyx che li precede; tolte le mini-lezioni automatiche dove il compito spiega già l'opzione (`ownLesson`).
 - I capitoli successivi verranno riscritti con lo stesso criterio, uno alla volta.
 
-## Aggiunto nella 1.19 (riscrittura per principianti, capitoli F, 02 e 03)
+## Aggiunto nella 1.19 (riscrittura per principianti, capitoli F, 02, 03 e 04)
 
 - **Capitolo F riscritto** con una trama: il giorno dopo la notte del capitolo 01, alla scrivania di Rook nel retro di Lo Scantinato. Ogni missione è un'ora della giornata con un cliente diverso (la clinica, l'emporio Tanaka, Neon Ottica, lo studio dentistico Kabuki, il contratto della sera); alla fine Rook ti manda da Mama Reyes, il capitolo 02.
 - Si comincia dal terminale: prima si leggono le segnalazioni dei clienti con `cat`, poi arriva la teoria della triade CIA.
@@ -171,3 +171,4 @@ Il programma previsto in questo documento è completo. Prossimi passi possibili:
 - Mama ha la sua voce nelle lezioni.
 - **Capitolo 03 riscritto** con una trama: Mama ti affida il vecchio server del bar, messo su "alla buona" anni fa. Impari come Linux sa chi è chi (3.1), fai l'audit dei permessi (3.2: la password della cassa leggibile da tutti, lo script notturno modificabile da chiunque) e cerchi le copie dimenticate (3.3). Il capitolo finisce con il messaggio di Mama alle sei del mattino che apre il capitolo 04.
 - Nella 3.2 si guardano prima i file con `ls -la`, poi arriva la teoria dei permessi. Nuovi esercizi: la home di Mama in /etc/passwd (3.1), ricontrollare i permessi dopo chmod (3.2), trovare un processo con `ps aux | grep sshd` (3.3). Spiegati campo, sudo, audit, file di configurazione, script, compromesso, privilege escalation, PID, CPU, RAM, IoC; le lezioni non ripetono più quello che spiegano già le schede dei comandi; la lezione sulle password riprende l'impronta del capitolo F.
+- **Capitolo 04 riscritto** con la trama che continua: le sei del mattino, il server di Mama urla. Si legge prima il messaggio di Mama, poi la teoria sui log. Nuovi esercizi: l'ora del login dell'intruso (4.1, primo punto della timeline), i tentativi contro l'utente inesistente `admin` (4.2: attacco automatico, ma il nome `mama` l'ha trovato altrove), mettere al sicuro le prove con `mkdir` e `cp` prima di agire (4.3, catena di custodia). Spiegati SIEM, Blue Team, analista; il finale porta al capitolo AM.

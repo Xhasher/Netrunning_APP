@@ -1,5 +1,16 @@
+// Capitolo 04 · Primo turno al SOC. Si passa dall'altra parte: leggere i log, riconoscere
+// un attacco, contenerlo e raccontarlo.
+//
+// Trama: le sei del mattino dopo il capitolo 03. Il server del bar è lentissimo e la ventola
+// urla. Qualcuno è entrato stanotte. Tu leggi il diario del server (4.1), trovi chi ha
+// bussato e se è entrato (4.2), scopri cosa ha lasciato e lo chiudi fuori (4.3). Alla fine
+// Mama sposta il sito del negozio sul tuo deck: è il capitolo AM.
+
 import type { ShellEvent } from '../engine/types';
 import type { Chapter } from '../game/types';
+
+/** Versione dei contenuti in cui il capitolo è stato riscritto (passi nuovi). */
+const V = 19;
 
 const readOf = (rel: string) => (ev: ShellEvent, sh: { home: string }) =>
   ev.type === 'read' && ev.path === `${sh.home}/${rel}`;
@@ -20,16 +31,35 @@ export const CH04: Chapter = {
         {
           kind: 'lesson',
           title: 'Chiamata d\'emergenza',
-          body: `@rook: Svegliati, choom. (A Night City "choom" vuol dire "amico".) Mama Reyes ha un problema serio: il server del bar è impazzito stanotte. Stavolta non ti paga per attaccare. Ti paga per **capire cosa è successo**.
+          body: `Le sei e venti del mattino. Il bar è buio, l'unico rumore è la ventola del server nello sgabuzzino: un sibilo acuto, continuo. Mama è in vestaglia, con le braccia incrociate.
 
-@nyx: Benvenuto dall'altra parte della barricata. Il **Blue Team** difende: sorveglia i sistemi, rileva gli attacchi e risponde. Molti lavorano in un **SOC** (*Security Operations Center*), una sala dove gli analisti controllano gli allarmi 24 ore su 24.
+@mama: Ieri sera andava benissimo. Stamattina ci mette un minuto ad aprire una cartella. E senti che rumore.
 
-@nyx: È il punto d'ingresso più comune nel lavoro della sicurezza. E la regola d'oro è una sola: **i log non mentono**.`,
+@rook: Il report di ieri, quello finito nel cassetto... Non importa. Stavolta non ti paga per attaccare: ti paga per **capire cosa è successo**. (E a Night City "choom" vuol dire "amico": te lo dico perché da oggi lo sentirai spesso.)
+
+@nyx: Oggi passi dall'altra parte della barricata. Chi difende si chiama **Blue Team** ("squadra blu"): sorveglia i sistemi, si accorge degli attacchi e reagisce. Nelle aziende lavora spesso in un **SOC** (*Security Operations Center*), una sala dove gli **analisti** guardano gli allarmi 24 ore su 24, a turni.
+
+@nyx: È la porta d'ingresso più comune nel lavoro della sicurezza. E la sua regola d'oro è una sola: **i log non mentono**. Mama ti ha già copiato tutto: comincia da lì.`,
+        },
+        {
+          kind: 'task',
+          title: 'Il messaggio di Mama',
+          body: `Mama ti ha copiato i file del server nella cartella \`caso\`. Leggi prima il suo messaggio:
+
+\`\`\`
+cat caso/LEGGIMI.txt
+\`\`\``,
+          objective: 'Leggi caso/LEGGIMI.txt.',
+          hints: ['Dalla home: cat caso/LEGGIMI.txt'],
+          check: readOf('caso/LEGGIMI.txt'),
+          success: `Server lento, ventola al massimo, e due file: \`auth.log\` e \`processi.txt\`. Annota i **sintomi**: un buon analista parte sempre da cosa ha notato chi usa il sistema, e poi cerca le prove.
+
+Il primo file è un **log**. Nyx ti spiega cos'è e come si legge.`,
         },
         {
           kind: 'lesson',
           title: 'Cosa sono i log',
-          body: `Un **log** è un registro: un file di testo in cui un programma scrive, riga per riga, quello che succede. Ogni riga ha quasi sempre **data e ora**.
+          body: `@nyx: Un **log** è un diario: un file di testo in cui un programma scrive, riga per riga, quello che succede. Ogni riga ha quasi sempre **data e ora**. Ne hai sentito parlare dal primo giorno; oggi ne apri uno vero.
 
 Su Linux i log stanno in \`/var/log\`. I più importanti:
 - \`/var/log/auth.log\` → autenticazioni: login riusciti e falliti, uso di sudo
@@ -43,24 +73,11 @@ Nov 12 03:14:05 server sshd[1206]: Failed password for root from 203.0.113.77 po
 \`\`\`
 - \`Nov 12 03:14:05\` → quando
 - \`server\` → su quale macchina
-- \`sshd[1206]\` → quale programma (il servizio SSH) e il suo PID
+- \`sshd[1206]\` → quale programma (\`sshd\`, il servizio SSH che hai visto in \`ps aux\`) e, tra parentesi quadre, il suo PID
 - \`Failed password for root\` → cosa: password sbagliata per l'utente root
 - \`from 203.0.113.77 port 51003\` → da dove arrivava il tentativo
 
-!! Gli attaccanti esperti provano a **cancellare o modificare i log** per nascondere le tracce. Per questo le aziende li copiano in tempo reale su un altro sistema, chiamato **SIEM**, che raccoglie e analizza i log di tutta l'azienda.`,
-        },
-        {
-          kind: 'task',
-          title: 'Il messaggio di Mama',
-          body: `Mama ti ha copiato i file del server nella cartella \`caso\`. Leggi prima il suo messaggio:
-
-\`\`\`
-cat caso/LEGGIMI.txt
-\`\`\``,
-          objective: 'Leggi caso/LEGGIMI.txt.',
-          hints: ['Dalla home: cat caso/LEGGIMI.txt'],
-          check: readOf('caso/LEGGIMI.txt'),
-          success: `Server lento, ventola al massimo. Annota questi **sintomi**: un buon analista parte sempre da cosa ha notato l'utente, e poi cerca le prove.`,
+!! Gli attaccanti esperti provano a **cancellare o modificare i log** per nascondere le tracce. Per questo le aziende li copiano in tempo reale su un altro computer, chiamato **SIEM** (*Security Information and Event Management*), che raccoglie i log di tutta l'azienda, li analizza e fa scattare gli allarmi.`,
         },
         {
           kind: 'task',
@@ -93,6 +110,21 @@ tail -n 5 caso/auth.log
 ?? Sui server veri si usa spesso \`tail -f\` per vedere le nuove righe di un log **in tempo reale**, mentre vengono scritte.`,
         },
         {
+          kind: 'task',
+          since: V,
+          title: 'A che ora?',
+          body: `Nelle indagini l'orario è tutto: è il filo con cui si cuciono insieme le prove.
+
+A che ora è avvenuto il login riuscito da \`203.0.113.77\`? Guarda la riga \`Accepted password\` nell'output di \`tail\` e invia l'ora con \`flag\`, nel formato ore:minuti (per esempio \`flag 04:30\`).`,
+          objective: 'Invia con flag l\'ora del login riuscito dall\'esterno.',
+          hints: ['L\'ora è il terzo pezzo della riga, dopo "Nov 12".', 'La riga Accepted password inizia con Nov 12 03:17: flag 03:17'],
+          answer: ['03:17', '3:17', '03:17:09', '3:17:09'],
+          solve: ['tail -n 5 caso/auth.log', 'flag 03:17'],
+          success: `**03:17**. Il bar era chiuso, Mama dormiva. Qualcuno, da un indirizzo **pubblico** (non comincia con \`192.168.\`, quindi viene da Internet), è entrato con il suo account.
+
+@nyx: Questo è il primo punto della **timeline**, l'elenco in ordine di tempo di tutto quello che è successo. La costruiremo pezzo per pezzo.`,
+        },
+        {
           kind: 'quiz',
           title: 'Verifica',
           question: 'In quale file cercheresti i tentativi di login falliti su un server Linux?',
@@ -122,7 +154,7 @@ tail -n 5 caso/auth.log
         {
           kind: 'lesson',
           title: 'Il brute force',
-          body: `Un attacco **brute force** ("forza bruta") è il più semplice che esista: un programma prova password su password, migliaia di volte, finché non indovina.
+          body: `@nyx: Come si entra con la password di qualcun altro? Alla scrivania di Rook ti ho nominato il **brute force** ("forza bruta"). Eccolo dal vivo: un programma prova password su password, centinaia o migliaia di volte, finché non ne indovina una.
 
 È rumoroso e si riconosce facilmente nei log:
 - **tanti** \`Failed password\` in poco tempo
@@ -201,6 +233,27 @@ Poi invia con \`flag\` l'indirizzo IP che ha fatto **più** tentativi.`,
           ],
           answer: ['203.0.113.77'],
           success: `**203.0.113.77**, con 37 tentativi. L'altro indirizzo (\`198.51.100.9\`) ne ha fatti solo 3 alle 2 di notte: probabilmente uno dei tanti scanner automatici di Internet. Distinguere il **rumore di fondo** dall'attacco vero è metà del lavoro di un analista SOC.`,
+        },
+        {
+          kind: 'task',
+          since: V,
+          title: 'Porta per porta',
+          body: `L'attaccante non ha provato solo \`root\`. Ha provato anche un utente che sul server di Mama **non esiste**: \`admin\`.
+
+Quante volte? Conta le righe che contengono \`for admin\`:
+
+\`\`\`
+grep "for admin" caso/auth.log | wc -l
+\`\`\`
+
+Invia il numero con \`flag\`.`,
+          objective: 'Conta i tentativi contro l\'utente admin e invia il numero.',
+          hints: ['grep "for admin" caso/auth.log | wc -l', 'flag 12'],
+          answer: ['12', 'dodici'],
+          solve: ['grep "for admin" caso/auth.log | wc -l', 'flag 12'],
+          success: `**12** tentativi contro un utente che non c'è. Vuol dire che l'attaccante **non conosceva** il server: provava i nomi più comuni del mondo, \`root\` e \`admin\`, da una lista uguale per tutti. È il segno di un attacco **automatico**, lanciato contro migliaia di server alla cieca.
+
+Poi però ha provato anche \`mama\`. Quel nome non è in nessuna lista: l'ha preso da qualche parte. Forse dal sito del bar, dove Mama firma i post. Le informazioni pubbliche aiutano anche chi attacca.`,
         },
         {
           kind: 'task',
@@ -309,6 +362,26 @@ Ora è il momento del **contenimento**: chiudere la porta all'attaccante.`,
         },
         {
           kind: 'task',
+          since: V,
+          title: 'Prima le prove',
+          body: `@nyx: Prima di chiudere fuori l'attaccante, una cosa che i principianti dimenticano sempre: **metti al sicuro le prove**. Quando si inizia a correggere, i file cambiano, i processi si chiudono, e quello che hai visto stamattina non c'è più.
+
+Crea una cartella \`caso/prove\` e copiaci dentro il log degli accessi. Sono due comandi della prima notte, \`mkdir\` e \`cp\`:
+
+\`\`\`
+mkdir caso/prove
+cp caso/auth.log caso/prove/
+\`\`\``,
+          objective: 'Copia caso/auth.log dentro la cartella caso/prove.',
+          hints: ['Prima mkdir caso/prove, poi cp caso/auth.log caso/prove/', 'mkdir caso/prove e poi cp caso/auth.log caso/prove/'],
+          state: (sh) => sh.fs.get(`${sh.home}/caso/prove/auth.log`)?.type === 'file',
+          solve: ['mkdir caso/prove', 'cp caso/auth.log caso/prove/'],
+          success: `Le prove sono al sicuro. Nel lavoro vero si va oltre: si copiano anche la lista dei processi e i file sospetti, si annota **chi** ha fatto la copia e **quando**, e se ne calcola l'impronta (l'hash) per poter dimostrare in seguito che nessuno l'ha modificata. Si chiama **catena di custodia**, e la vedrai nel capitolo sull'informatica forense.
+
+Ora puoi chiudere la porta.`,
+        },
+        {
+          kind: 'task',
           title: 'Chiudi la porta',
           body: `Blocchiamo l'indirizzo dell'attaccante sul firewall. Su Ubuntu (una delle distribuzioni Linux più diffuse) si usa \`ufw\` (*uncomplicated firewall*, "firewall semplice"), e servono i privilegi di amministratore. Per questo il comando inizia con \`sudo\`: esegue ciò che segue con i poteri di root. Mama ti ha autorizzato a usare \`sudo\` **solo** per il firewall:
 
@@ -381,7 +454,11 @@ Azioni consigliate:
  - installare fail2ban, aggiornare il sistema
 \`\`\`
 
-@nyx: Ottimo lavoro, choom. Hai appena fatto quello che fa un analista SOC in una notte difficile: hai letto i log, trovato l'attaccante, capito cosa ha fatto e fermato il danno.`,
+@nyx: Ottimo lavoro, choom. Hai appena fatto quello che fa un analista SOC in una notte difficile: hai letto i log, trovato l'attaccante, capito cosa ha fatto e fermato il danno.
+
+Mama legge il rapporto due volte. Poi lo appende con una puntina dietro il bancone, accanto alla licenza del bar.
+
+@mama: Stavolta niente cassetto. E sai che ti dico? Il sito del negozio lo sposto sul tuo deck. Almeno so chi lo guarda.`,
         },
         {
           kind: 'quiz',
