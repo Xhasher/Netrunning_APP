@@ -580,6 +580,23 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
     mine,
   );
 
+  // Capitolo 13 — il piano del laboratorio di casa
+  fs.writeFile(
+    `${home}/carriera/laboratorio.txt`,
+    [
+      'Il mio laboratorio (VirtualBox)',
+      '',
+      'macchina          ruolo                 rete',
+      'kali              postazione            rete interna "lab"',
+      'metasploitable    bersaglio vulnerabile  bridge (scheda di casa)',
+      'dvwa              sito vulnerabile       rete interna "lab"',
+      'wazuh             SIEM, raccoglie i log  rete interna "lab"',
+      '',
+      'snapshot prima di ogni esercizio: si',
+    ].join('\n') + '\n',
+    mine,
+  );
+
   // Capitolo 13 — configurazione cloud esportata di Neon Ottica
   fs.writeFile(
     `${home}/cloud/bucket-policy.json`,

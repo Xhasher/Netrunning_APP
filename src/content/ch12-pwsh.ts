@@ -1,7 +1,7 @@
 // Capitolo 12, missioni 4 e 5: PowerShell da analista.
 // 12.4 PowerShell sul deck: oggetti invece di testo, la pipeline, filtrare e contare.
 // 12.5 Risposta a distanza: con Enter-PSSession sul PC dell'amministrazione colpito dal
-//      phishing del capitolo SOC: processi, connessioni, persistenza, account, eventi,
+//      phishing del capitolo SO (Il turno al SOC): processi, connessioni, persistenza, account, eventi,
 //      e il contenimento chiesto dal L2.
 
 import { PS_COMPUTERS, type WinSystem } from '../engine/pwsh';
@@ -275,7 +275,7 @@ export const PSIR_MISSION: Mission = {
     {
       kind: 'lesson',
       title: 'Il PC dell\'amministrazione',
-      body: `@rook: Ti ricordi PC-AMM-07, il phishing con la macro del tuo primo turno al SOC? Hanako (L2) ha isolato il PC dalla rete, lasciando aperto solo il canale di gestione. Ti chiede di raccogliere le prove con PowerShell, da remoto, e poi di eseguire il contenimento.
+      body: `@rook: Ti ricordi PC-AMM-07, il phishing con la macro del turno al SOC di Arasaka? Hanako (L2) ha isolato il PC dalla rete, lasciando aperto solo il canale di gestione. Ti chiede di raccogliere le prove con PowerShell, da remoto, e poi di eseguire il contenimento.
 
 @nyx: \`Enter-PSSession\` apre una console PowerShell **su un altro computer**, attraverso il servizio **WinRM** (Windows Remote Management, porta 5985). Tutto quello che scrivi gira là. È così che lavora un incident responder in un'azienda con mille PC: senza alzarsi dalla sedia.
 

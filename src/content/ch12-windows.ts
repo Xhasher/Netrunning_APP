@@ -16,7 +16,9 @@ export const CH12: Chapter = {
         {
           kind: 'lesson',
           title: 'Perché Windows',
-          body: `@nyx: I server di Internet sono quasi tutti Linux, ma dentro gli **uffici** quasi tutti i computer sono Windows. E le aziende li gestiscono con un sistema centrale, **Active Directory**. Se vuoi lavorare in un SOC, metà degli allarmi che vedrai arriveranno da lì.
+          body: `@rook: Dopo il pentest, Arasaka ti richiama: il prossimo mese di prova è sui PC degli uffici. E lì non c'è Linux.
+
+@nyx: I server di Internet sono quasi tutti Linux, ma dentro gli **uffici** quasi tutti i computer sono Windows. E le aziende li gestiscono con un sistema centrale, **Active Directory**. Se vuoi lavorare in un SOC, metà degli allarmi che vedrai arriveranno da lì.
 
 Le differenze principali rispetto a Linux:
 - i dischi hanno una lettera: \`C:\\\`, e i percorsi usano la barra rovesciata \`\\\`

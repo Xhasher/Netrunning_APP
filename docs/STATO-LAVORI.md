@@ -2,7 +2,7 @@
 
 Promemoria per riprendere il lavoro tra una sessione e l'altra.
 
-## Riscrittura dei capitoli per principianti (in pausa dopo la 1.19.5)
+## Riscrittura dei capitoli per principianti (completata nella 1.32.0)
 
 Criteri: una piccola trama per capitolo; si scrive presto nel terminale; ogni termine spiegato
 dove compare; Nyx (e Rook, Mama) come voci; le lezioni non ripetono le schede "Nyx spiega";
@@ -21,12 +21,14 @@ chi gioca (niente "bravo", "pronto", "benvenuto" al maschile).
 | 06 Crittografia | rivisto (1.29.0) |
 | PY Python | rivisto (1.30.0) |
 | 07 Web | rivisto (1.31.0) |
-| 08 Blue Team | **prossimo** |
-| SOC, 09, 10, 11, PT, 12, DF, SJ, 13 | da fare |
+| 08, SO, 09, 10, 11, PT, 12, DF, SJ, 13 | rivisti (1.32.0) |
 
 Filo della trama finora: notte da Nyx (01) → giornata da Rook (F) → pentest al bar di Mama (02)
 → vecchio server (03) → intrusione e cryptominer (04) → il sito sul deck, Luca in ferie (AM)
-→ automatizzare i controlli del mattino (05).
+→ automatizzare i controlli del mattino (05) → le password di Luca e il firmware (06) → Python (PY)
+→ il sito del jukebox e il negozio di Judy (07) → mese di prova al SOC di Arasaka (08, SO)
+→ la rete del bar (09) → Neon Ottica (10, 13) → audit e pentest per Kang Tao (11, PT)
+→ Windows ad Arasaka (12) → forense su Kiroshi (DF) → assunzione da junior (SJ) → laboratorio e carriera (13).
 
 ## Proposta "idea giochi.docx"
 

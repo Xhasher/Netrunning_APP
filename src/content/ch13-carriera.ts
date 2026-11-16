@@ -1,5 +1,9 @@
 import type { Chapter } from '../game/types';
 
+// Capitolo 13 · Trama: dopo la settimana da junior si guarda avanti: cloud, strumenti,
+// il laboratorio di casa (che vuole anche Luca) e il lavoro.
+const V = 24;
+
 export const CH13: Chapter = {
   id: 'ch13',
   code: '13',
@@ -16,7 +20,9 @@ export const CH13: Chapter = {
         {
           kind: 'lesson',
           title: 'Il computer di qualcun altro',
-          body: `Sempre più aziende non hanno server propri: usano il **cloud** (AWS di Amazon, Azure di Microsoft, Google Cloud...). Si affittano risorse e si pagano a consumo:
+          body: `@rook: Neon Ottica è tornata. Hanno spostato il gestionale sul cloud e vogliono sapere se l'hanno fatto bene. Ti hanno mandato la configurazione esportata.
+
+@nyx: Sempre più aziende non hanno server propri: usano il **cloud** (AWS di Amazon, Azure di Microsoft, Google Cloud...). Si affittano risorse e si pagano a consumo:
 - **IaaS**: macchine virtuali, reti, dischi. Gestisci tu il sistema operativo
 - **PaaS**: piattaforme pronte (database, hosting di applicazioni). Gestisci solo l'applicazione
 - **SaaS**: software già pronto (posta, CRM, Office 365). Gestisci solo utenti e dati
@@ -244,6 +250,25 @@ Aggiungi una macchina con **Wazuh** o **Security Onion** e manda lì i log delle
 Prima di ogni esercizio, fai uno **snapshot**: se rompi qualcosa, torni indietro in un clic.`,
         },
         {
+          kind: 'task',
+          since: V,
+          title: 'Controlla il piano',
+          body: `@luca: Anch'io voglio un laboratorio a casa. Ho scritto come configurare le macchine, mi dici se va bene?
+
+\`\`\`
+cat carriera/laboratorio.txt
+\`\`\`
+
+Una macchina ha la rete sbagliata, e sarebbe raggiungibile da tutti i dispositivi di casa. Quale? Invia il suo nome con \`flag\`.`,
+          objective: 'Trova la macchina con la rete sbagliata.',
+          hints: ['Le macchine vulnerabili devono stare solo sulla rete interna.', '"bridge" la mette sulla rete di casa: flag metasploitable'],
+          answer: ['metasploitable'],
+          solve: ['cat carriera/laboratorio.txt', 'flag metasploitable'],
+          success: `**metasploitable** è in modalità *bridge*: prende un indirizzo sulla rete di casa, accanto al telefono e al PC di famiglia. Una macchina piena di falle apposta non deve mai stare lì. Va spostata sulla rete interna "lab", come le altre.
+
+@luca: Cambiato. Adesso la rompo in pace.`,
+        },
+        {
           kind: 'lesson',
           title: 'E poi?',
           body: `Con il laboratorio pronto, un percorso consigliato:
@@ -252,7 +277,7 @@ Prima di ogni esercizio, fai uno **snapshot**: se rompi qualcosa, torni indietro
 3. **TryHackMe** (stanze gratuite) e **picoCTF** per le prime sfide guidate
 4. **PortSwigger Academy** con Burp contro **DVWA**
 5. **Blue Team Labs Online**, **LetsDefend** e **CyberDefenders** per allenarti come analista SOC
-6. **HackTheBox** quando ti senti pronto
+6. **HackTheBox** quando le basi sono solide
 
 !! Le regole non cambiano mai: si attacca solo ciò che è tuo o per cui hai un'autorizzazione esplicita. Le macchine vulnerabili non vanno mai collegate a Internet.`,
         },
@@ -402,7 +427,7 @@ Le sezioni italiane di **OWASP**, eventi come **HackInBo** o **No Hat**, i grupp
 
 @nyx: Il deck finisce qui, ma il mestiere no. Laboratorio, CTF, notizie, una cosa nuova ogni giorno. E ricordati sempre perché lo fai: per **proteggere** chi viene attaccato.
 
-@rook: Benvenuto nel giro, edgerunner. Mama dice che stasera offre lei.
+@rook: Adesso fai parte del giro, edgerunner. Mama dice che stasera offre lei.
 
 !! Il gioco resta a tua disposizione: le **Operazioni** e i **Giochi** si possono rigiocare, l'**Allenamento** serve proprio per ripassare, e nel **Terminale libero** puoi fare tutte le prove che vuoi.`,
         },

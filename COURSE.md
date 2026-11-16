@@ -268,3 +268,10 @@ Il programma previsto in questo documento è completo. Prossimi passi possibili:
 
 - **Capitolo 07 rivisto** con la trama che continua: il sito nuovo del jukebox chiesto da Mama alla fine del capitolo Python (l'ha fatto un amico di Luca, "bravo, ma va di fretta"), poi la Top 10 e il negozio di Judy.
 - Nuovo esercizio nella 7.4, che prima non ne aveva: il primo report OWASP, cioè classificare i tre problemi trovati sul sito del jukebox (componenti obsoleti A06, injection A03, configurazione A05) leggendo `web/segnalazioni.txt`.
+
+## Aggiunto nella 1.32 (capitoli 08 → 13 rivisti)
+
+- **Trama fino alla fine**: Mama e Judy fanno girare il nome, e Arasaka Logistics offre un mese di prova al SOC (08); il turno intero da L1 (SO); Luca deve separare la rete del bar (09); il titolare di Neon Ottica arriva tramite Mama (10); Rook fa riordinare i punti deboli visti nei casi (11); il primo pentest in solitaria per Kang Tao (PT); Arasaka richiama per i PC degli uffici (12); Neon Ottica torna con il gestionale sul cloud e Luca vuole un laboratorio a casa (13).
+- **Nuovi esercizi** dove mancavano: le fasi della Kill Chain sul caso della clinica (8.2, `siem/catena.txt`); la bozza della rete del bar, con la cassa nel segmento sbagliato (9.2, `rete/piano-bar.txt`); dare un nome agli errori dopo l'ingresso, tra cui una regola sudo troppo larga (11.1, `audit/dopo-ingresso.txt`); il piano del laboratorio di Luca, con la macchina vulnerabile in bridge (13.3, `carriera/laboratorio.txt`).
+- Linguaggio neutro: tolti "ragazzo" (PT), "Benvenuto nel turno" (SO), "Benvenuto nel giro" e "quando ti senti pronto" (13). Il phishing di PC-AMM-07 ora rimanda correttamente al turno al SOC di Arasaka.
+
