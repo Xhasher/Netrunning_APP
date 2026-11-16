@@ -251,3 +251,9 @@ Il programma previsto in questo documento è completo. Prossimi passi possibili:
 - Giro automatico nel browser, a dimensione telefono, di tutte le schermate (mappa, Memoria, Operazioni e scene, Giochi e ogni gioco, Esami, Competenze, Codex, Orientamento e assaggi, Mentore, Carriera, Opzioni, Terminale, verifica e sfida finale di capitolo, una missione, debriefing) con quattro profili: utente nuovo, a metà corso, corso completato, salvataggio di una versione vecchia senza i campi nuovi. Nessun errore JavaScript, nessuna pagina che sborda in orizzontale.
 - Corretto: nelle schede delle Operazioni il codice (SC-01) e l'etichetta "SCENA DEL CRIMINE" andavano a capo male sul telefono.
 - Nuovi test automatici: un salvataggio vecchio si unisce a uno nuovo senza perdere dati (in entrambe le direzioni), un backup vecchio si legge con i campi nuovi a posto, chi era a metà missione nella versione 19 resta sullo stesso passo.
+
+## Aggiunto nella 1.29 (capitolo 06 rivisto)
+
+- **Capitolo 06 rivisto** con la trama: Luca, dalle ferie, dice di aver salvato le password del bar "in un file cifrato" (è solo Base64, 6.1); arriva un aggiornamento del jukebox manomesso (6.2); il vecchio server conservava male le password dello staff (6.3). Il capitolo si chiude con il password manager per lo staff e un biglietto di Nyx per Luca.
+- Spiegati meglio certificato e autorità di certificazione, il problema dello scambio della chiave, i prefissi delle impronte delle password su Linux (`$y$` yescrypt, `$6$` SHA-512, `$1$` MD5 obsoleto). "Capitolo SOC" diventa "capitolo 04".
+- Nuovo esercizio difensivo nella 6.3: l'audit dei formati delle password del vecchio server, per trovare l'account ancora con il formato obsoleto (la soluzione è reimpostare la password, non indovinarla).

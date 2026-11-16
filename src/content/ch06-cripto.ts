@@ -1,4 +1,15 @@
+// Capitolo 06 · Crittografia e password.
+//
+// Trama: Luca è ancora in ferie. Sul deck arrivano tre problemi che hanno tutti a che fare con
+// i segreti: un messaggio "cifrato" che non lo è (6.1), un aggiornamento del jukebox che non
+// torna (6.2), e il vecchio server che conservava male le password dello staff (6.3).
+// Il taglio è difensivo: capire come si proteggono i dati e come si verifica che nessuno li
+// abbia toccati.
+
 import type { Chapter } from '../game/types';
+
+/** Versione dei contenuti in cui il capitolo è stato rivisto (passi nuovi). */
+const V = 21;
 
 export const CH06: Chapter = {
   id: 'ch06',
@@ -16,9 +27,11 @@ export const CH06: Chapter = {
         {
           kind: 'lesson',
           title: 'Tre parole che tutti confondono',
-          body: `@nyx: Metà dei principianti, e anche molti sviluppatori, confonde tre cose diverse. Se le capisci bene, eviterai errori che costano carissimo.
+          body: `Una settimana dopo. Mama ti passa il telefono: Luca, dalle ferie, ha mandato un messaggio. "Ho salvato le password del bar in un file cifrato, sul deck. Tranquilla."
 
-**1. Codifica** (*encoding*): trasforma i dati in un altro formato per **trasportarli** meglio. Non c'è nessun segreto e nessuna chiave: chiunque conosca il formato torna indietro. Esempi: Base64, URL encoding (\`%20\` = spazio).
+@nyx: "Cifrato". Vediamo. Ma prima tre parole che metà dei principianti, e anche molti sviluppatori, confonde. Se le capisci bene, eviterai errori che costano carissimo.
+
+**1. Codifica** (*encoding*): trasforma i dati in un altro formato per **trasportarli** meglio (per esempio dentro un'email, che accetta solo certi caratteri). Non c'è nessun segreto e nessuna chiave: chiunque conosca il formato torna indietro. Esempi: Base64, URL encoding (\`%20\` = spazio).
 
 **2. Cifratura** (*encryption*): rende i dati **illeggibili** a chi non ha la **chiave**. Si torna indietro solo con la chiave giusta. Esempi: AES, RSA, la connessione HTTPS.
 
@@ -29,7 +42,7 @@ export const CH06: Chapter = {
         {
           kind: 'task',
           title: 'Un messaggio "segreto"',
-          body: `Nyx ti ha lasciato un messaggio in \`cripto/messaggio.txt\`. Guardalo:
+          body: `Il file che Luca chiama "cifrato" ha la stessa forma di questo messaggio che Nyx ti ha lasciato in \`cripto/messaggio.txt\`. Guardalo:
 
 \`\`\`
 cat cripto/messaggio.txt
@@ -45,7 +58,11 @@ Dentro c'è una flag: inviala.`,
           objective: 'Decodifica il messaggio con base64 -d e invia la flag.',
           hints: ['base64 -d cripto/messaggio.txt', 'flag NC{b4s364_n0n_e_c1fr4tur4}'],
           answer: ['NC{b4s364_n0n_e_c1fr4tur4}'],
-          success: `Visto? Nessuna chiave, nessuna password: il "segreto" era leggibile da chiunque. Base64 si trova ovunque (email, token web, configurazioni) e spesso chi analizza un sistema scopre dati sensibili proprio decodificandolo.`,
+          success: `Visto? Nessuna chiave, nessuna password: il "segreto" era leggibile da chiunque. Base64 si trova ovunque (email, token web, configurazioni) e spesso chi analizza un sistema scopre dati sensibili proprio decodificandolo.
+
+@mama: Quindi le password di Luca le può leggere chiunque apra quel file?
+
+@nyx: Esatto. Lo sistemiamo nella terza missione. Prima, capiamo cosa vuol dire cifrare davvero.`,
         },
         {
           kind: 'lesson',
@@ -58,7 +75,7 @@ Dentro c'è una flag: inviala.`,
 
 - è **velocissima**, perfetta per grandi quantità di dati (dischi, file, connessioni)
 - l'algoritmo più usato oggi è **AES**
-- il problema: **come passi la chiave** all'altra persona senza che qualcuno la intercetti?`,
+- il problema: **come passi la chiave** all'altra persona senza che qualcuno la intercetti? Se la mandi per email insieme al file, chi intercetta l'email ha entrambi.`,
         },
         {
           kind: 'lesson',
@@ -74,14 +91,14 @@ Funziona anche al contrario, per le **firme digitali**: firmi con la privata, e 
 - algoritmi: **RSA**, curve ellittiche
 - è più lenta della simmetrica
 
-?? Le **chiavi SSH** di cui abbiamo parlato nel capitolo SOC sono proprio una coppia pubblica/privata: la pubblica va sul server, la privata resta sul tuo computer.`,
+?? Le **chiavi SSH** di cui abbiamo parlato nel capitolo 04 sono proprio una coppia pubblica/privata: la pubblica va sul server, la privata resta sul tuo computer.`,
         },
         {
           kind: 'lesson',
           title: 'Il lucchetto di HTTPS',
           body: `Quando visiti un sito in **HTTPS** (il lucchetto nel browser) succedono entrambe le cose, grazie al protocollo **TLS**:
 
-1. il sito ti manda il suo **certificato**, che contiene la sua chiave pubblica, firmato da un'**autorità di certificazione** di cui il tuo browser si fida
+1. il sito ti manda il suo **certificato**: una specie di carta d'identità digitale, che contiene la sua chiave pubblica ed è firmata da un'**autorità di certificazione** (un ente di cui il tuo browser si fida, come un ufficio anagrafe)
 2. il browser controlla la firma: così sa che sta parlando davvero con quel sito e non con un impostore
 3. con la crittografia asimmetrica, browser e sito si accordano su una **chiave simmetrica** temporanea
 4. da lì in poi tutto viaggia cifrato con quella chiave, velocemente
@@ -124,7 +141,11 @@ Funziona anche al contrario, per le **firme digitali**: firmi con la privata, e 
         {
           kind: 'lesson',
           title: 'Le proprietà di un hash',
-          body: `Una funzione **hash** come **SHA-256** prende dati di qualsiasi dimensione (una parola o un film intero) e produce sempre un'impronta della **stessa lunghezza**: 64 caratteri esadecimali.
+          body: `Il giorno dopo arriva un'email del produttore del jukebox: "Aggiornamento importante, installatelo subito". Mama l'ha già scaricato.
+
+@nyx: Prima di installare qualsiasi cosa, si controlla che sia quello vero. Per farlo servono le **impronte**: le hai viste in teoria nel capitolo F. Ora le usi.
+
+Una funzione **hash** come **SHA-256** prende dati di qualsiasi dimensione (una parola o un film intero) e produce sempre un'impronta della **stessa lunghezza**: 64 caratteri esadecimali.
 
 Le sue proprietà:
 - **deterministica**: gli stessi dati danno sempre la stessa impronta
@@ -180,9 +201,13 @@ Quale file è stato manomesso? Invia il suo nome con \`flag\`.`,
           objective: 'Verifica il firmware e invia il nome del file manomesso.',
           hints: ['cd cripto/firmware e poi sha256sum -c SHA256SUMS', 'Cerca la riga con FAILED: flag update.sh'],
           answer: ['update.sh'],
-          success: `\`update.sh\` non corrisponde all'originale. Guarda cosa c'è dentro con \`cat update.sh\`: qualcuno ha aggiunto in fondo una riga che **scarica ed esegue** uno script dall'indirizzo \`203.0.113.77\`, il nostro vecchio amico del capitolo SOC!
+          success: `\`update.sh\` non corrisponde all'originale. Guarda cosa c'è dentro con \`cat update.sh\`: qualcuno ha aggiunto in fondo una riga che **scarica ed esegue** uno script dall'indirizzo \`203.0.113.77\`: lo stesso che aveva bucato il server di Mama nel capitolo 04.
 
-È un **attacco alla catena di distribuzione** (*supply chain attack*): invece di attaccare il bersaglio direttamente, si avvelena un aggiornamento che il bersaglio installerà da solo. Il controllo delle impronte l'ha fermato.`,
+È un **attacco alla catena di distribuzione** (*supply chain attack*): invece di attaccare il bersaglio direttamente, si avvelena un aggiornamento che il bersaglio installerà da solo. Il controllo delle impronte l'ha fermato.
+
+@mama: E se non avessimo controllato?
+
+@nyx: Ogni notte il jukebox avrebbe chiesto ordini a quel server. Il beacon del capitolo F, in carne e ossa.`,
         },
         {
           kind: 'quiz',
@@ -220,7 +245,9 @@ Quale file è stato manomesso? Invia il suo nome con \`flag\`.`,
         {
           kind: 'lesson',
           title: 'Come vengono salvate',
-          body: `Un sito fatto bene **non conosce** la tua password. Salva solo il suo hash: quando fai login, calcola l'hash di quello che scrivi e lo confronta.
+          body: `Torniamo alle password di Luca. Mama vuole sapere come si fa, bene, a conservare le password dello staff.
+
+@nyx: Prima regola: un sistema fatto bene **non conosce** la tua password. Salva solo il suo hash: quando fai login, calcola l'hash di quello che scrivi e lo confronta.
 
 Ma se un attaccante ruba il database degli hash (succede di continuo: si chiamano **data breach**), può provare a indovinare le password "offline", senza limiti di tentativi:
 1. prende una parola candidata, es. \`estate2023\`
@@ -259,7 +286,31 @@ Ma il vero punto debole non è la matematica: sono le **persone**. Gli attaccant
 
 **Gli hash lenti**: SHA-256 è progettato per essere veloce, ottimo per i file ma pessimo per le password. Per le password si usano algoritmi **volutamente lenti** come **bcrypt**, **scrypt** o **Argon2**: un login che impiega 0,1 secondi non disturba nessuno, ma rallenta l'attaccante di milioni di volte.
 
-?? Ricordi la riga di \`/etc/shadow\` che iniziava con \`$y$\`? Quel prefisso indica l'algoritmo **yescrypt**, uno di questi hash lenti, con il sale incluso.`,
+Nei sistemi Linux l'impronta della password inizia con un **prefisso** che dice quale algoritmo è stato usato:
+- \`$y$\` → **yescrypt**: moderno e lento, quello di oggi
+- \`$6$\` → SHA-512 con sale: ancora accettabile, ma meno resistente
+- \`$1$\` → MD5 con sale: **obsoleto**, da cambiare subito
+
+Il prefisso non rivela la password: dice solo **come** è stata conservata. È la prima cosa che si guarda in un audit.`,
+        },
+        {
+          kind: 'task',
+          since: V,
+          title: 'L\'audit delle impronte',
+          body: `Rook ti ha copiato i formati delle password del vecchio server in \`cripto/hash-account.txt\` (i valori sono accorciati: conta solo il prefisso).
+
+\`\`\`
+cat cripto/hash-account.txt
+\`\`\`
+
+Quale account usa ancora il formato **obsoleto**? Invia il nome con \`flag\`.`,
+          objective: 'Trova l\'account con il formato di hash obsoleto.',
+          hints: ['Guarda il prefisso dopo i due punti: $y$, $6$ oppure $1$.', '$1$ è MD5, obsoleto: flag cassa'],
+          answer: ['cassa'],
+          solve: ['cat cripto/hash-account.txt', 'flag cassa'],
+          success: `\`cassa\`, con \`$1$\`: MD5, un formato di vent'anni fa. Nel report: "la password dell'account cassa va reimpostata, così il sistema la salva con l'algoritmo moderno". Non serve indovinarla: basta cambiarla.
+
+@nyx: E \`luca\` con \`$6$\`? Accettabile, ma alla prossima occasione va aggiornato anche quello.`,
         },
         {
           kind: 'quiz',
@@ -279,7 +330,9 @@ Ma il vero punto debole non è la matematica: sono le **persone**. Gli attaccant
 - **L'autenticazione a più fattori (MFA)**: oltre alla password serve una seconda prova, come un codice da un'app o una chiave fisica. Anche se la password viene rubata, da sola non basta. È la singola difesa più efficace contro il furto di account
 - **Controllare i breach**: servizi come *Have I Been Pwned* dicono se la tua email compare in un data breach noto
 
-!! Attenzione ai codici MFA: nessun servizio serio ti chiederà mai di **dettare** il codice al telefono o in chat. Chi lo chiede sta cercando di rubarti l'account.`,
+!! Attenzione ai codici MFA: nessun servizio serio ti chiederà mai di **dettare** il codice al telefono o in chat. Chi lo chiede sta cercando di rubarti l'account.
+
+Mama installa un password manager per lo staff, attiva l'MFA sulla posta e cancella il file di Luca. Quando Luca torna dalle ferie, trova un biglietto attaccato al monitor: "Base64 non è una cassaforte. — N."`,
         },
         {
           kind: 'quiz',
