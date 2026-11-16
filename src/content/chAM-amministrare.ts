@@ -2,11 +2,19 @@
 // di un analista junior: capire lo stato di una macchina, far ripartire un servizio
 // guasto, leggere il diario di sistema, trovare cosa riempie un disco.
 // Tutto sul deck: il sito del negozio di Mama gira qui, e stamattina è giù.
+//
+// Trama: una settimana dopo il capitolo 04. Mama ha spostato sul tuo deck il sito del bar
+// (con il negozio online delle magliette), e lo cura Luca, un tecnico a chiamata. Luca parte
+// per le ferie e il sito si spegne. Visita medica della macchina (AM.1), il servizio che non
+// parte (AM.2), il diario della notte (AM.3), il disco pieno (AM.4).
 
 import { nginxConfigError } from '../engine/sysinfo';
 import type { Shell } from '../engine/shell';
 import type { ShellEvent } from '../engine/types';
 import type { Chapter } from '../game/types';
+
+/** Versione dei contenuti in cui il capitolo è stato rivisto (passi nuovi). */
+const V = 19;
 
 const cmd = (name: string, test: (args: string[]) => boolean = () => true) => (ev: ShellEvent) =>
   ev.type === 'command' && ev.name === name && ev.ok && test(ev.args);
@@ -32,22 +40,28 @@ export const CHAM: Chapter = {
         {
           kind: 'lesson',
           title: 'Un turno da sistemista',
-          body: `@rook: Mama ha spostato il sito del suo negozio sul tuo deck. Stamattina il sito non risponde e nessuno sa perché. Il tecnico, Luca, è in ferie da oggi.
+          body: `Una settimana dopo. Il server del bar è stato reinstallato da zero, e Mama ha mantenuto la promessa: il sito di Lo Scantinato, con il piccolo negozio online delle magliette, ora gira sul **tuo** deck. Lo cura Luca, un tecnico che passa due volte al mese.
 
-@nyx: Ottima palestra. Nei primi lavori in sicurezza metà del tempo si passa a fare il **sistemista**: tenere in piedi i server, capire perché un servizio è giù, perché un disco è pieno. Un analista che non sa amministrare Linux non capisce neanche cosa è normale e cosa no.
+Le otto del mattino. Il telefono vibra.
+
+@mama: Il sito non si apre. Luca è partito stanotte per le ferie e non risponde. Mi hanno già scritto tre clienti.
+
+@rook: Ecco il lavoro vero: metà del tempo non insegui hacker, tieni in piedi le cose.
+
+@nyx: Rook esagera, ma non troppo. Nei primi lavori in sicurezza metà del tempo si passa a fare il **sistemista**: tenere in piedi i server, capire perché un servizio è giù, perché un disco è pieno. Nei primi lavori in sicurezza metà del tempo si passa a fare il **sistemista**: tenere in piedi i server, capire perché un servizio è giù, perché un disco è pieno. Un analista che non sa amministrare Linux non capisce neanche cosa è normale e cosa no.
 
 @nyx: Prima regola: **non toccare niente finché non hai guardato**. In pochi comandi un professionista fa la "visita medica" di una macchina: che sistema è, da quanto è acceso, quanta memoria e quanto disco ha libero.`,
         },
         {
           kind: 'task',
           title: 'Che sistema è?',
-          body: `\`uname\` (da *unix name*) dice che sistema operativo gira sulla macchina. Con \`-r\` mostra solo la versione del **kernel**, il cuore del sistema operativo:
+          body: `Prima voce della visita medica: che sistema è, e quanto è aggiornato. Con \`-r\` (*release*) \`uname\` mostra solo la versione del kernel:
 
 \`\`\`
 uname -r
 \`\`\`
 
-La versione del kernel serve a capire se mancano aggiornamenti di sicurezza: molte vulnerabilità gravi riguardano proprio il kernel. Con \`-a\` (*all*) mostra tutto in una riga.`,
+Perché proprio il kernel? Molte delle vulnerabilità più gravi di Linux riguardano lui: sapere quale versione gira ti dice se mancano aggiornamenti di sicurezza.`,
           objective: 'Trova la versione del kernel e inviala con flag.',
           hints: ['uname con l\'opzione per la versione (release).', 'uname -r e poi: flag 6.8.0-nightos'],
           answer: ['6.8.0-nightos'],
@@ -65,7 +79,7 @@ uptime
 - l'ora attuale
 - da quanto tempo la macchina è accesa (\`up 3 days\` = accesa da tre giorni)
 - quanti utenti sono collegati
-- il **carico** (*load average*): tre numeri, la media degli ultimi 1, 5 e 15 minuti`,
+- il **carico** (*load average*): tre numeri, la media degli ultimi 1, 5 e 15 minuti. Più è alto, più programmi stanno aspettando il loro turno sul processore`,
           objective: 'Da quanti giorni è acceso il deck? Invia il numero con flag.',
           hints: ['Dopo "up" c\'è il tempo di accensione.', 'uptime e poi: flag 3'],
           answer: ['3'],
@@ -76,13 +90,15 @@ uptime
         {
           kind: 'task',
           title: 'La memoria',
-          body: `\`free\` mostra la memoria RAM. Con \`-h\` (*human*) usa unità leggibili: Gi (gigabyte), Mi (megabyte).
+          body: `Seconda voce: la memoria.
 
 \`\`\`
 free -h
 \`\`\`
 
-La colonna che conta è **available**: quanta memoria i programmi possono ancora usare. \`free\` è più basso perché Linux usa la RAM libera come cache dei file, e la libera quando serve. Lo **swap** è un pezzo di disco usato come memoria di riserva: se è molto usato, la RAM non basta e la macchina rallenta.`,
+Attenzione a quale colonna guardi. Quella che conta è **available**: quanta memoria i programmi possono ancora usare. La colonna \`free\` è più bassa perché Linux usa la RAM inutilizzata come **cache**: ci tiene i file letti di recente, così la seconda volta li trova subito. Quando un programma ha bisogno di memoria, la cache si fa da parte.
+
+Lo **swap** è un pezzo di disco usato come memoria di riserva. Il disco è molto più lento della RAM: se lo swap è molto usato, la memoria non basta e la macchina arranca.`,
           objective: 'Quanta memoria è disponibile (available)? Invia il valore con flag, es. flag 1.0Gi',
           hints: ['Riga Mem:, ultima colonna.', 'free -h e poi: flag 2.5Gi'],
           answer: ['2.5Gi', '2.5', '2.5 Gi', '2.5G', '2.5GB'],
@@ -91,13 +107,13 @@ La colonna che conta è **available**: quanta memoria i programmi possono ancora
         {
           kind: 'task',
           title: 'I dischi',
-          body: `\`df\` (*disk free*) mostra lo spazio di ogni disco o partizione:
+          body: `Terza voce: i dischi.
 
 \`\`\`
 df -h
 \`\`\`
 
-Le colonne: **Filesystem** (il disco), **Size** (dimensione), **Used** (usato), **Avail** (libero), **Use%** (percentuale usata), **Mounted on** (la cartella da cui lo raggiungi). Un disco si può dividere in **partizioni**, come stanze di una casa: qui \`/var\` (dove stanno log, siti e backup) ha una partizione tutta sua.`,
+Su questo deck \`/var\`, la cartella dove stanno log, siti e backup, ha una partizione tutta sua. Guarda la colonna **Use%** riga per riga.`,
           objective: 'Quale partizione è quasi piena? Invia la cartella (Mounted on) con flag.',
           hints: ['Guarda la colonna Use%: sopra il 90% è un problema.', 'df -h e poi: flag /var'],
           answer: ['/var', 'var'],
@@ -106,17 +122,34 @@ Le colonne: **Filesystem** (il disco), **Size** (dimensione), **Used** (usato), 
         {
           kind: 'task',
           title: 'Dove sta un programma?',
-          body: `\`which\` dice **quale file** viene eseguito quando scrivi un comando:
+          body: `Ultima voce: i programmi che ti serviranno ci sono? Controlla dove sta \`nmap\`:
 
 \`\`\`
 which nmap
-\`\`\`
-
-Serve per sapere se un programma è installato e dove. In sicurezza serve anche a scoprire i trucchi: se \`which ls\` risponde \`/tmp/ls\`, qualcuno ha messo un falso \`ls\` prima di quello vero.`,
+\`\`\``,
           objective: 'Dove si trova il programma nmap? Invia il percorso completo con flag.',
           hints: ['which seguito dal nome del comando.', 'which nmap e poi: flag /usr/bin/nmap'],
           answer: ['/usr/bin/nmap'],
           success: '`/usr/bin` è la cartella dei programmi installati dal sistema; quelli installati a mano dall\'amministratore di solito stanno in `/usr/local/bin`.',
+        },
+        {
+          kind: 'task',
+          since: V,
+          title: 'Il vero ls',
+          body: `Ora lo stesso controllo, ma con occhi da analista. Un attaccante che entra in una macchina a volte mette un **falso** \`ls\` (o un falso \`ps\`) in una cartella che il sistema controlla prima di quella giusta. Il falso fa il suo lavoro, ma **nasconde** i file dell'attaccante.
+
+\`\`\`
+which ls
+\`\`\`
+
+Invia il percorso con \`flag\`. Se è in una cartella di sistema, il deck è a posto.`,
+          objective: 'Dove si trova il programma ls? Invia il percorso con flag.',
+          hints: ['which ls', 'flag /usr/bin/ls'],
+          answer: ['/usr/bin/ls'],
+          solve: ['which ls', 'flag /usr/bin/ls'],
+          success: `\`/usr/bin/ls\`: quello vero, nella cartella dei programmi di sistema. Se avessi visto \`/tmp/ls\` o un percorso dentro una home, sarebbe stato un **indicatore di compromissione**, come il finto \`kthreadd\` sul server di Mama.
+
+Visita medica completa: sistema aggiornato, acceso da tre giorni, memoria a posto, un disco quasi pieno. Il sito però resta giù. Il motivo non è nella macchina: è in un servizio.`,
         },
         {
           kind: 'quiz',
@@ -174,9 +207,9 @@ Filesystem      Size  Used Avail Use% Mounted on
         {
           kind: 'lesson',
           title: 'Servizi e systemd',
-          body: `Un **servizio** (o *demone*) è un programma che gira in sottofondo, senza finestra, e aspetta di fare il suo lavoro: \`ssh\` aspetta le connessioni, \`cron\` lancia i lavori pianificati, \`nginx\` serve le pagine web.
+          body: `@nyx: Il sito di Mama non è un file che qualcuno apre. È un **servizio**: un programma che gira in sottofondo, senza finestra, giorno e notte, e aspetta di fare il suo lavoro. \`sshd\` aspetta le connessioni SSH, \`cron\` lancia i lavori pianificati, \`nginx\` consegna le pagine web a chi le chiede. (Nel gergo di Linux i servizi si chiamano anche **demoni**, *daemon*: niente di diabolico, è un vecchio scherzo dei programmatori.)
 
-Su quasi tutti i Linux moderni i servizi li gestisce **systemd**, il primo programma che parte all'accensione. Gli si parla con \`systemctl\`.
+Su quasi tutti i Linux moderni i servizi li gestisce **systemd**, il primo programma che parte all'accensione: quel processo con PID 1 che hai visto in \`ps aux\`. Gli si parla con il comando \`systemctl\`.
 
 Ogni servizio ha uno **stato**:
 - **active** → in funzione
@@ -188,13 +221,11 @@ E una seconda informazione, separata: **enabled** (parte da solo all'accensione)
         {
           kind: 'task',
           title: 'Cosa è guasto?',
-          body: `Per vedere solo i servizi in errore:
+          body: `Su un server girano decine di servizi. Fatti dire solo quelli in errore:
 
 \`\`\`
 systemctl --failed
-\`\`\`
-
-(L'elenco completo si ottiene con \`systemctl list-units --type=service\`.)`,
+\`\`\``,
           objective: 'Quale servizio è in errore? Invia il nome con flag.',
           hints: ['systemctl con l\'opzione che mostra solo i guasti.', 'systemctl --failed e poi: flag nginx'],
           answer: ['nginx', 'nginx.service'],
@@ -220,29 +251,31 @@ Leggila dall'alto: **Loaded** (è installato? è enabled?), **Active** (lo stato
         {
           kind: 'lesson',
           title: 'Il diario di sistema',
-          body: `Tutti i servizi scrivono in un unico **diario** (*journal*) gestito da systemd. Il file è binario: non si legge con \`cat\`, si interroga con **journalctl**.
+          body: `Le ultime righe di \`status\` sono solo un assaggio. Tutti i servizi scrivono in un unico **diario** (*journal*) gestito da systemd. Non è un file di testo come \`auth.log\`: è in un formato speciale (si dice **binario**), che \`cat\` mostrerebbe come una poltiglia di simboli. Si interroga con un comando apposta, \`journalctl\`, che Nyx ti presenta adesso.
 
-\`\`\`
-journalctl -u nginx
-\`\`\`
-
-\`-u\` sta per *unit*: mostra solo le righe di quel servizio. Ogni riga si legge come quelle di \`auth.log\`: data e ora, macchina, programma con il suo PID, messaggio.
+Ogni riga del diario si legge come quelle di \`auth.log\` del capitolo 04: data e ora, macchina, programma con il suo PID, messaggio.
 
 !! Nel diario finisce anche **chi ha usato sudo e per fare cosa**. È uno dei primi posti dove si guarda in un'indagine: chi ha cambiato cosa, e quando.`,
         },
         {
           kind: 'task',
           title: 'La parola sbagliata',
-          body: `Apri il diario di nginx e leggi il messaggio \`[emerg]\`. Dice **quale parola** nginx non conosce, in **quale file** e a **quale riga**.`,
+          body: `Apri il diario del solo servizio nginx (\`-u\` sta per *unit*, il nome che systemd dà ai servizi):
+
+\`\`\`
+journalctl -u nginx
+\`\`\`
+
+Cerca il messaggio \`[emerg]\`: dice **quale parola** nginx non conosce, in **quale file** e a **quale riga**.`,
           objective: 'Quale direttiva (parola) sconosciuta ha bloccato nginx? Inviala con flag.',
           hints: ['journalctl -u nginx, poi cerca "unknown directive".', 'La parola tra virgolette: flag server_nmae'],
           answer: ['server_nmae'],
-          success: '`server_nmae`: doveva essere `server_name`. Un errore di battitura alla riga 3 di `/etc/nginx/sites-enabled/negozio`. Basta una lettera per spegnere un sito.',
+          success: '`server_nmae`: doveva essere `server_name`. Un errore di battitura alla riga 3 di `/etc/nginx/sites-enabled/negozio`. Basta una lettera per spegnere un sito.\n\nUna **direttiva** è una riga di comando nella configurazione: una parola chiave seguita dal suo valore, come `server_name negozio.lan;` (il nome del sito).',
         },
         {
           kind: 'task',
           title: 'Chi ha toccato il file?',
-          body: `Prima di correggere, un professionista si chiede **perché** il file è cambiato. Il diario registra ogni uso di sudo. \`-g\` (*grep*) mostra solo le righe che contengono un testo:
+          body: `Prima di correggere, un professionista si chiede **perché** il file è cambiato: un errore? Un attacco? Il diario registra ogni uso di sudo. Con \`-g\` (come \`grep\`) mostra solo le righe che contengono un testo:
 
 \`\`\`
 journalctl -g negozio
@@ -252,7 +285,7 @@ journalctl -g negozio
           answer: ['luca'],
           success: `Alle 06:09 \`luca\` ha aperto il file con \`sudo nano\`, alle 06:12 ha riavviato nginx, ed è fallito. Nessun attacco: una modifica fatta di fretta prima delle ferie, senza controllo.
 
-?? Per questo le aziende usano il **change management**: ogni modifica a un sistema in produzione si annota, si prova prima e ha un piano per tornare indietro.`,
+?? Un sistema **in produzione** è quello in uso vero, dai clienti veri (il contrario è un sistema "di prova"). Per questo le aziende usano il **change management**, la "gestione delle modifiche": ogni modifica a un sistema in produzione si annota, si prova prima e ha un piano per tornare indietro.`,
         },
         {
           kind: 'lesson',
@@ -264,13 +297,33 @@ sudo nano /etc/nginx/sites-enabled/negozio
 \`\`\`
 
 La procedura di un sistemista, sempre la stessa:
-1. **copia di sicurezza** del file (nel vero Linux: \`sudo cp file file.bak\`)
-2. **modifica** con l'editor
+1. **copia di sicurezza** del file, per poter tornare indietro
+2. **modifica** con l'editor (un **editor** è un programma per scrivere dentro un file: sui server si usa \`nano\`, che Nyx ti presenta tra un attimo)
 3. **controllo** della sintassi: \`sudo nginx -t\` (quasi ogni servizio ha un controllo simile)
 4. **riavvio** del servizio solo se il controllo è passato
 5. **verifica** che sia attivo e che il sito risponda
 
 !! Saltare il punto 3 è esattamente l'errore di Luca: un riavvio con una configurazione sbagliata spegne il servizio.`,
+        },
+        {
+          kind: 'task',
+          since: V,
+          title: 'La copia di sicurezza',
+          body: `Punto 1: la copia. Il file è di root, ma tutti lo possono leggere (\`rw-r--r--\`): per copiarlo nella tua home non serve sudo.
+
+\`\`\`
+cp /etc/nginx/sites-enabled/negozio negozio.bak
+\`\`\`
+
+!! Non mettere la copia nella stessa cartella \`sites-enabled\`: nginx legge **tutti** i file che ci trova, e caricherebbe il sito due volte.`,
+          objective: 'Copia la configurazione del sito in ~/negozio.bak.',
+          hints: ['cp, poi il file di origine, poi il nome della copia.', 'cp /etc/nginx/sites-enabled/negozio negozio.bak'],
+          state: (sh) => {
+            const f = sh.fs.get(`${sh.home}/negozio.bak`);
+            return !!f && f.type === 'file' && f.content.includes('server_');
+          },
+          solve: ['cp /etc/nginx/sites-enabled/negozio negozio.bak'],
+          success: 'Copia fatta. Se la correzione va storta, rimetti a posto il file originale in un secondo. Ora puoi toccare.',
         },
         {
           kind: 'task',
@@ -290,7 +343,7 @@ Alla riga 3 trasforma \`server_nmae\` in \`server_name\` e salva.`,
         {
           kind: 'task',
           title: 'Il controllo',
-          body: `\`nginx -t\` (*test*) legge tutta la configurazione senza toccare il servizio:
+          body: `Punto 3: fai controllare il file a nginx, senza toccare il servizio.
 
 \`\`\`
 sudo nginx -t
@@ -307,13 +360,34 @@ sudo nginx -t
 sudo systemctl restart nginx
 \`\`\`
 
-Se tutto va bene, \`restart\` non stampa niente ("nessuna notizia, buona notizia"). Poi controlla con \`systemctl status nginx\` o con \`systemctl is-active nginx\`.`,
+Se tutto va bene, \`restart\` non stampa niente: nel terminale, "nessuna notizia, buona notizia".`,
           objective: 'Riavvia nginx come amministratore.',
           hints: ['systemctl restart, con sudo davanti.', 'sudo systemctl restart nginx'],
           check: cmd('systemctl-restart', (a) => a[0] === 'nginx'),
           success: `Il sito di Mama è di nuovo su. Nel diario c'è la riga \`Started ...\` con l'ora del tuo intervento: anche tu hai lasciato traccia, come si deve.
 
 ?? Ultimo passo del mestiere: una nota per Luca, che al rientro deve sapere cosa è successo e cosa hai cambiato. Chi lavora a turni scrive sempre.`,
+        },
+        {
+          kind: 'task',
+          since: V,
+          title: 'È vivo?',
+          body: `Punto 5: verifica. Il modo più rapido per chiedere a systemd se un servizio è acceso:
+
+\`\`\`
+systemctl is-active nginx
+\`\`\`
+
+Risponde con una parola sola. Inviala con \`flag\`.`,
+          objective: 'Controlla che nginx sia attivo e invia la risposta con flag.',
+          hints: ['systemctl is-active nginx', 'flag active'],
+          answer: ['active'],
+          solve: ['systemctl is-active nginx', 'flag active'],
+          success: `\`active\`. Un'ora fa la stessa domanda avrebbe risposto \`failed\`. Una parola sola è comoda anche per gli **script**: un programma di controllo può chiederlo ogni minuto e avvisare qualcuno appena la risposta cambia.
+
+@mama: Il sito si apre! I clienti ordinano di nuovo. Come hai fatto?
+
+@nyx: Una lettera sbagliata, Mama. Ma prima di festeggiare, guardiamo cos'altro è successo stanotte.`,
         },
         {
           kind: 'quiz',
@@ -375,7 +449,7 @@ Active: inactive (dead)
         {
           kind: 'lesson',
           title: 'Le priorità',
-          body: `@nyx: Il sito è tornato su, ma una notte di diario contiene centinaia di righe. Un analista non le legge tutte: **filtra**.
+          body: `@nyx: Il sito è tornato su. Ma un buon tecnico, dopo un guasto, si chiede: **è successo altro?** Una notte di diario contiene centinaia di righe. Non le leggi tutte: **filtri**.
 
 Ogni messaggio del diario ha una **priorità**, da 0 (la più grave) a 7:
 
@@ -383,6 +457,8 @@ Ogni messaggio del diario ha una **priorità**, da 0 (la più grave) a 7:
 0 emerg   1 alert   2 crit   3 err
 4 warning   5 notice   6 info   7 debug
 \`\`\`
+
+Le più usate: **err** (errore: qualcosa non ha funzionato), **warning** (avviso: non si è ancora rotto niente, ma potrebbe), **info** (informazione normale), **debug** (dettagli minuti, utili solo a chi scrive il programma).
 
 \`-p\` mostra una priorità **e tutte quelle più gravi**:
 
@@ -517,14 +593,14 @@ Nov 12 03:10:28 deck sshd[2003]: Failed password for invalid user admin from 45.
         {
           kind: 'lesson',
           title: 'Il metodo: dall\'alto verso il basso',
-          body: `@nyx: Il backup fallisce perché \`/var\` è pieno. Trovare cosa lo riempie è un classico, e si fa sempre allo stesso modo:
+          body: `@nyx: Ultimo pezzo del puzzle. Il backup fallisce perché \`/var\` è pieno, e se non si libera spazio, presto si fermeranno anche i log e il sito. Trovare cosa riempie un disco è un classico, e si fa sempre allo stesso modo:
 
 1. \`df -h\` → **quale** partizione è piena
 2. \`du -sh CARTELLA/*\` → **quale cartella** dentro di lei pesa di più
 3. si scende di livello finché si trova **il file**
 4. ci si chiede **perché** cresce (chi ci scrive?)
 
-\`du\` (*disk usage*) misura quanto occupano file e cartelle: \`-s\` dà un totale per ogni argomento, \`-h\` usa unità leggibili.`,
+Per il punto 2 serve un comando nuovo, \`du\`: Nyx te lo presenta tra un attimo.`,
         },
         {
           kind: 'task',
@@ -542,7 +618,7 @@ df -h /var
         {
           kind: 'task',
           title: 'Quale cartella?',
-          body: `Misura ogni cartella dei log e ordinale per dimensione. \`sort -h\` sa ordinare le dimensioni leggibili (512 < 4K < 2M):
+          body: `Misura ogni cartella dentro \`/var/log\` e mettile in fila dalla più leggera alla più pesante:
 
 \`\`\`
 du -sh /var/log/* | sort -h
@@ -667,7 +743,11 @@ sudo nano /etc/crontab
           },
           success: `Da ora l'esportazione scrive solo le righe importanti. Il passo successivo, con l'ok di Mama, è svuotare il vecchio log (\`sudo truncate -s 0 /var/log/app/debug.log\`) e far ripartire il backup.
 
-?? Nelle aziende i log non crescono all'infinito grazie a **logrotate**: ogni giorno (o settimana) comprime il log vecchio, ne apre uno nuovo e cancella quelli troppo vecchi. Un log senza rotazione è un disco pieno che aspetta.`,
+?? Nelle aziende i log non crescono all'infinito grazie a **logrotate**: ogni giorno (o settimana) comprime il log vecchio, ne apre uno nuovo e cancella quelli troppo vecchi. Un log senza rotazione è un disco pieno che aspetta.
+
+Scrivi la nota per Luca: il sito spento da un errore di battitura, il backup fermo da un giorno per il disco pieno, il debug dimenticato acceso. Mama la legge e ride: "Luca torna fra dieci giorni. Speriamo che il deck regga".
+
+@nyx: Reggerà. Ma hai notato una cosa? Oggi hai scritto gli stessi comandi, a mano, decine di volte. Il prossimo passo è farli scrivere al deck al posto tuo.`,
         },
         {
           kind: 'quiz',
