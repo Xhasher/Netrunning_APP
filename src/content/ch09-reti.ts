@@ -1,5 +1,9 @@
 import type { Chapter } from '../game/types';
 
+// Capitolo 09 · Trama: Luca deve separare la rete del bar di Mama (cassa e Wi-Fi dei clienti).
+// Il filo serve a dare un perché a strati, sottoreti e segmentazione.
+const V = 24;
+
 export const CH09: Chapter = {
   id: 'ch09',
   code: '09',
@@ -16,7 +20,9 @@ export const CH09: Chapter = {
         {
           kind: 'lesson',
           title: 'Torniamo al bar',
-          body: `@nyx: Nel capitolo 02 hai imparato IP, porte e ping. Funzionava, ma era come guidare senza sapere cosa c'è sotto il cofano. Per difendere una rete, e per leggere il traffico, devi capire **come è costruita**.
+          body: `@luca: Mama vuole dividere la rete del bar: la cassa da una parte, il Wi-Fi dei clienti dall'altra. Lo switch l'ho comprato, ma non so da dove cominciare.
+
+@nyx: Nel capitolo 02 hai imparato IP, porte e ping. Funzionava, ma era come guidare senza sapere cosa c'è sotto il cofano. Per difendere una rete, e per leggere il traffico, devi capire **come è costruita**.
 
 @nyx: Una rete funziona a **strati**, come una spedizione: tu scrivi una lettera, la metti in una busta con l'indirizzo, il corriere la mette in un furgone, il furgone usa le strade. Ognuno si occupa solo del suo pezzo.`,
         },
@@ -174,6 +180,25 @@ Una rete ben progettata la divide, per esempio:
 Tra le sottoreti c'è un **firewall** che lascia passare solo il traffico necessario. Così un problema in un segmento **non si propaga** agli altri: l'attaccante deve superare un'altra barriera (in ATT&CK, il *Lateral Movement* diventa molto più difficile).
 
 ?? Le **VLAN** permettono di creare reti separate anche usando gli stessi switch fisici.`,
+        },
+        {
+          kind: 'task',
+          since: V,
+          title: 'La bozza di Luca',
+          body: `@luca: Ho scritto il piano per la rete nuova. Mi dai un'occhiata prima che configuri lo switch?
+
+\`\`\`
+cat rete/piano-bar.txt
+\`\`\`
+
+Un dispositivo è finito nel segmento sbagliato, e così resterebbe esposto come oggi. Quale? Invia il suo nome con \`flag\`.`,
+          objective: 'Trova il dispositivo messo nel segmento sbagliato.',
+          hints: ['Confronta il terzo numero dell\'indirizzo con la tabella dei segmenti.', 'La cassa sta nel 30, il Wi-Fi degli ospiti: flag cassa'],
+          answer: ['cassa'],
+          solve: ['cat rete/piano-bar.txt', 'flag cassa'],
+          success: `La **cassa** ha \`192.168.30.40\`: è nella \`/24\` del Wi-Fi ospiti, proprio dove chiunque al bancone può collegarsi. Va spostata nel segmento 10, con l'amministrazione.
+
+@luca: Ok, la sposto. Meno male che l'hai vista prima tu.`,
         },
         {
           kind: 'quiz',

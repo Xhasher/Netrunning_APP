@@ -389,6 +389,25 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
 
   // Capitolo 09 — cattura del traffico della rete del bar
   fs.writeFile(`${home}/rete/cattura.txt`, buildCapture(), mine);
+  fs.writeFile(
+    `${home}/rete/piano-bar.txt`,
+    [
+      'Piano della nuova rete del bar (bozza di Luca)',
+      '',
+      'segmento 10  192.168.10.0/24  amministrazione e cassa',
+      'segmento 20  192.168.20.0/24  dispositivi',
+      'segmento 30  192.168.30.0/24  Wi-Fi ospiti, solo Internet',
+      '',
+      'dispositivo     indirizzo',
+      'pc-ufficio      192.168.10.5',
+      'telefono-mama   192.168.10.8',
+      'jukebox         192.168.20.11',
+      'telecamera      192.168.20.12',
+      'cassa           192.168.30.40',
+      'tablet-ospiti   192.168.30.77',
+    ].join('\n'),
+    mine,
+  );
 
   // Capitolo 10 — OSINT su Neon Ottica (valutazione autorizzata)
   fs.writeFile(
@@ -584,6 +603,21 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
   fs.writeFile(
     `${home}/cloud/repo/.env`,
     ['# NON COMMITTARE!!! (troppo tardi)', 'AWS_ACCESS_KEY_ID=AKIA2077FAKEEXAMPLE0', 'AWS_SECRET_ACCESS_KEY=finta/chiave/segreta/solo/per/il/gioco', 'REGION=eu-south-1'].join('\n') + '\n',
+    mine,
+  );
+
+  // Capitolo 11 — riepilogo dei punti deboli trovati nei casi precedenti
+  fs.writeFile(
+    `${home}/audit/dopo-ingresso.txt`,
+    [
+      'Punti deboli trovati sui server dei clienti, in ordine di scoperta.',
+      '',
+      '1. /opt/market/sync.sh   eseguito da root ogni 5 minuti, permessi 777',
+      '2. sudoers: backup ALL=(ALL) NOPASSWD: /usr/bin/vim',
+      '3. nginx 1.14, fermo al 2018, con vulnerabilità note',
+      '4. /home/dev/.bash_history contiene la password del database scritta a mano',
+      '5. la stessa password di "admin" usata su tre server diversi',
+    ].join('\n') + '\n',
     mine,
   );
 

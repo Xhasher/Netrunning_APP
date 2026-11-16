@@ -16,7 +16,9 @@ export const CH10: Chapter = {
         {
           kind: 'lesson',
           title: 'Un incarico diverso',
-          body: `@rook: Un'ottica del centro, Neon Ottica, ha letto di un'azienda simile finita nei guai per una truffa via email molto credibile. Vogliono sapere **cosa può scoprire un attaccante su di loro** senza nemmeno toccare i loro sistemi.
+          body: `@mama: Il proprietario dell'ottica qui all'angolo mi ha chiesto se conosco qualcuno di fidato. Gli ho dato il tuo nome.
+
+@rook: È Neon Ottica. Il titolare ha letto di un'azienda simile finita nei guai per una truffa via email molto credibile. Vogliono sapere **cosa può scoprire un attaccante su di loro** senza nemmeno toccare i loro sistemi.
 
 @nyx: Si chiama **OSINT**, *Open Source Intelligence*: raccogliere informazioni da **fonti aperte**, cioè pubbliche. Registri dei domini, DNS, siti web, documenti pubblicati, social network aziendali, offerte di lavoro...
 

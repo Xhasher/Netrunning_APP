@@ -1,5 +1,9 @@
 import type { Chapter } from '../game/types';
 
+// Capitolo 11 · Trama: Rook chiede di riordinare i punti deboli visti nei casi dei clienti,
+// poi si passa all'audit del server di laboratorio e all'hardening.
+const V = 24;
+
 export const CH11: Chapter = {
   id: 'ch11',
   code: '11',
@@ -39,6 +43,25 @@ Sono le tattiche di ATT&CK che hai già visto nel capitolo 08.`,
 - **password riutilizzate** tra account e macchine diverse
 
 !! Questo capitolo ti insegna a **trovare** questi errori, come fa un auditor o un amministratore attento, e a correggerli. Non entra nei dettagli di come sfruttarli: per quello, se vorrai specializzarti in penetration testing, esistono laboratori legali dedicati (vedi la sezione Carriera).`,
+        },
+        {
+          kind: 'task',
+          since: V,
+          title: 'Dare un nome agli errori',
+          body: `@rook: Prima di salire sul server di laboratorio, metti in ordine quello che hai già visto in giro. Ho raccolto i punti deboli dei clienti in un file:
+
+\`\`\`
+cat audit/dopo-ingresso.txt
+\`\`\`
+
+Uno di questi è una **regola sudo troppo larga**: un utente può avviare come root un programma che, in realtà, permette di fare molto di più. Quale numero? Invialo con \`flag\`.`,
+          objective: 'Trova la regola sudo troppo larga.',
+          hints: ['Le regole sudo stanno nel file sudoers.', 'È la riga del file sudoers: flag 2'],
+          answer: ['2'],
+          solve: ['cat audit/dopo-ingresso.txt', 'flag 2'],
+          success: `La **2**. Un editor come vim può aprire altri programmi dal suo interno: se gira come root, anche quelli girano come root. Dare \`sudo vim\` equivale quasi a dare root. La correzione: concedere solo il comando preciso che serve (per esempio \`sudoedit\` su un singolo file).
+
+Gli altri: **1** sono permessi sbagliati, **3** software non aggiornato, **4** credenziali dimenticate in un file, **5** password riutilizzate. Ognuno ha la sua cura, e le vedrai in questo capitolo.`,
         },
         {
           kind: 'quiz',
