@@ -3084,3 +3084,10 @@ button.locked { opacity: 0.65; }
 .warm-note { margin-bottom: 12px; }
 .linkbtn { background: none; border: none; color: var(--cyan); text-decoration: underline; font: inherit; cursor: pointer; padding: 0 4px; }
 .continue.chtest-go { border-color: var(--yellow); }
+
+/* ---------------------------------------------------------------- esempi dal vivo nelle lezioni */
+pre.code.term { border-left: 3px solid var(--cyan); }
+pre.code.term .cl-cmd { color: #fff; font-weight: 600; }
+pre.code.term .cl-cmd i { color: var(--cyan); font-style: normal; }
+pre.code.term .cl-out { color: #aeb4c8; }
+pre.code.term .cl-note { color: #7d8399; font-family: var(--sans); font-style: italic; }

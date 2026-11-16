@@ -47,7 +47,10 @@ export function renderMarkup(src: string): string {
       flush();
       const code: string[] = [];
       while (++i < lines.length && !lines[i].trim().startsWith('```')) code.push(lines[i]);
-      html.push(`<pre class="code">${escapeHtml(code.join('\n'))}</pre>`);
+      // blocchi "terminale": le righe con $ sono comandi, le altre la risposta
+      if (code.some((l) => l.startsWith('$ ')))
+        html.push(`<pre class="code term">${code.map((l) => (l.startsWith('$ ') ? `<span class="cl-cmd"><i>$</i> ${escapeHtml(l.slice(2))}</span>` : `<span class="cl-out${/^\(nessuna risposta|^… \(altre/.test(l) ? ' cl-note' : ''}">${escapeHtml(l)}</span>`)).join('\n')}</pre>`);
+      else html.push(`<pre class="code">${escapeHtml(code.join('\n'))}</pre>`);
       continue;
     }
     if (trimmed === '') {

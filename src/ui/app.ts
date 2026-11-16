@@ -2,6 +2,7 @@ import { CAREER, CHAPTERS, PLANNED, allMissions, findMission } from '../content'
 import { GAMES } from '../content/games';
 import { GENERATORS, LEVELS, generateSession, normalizeDrillAnswer, type Drill, type Level } from '../content/drills';
 import { SYS_ROOTS } from '../content/world-admin';
+import { expandLive } from '../content/live';
 import { CHAPTER_TEST, buildChapterTest, chapterComplete, practicalPlan, recordChapterTest, recordPractical, stars } from '../game/chaptertest';
 import { runItems, type RunItem } from './memory';
 import { buildCards } from '../game/cards';
@@ -925,7 +926,7 @@ export class App {
     let actions = '';
 
     if (step.kind === 'lesson') {
-      body = renderMarkup(step.body);
+      body = renderMarkup(expandLive(step.body, this.save.handle ?? 'runner'));
       const refs = commandsInMarkup(step.body).filter((c) => MANPAGES[c]?.description?.length && c !== 'assign' && c !== 'script');
       if (refs.length) body += `<div class="refs">📖 Schede complete:${refs.map((c) => `<button class="chip" data-ref="${c}">${c}</button>`).join('')}</div>`;
       actions = `<button class="next" data-act="next">Avanti ▸</button>`;

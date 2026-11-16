@@ -142,3 +142,10 @@ Il programma previsto in questo documento è completo. Prossimi passi possibili:
 - **Ripasso lampo**: prima di ogni missione nuova, tre domande sulle missioni già completate (due carte di Memoria, prima quelle in scadenza, e una domanda); disattivabile in Opzioni.
 - **89 domande di verifica nuove** (`src/content/quiz-extra.ts`) per le missioni che ne avevano una sola: ora ogni missione ne ha almeno due. Le opzioni di tutte le domande vengono mescolate in modo stabile: la risposta giusta non è più sempre la prima nelle domande recenti.
 - **Controllo automatico per principianti**: nessun comando è richiesto prima di essere spiegato; 15 sigle senza spiegazione aggiunte al glossario (TTL, IT, DHCP, SMB, RDP, GET, POST, SANS, CRM, GPS, ZIP, PIN, SMS, GB, PDF); un suggerimento vago reso esplicito (5.3).
+
+## Aggiunto nella 1.17 (lezioni sui comandi)
+
+- Le "schede" inserite prima degli esercizi (una copia del Manuale) sono sostituite da **lezioni raccontate da Nyx** (`src/content/teach.ts`, 71 comandi e concetti, cioè tutti quelli che il corso introduce): perché serve, cosa fa, il comando smontato pezzo per pezzo, la risposta vera del terminale e come si legge, solo le opzioni che servono nell'esercizio seguente, gli errori tipici con il messaggio reale e il suo significato, la cosa da ricordare. Le altre opzioni restano in fondo, sotto "Per dopo".
+- **Esempi dal vivo** (`src/content/live.ts`): i comandi degli esempi vengono eseguiti su un deck pulito quando la lezione viene mostrata, e sotto compare l'output vero. Un test esegue tutti gli esempi di tutte le lezioni e verifica che funzionino e che gli "errori tipici" producano davvero un errore.
+- Gli esempi usano solo comandi già incontrati e non mostrano la risposta dell'esercizio che segue. Tolta la frase "Esempi (diversi dall'esercizio che ti aspetta)…".
+- Le lezioni brevi per un'opzione nuova ("Un passo in più") mostrano l'opzione in azione, senza altre opzioni non ancora viste.

@@ -4,7 +4,7 @@ Un gioco per Android che insegna **ethical hacking, penetration testing e cyber 
 
 Si gioca in un **terminale Linux simulato**: comandi, file, rete e bersagli sono tutti finti, quindi si può sperimentare senza rischi e senza connessione.
 
-## Contenuti (v1.16)
+## Contenuti (v1.17)
 
 | Capitolo | Missioni | Argomenti |
 |---|---|---|
@@ -40,6 +40,7 @@ Altre modalità:
 - **Gioca anche da PC**: la versione browser è su https://xhasher.github.io/Netrunning_APP/ (pubblicata automaticamente da `.github/workflows/pages.yml`). Su PC la lezione sta a sinistra e il terminale a destra; Esc fa da tasto indietro.
 - **Progressi condivisi tra telefono e PC**: in Opzioni › Gioca su più dispositivi si collega un token GitHub con il solo permesso `gist`. I progressi vengono salvati in un Gist privato dell'utente e **uniti** (non sovrascritti) tra i dispositivi: missioni, XP, Memoria ed esami si sommano. Nessun server esterno (`src/game/sync.ts`).
 - **Effetti visivi** discreti (transizioni, conteggio XP, promozioni di rango), disattivabili in Opzioni e spenti automaticamente se il sistema chiede di ridurre il movimento.
+- **Lezioni sui comandi raccontate da Nyx**: prima di ogni comando nuovo, una lezione lo spiega da capo (perché serve, com'è fatto pezzo per pezzo, cosa risponde davvero il terminale e come si legge, errori tipici con il loro messaggio). Gli esempi vengono eseguiti dal vivo sul deck: l'output mostrato è quello vero.
 - **Verifica di fine capitolo**: quando chiudi un capitolo si apre un test cumulativo: 12 tra domande ed esercizi sul capitolo più 6 di ripasso dai precedenti (prima le cose più deboli in Memoria). Scelta multipla, comandi da ricomporre e da scrivere a memoria; chi sbaglia legge la spiegazione e ritrova la domanda in coda. Soglia 80% al primo tentativo, più una parte pratica nel terminale. Due stelle per capitolo in mappa.
 - **Ripasso lampo**: tre domande sulle missioni già fatte prima di iniziarne una nuova (si disattiva in Opzioni).
 - **Competenze**: ogni comando e concetto ha cinque stati (introdotta, compresa, esercitata, acquisita, consolidata) calcolati da ciò che fai davvero; "acquisita" richiede due situazioni diverse risolte senza suggerimenti. Nei primi capitoli i suggerimenti sono liberi, poi si sbloccano dopo un tentativo, infine si chiedono con una conferma.
