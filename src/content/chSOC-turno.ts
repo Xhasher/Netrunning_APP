@@ -26,7 +26,7 @@ export function addSocFiles(sh: Shell): void {
   w('LEGGIMI.txt', [
     '=== ARASAKA LOGISTICS · SOC · TURNO DEL MATTINO (13/11/2077) ===',
     '',
-    'Benvenuto nel turno. Sei L1 (primo livello): smisti gli allarmi,',
+    'Ruolo nel turno: L1 (primo livello). Smisti gli allarmi,',
     'chiudi quelli che non sono un problema, passi al L2 quelli seri.',
     '',
     'File del turno:',
@@ -123,7 +123,7 @@ export const CHSOC: Chapter = {
         {
           kind: 'lesson',
           title: 'Primo giorno da L1',
-          body: `@rook: Arasaka Logistics ti ha preso in prova nel suo SOC. Turno del mattino, livello 1. Niente eroismi: devi far scorrere la coda.
+          body: `@rook: Il SIEM, ATT&CK, la caccia e il primo incidente li hai visti. Ora Arasaka Logistics vuole vedere se reggi un turno intero nel suo SOC: turno del mattino, livello 1. Niente eroismi, devi far scorrere la coda.
 
 @nyx: Un SOC è organizzato a livelli:
 - **L1** (primo livello): guarda ogni allarme, chiude quelli innocui, documenta, passa al L2 quelli seri. È qui che si entra.

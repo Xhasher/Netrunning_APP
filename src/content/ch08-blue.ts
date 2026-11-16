@@ -1,5 +1,9 @@
 import type { Chapter } from '../game/types';
 
+// Capitolo 08 · Trama: dopo il jukebox e il negozio di Judy, Rook trova un contratto
+// da analista SOC. Si passa dal singolo caso alla sorveglianza di un'intera azienda.
+const V = 24;
+
 export const CH08: Chapter = {
   id: 'ch08',
   code: '08',
@@ -16,7 +20,9 @@ export const CH08: Chapter = {
         {
           kind: 'lesson',
           title: 'Un nuovo lavoro',
-          body: `@nyx: Hai fatto un buon nome in giro, choom. Una piccola azienda di Night City ti ha assunto come **analista SOC** per un mese. Niente più log copiati a mano: qui c'è un **SIEM**.
+          body: `@rook: Mama ha raccontato in giro del jukebox, e Judy del suo negozio. Risultato: Arasaka Logistics cerca un **analista SOC** per un mese di prova, e il nome che è girato è il tuo.
+
+@nyx: Il **SOC** (*Security Operations Center*) è la squadra che sorveglia i sistemi di un'azienda giorno e notte. Niente più log copiati a mano: qui c'è un **SIEM**.
 
 Un **SIEM** (*Security Information and Event Management*) fa quattro cose:
 - **raccoglie** i log da tutti i sistemi: server, VPN, posta, firewall, PC, cloud
@@ -165,6 +171,23 @@ La **Cyber Kill Chain** (Lockheed Martin) descrive un attacco in 7 fasi:
 \`\`\`
 
 L'idea per chi difende: **basta interrompere un anello** per fermare tutta la catena. E prima lo fai, meno danni ci sono.`,
+        },
+        {
+          kind: 'task',
+          since: V,
+          title: 'Le fasi di un caso vero',
+          body: `@nyx: Prendi un caso che conosci, l'intruso della clinica (OP-02). In \`siem/catena.txt\` gli eventi sono in ordine di tempo:
+
+\`\`\`
+cat siem/catena.txt
+\`\`\`
+
+Nella Kill Chain, la fase **Installazione** è quella in cui l'attaccante "mette radici", cioè si assicura di restare anche dopo un riavvio. Quale numero di evento è? Invialo con \`flag\`.`,
+          objective: 'Trova l\'evento che corrisponde alla fase di Installazione.',
+          hints: ['Installazione = persistenza: qualcosa che riparte da solo.', 'È il job di cron: flag 3'],
+          answer: ['3'],
+          solve: ['cat siem/catena.txt', 'flag 3'],
+          success: `L'evento **3**: il job di cron che riavvia il programma ogni minuto. Gli altri: 1 è **ricognizione**, 2 è lo **sfruttamento** di una password di fabbrica, 4 è **comando e controllo**, 5 sono le **azioni sull'obiettivo**. Se qualcuno avesse cambiato la password di fabbrica, la catena si sarebbe fermata all'evento 2.`,
         },
         {
           kind: 'lesson',

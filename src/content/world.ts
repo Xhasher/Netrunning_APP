@@ -349,6 +349,20 @@ export function buildWorld(user: string, hint?: () => string | null): Shell {
   // Capitolo 08 — Blue Team avanzato: eventi del SIEM, DNS, allegati e intelligence
   fs.writeFile(`${home}/siem/eventi.log`, buildSiemEvents(), mine);
   fs.writeFile(`${home}/siem/dns.log`, buildDnsLog(), mine);
+  fs.writeFile(
+    `${home}/siem/catena.txt`,
+    [
+      'Ricostruzione del caso della clinica (OP-02), in ordine di tempo.',
+      'Per ogni evento: a quale tattica ATT&CK appartiene?',
+      '',
+      '1. 02:10  scansione delle porte del server da 203.0.113.77',
+      '2. 02:14  login SSH riuscito di "backup" con la password di fabbrica',
+      '3. 02:16  creato /etc/cron.d/.sync-check: riavvia il programma ogni minuto',
+      '4. 02:17  /var/tmp/.cache/updater contatta un server esterno ogni 60 secondi',
+      '5. 02:30  la CPU resta al 100%: un cryptominer usa le risorse del server',
+    ].join('\n'),
+    mine,
+  );
   const allegati: Record<string, string> = {
     'listino_fornitore.pdf': '%PDF-1.7 listino prezzi fornitore (simulato)\n',
     'turni_dicembre.xlsx': 'PK foglio turni di dicembre (simulato)\n',
