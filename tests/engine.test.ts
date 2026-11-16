@@ -146,3 +146,37 @@ describe('progressione per capitolo', () => {
     for (const d of drills) for (const line of d.solve) for (const k of skillsInLine(line)) expect(taught.has(k), `${d.title}: ${line}`).toBe(true);
   }, 60000);
 });
+
+describe('giochi collegati al corso', () => {
+  it('ogni carta dei giochi ha una missione di sblocco valida e una domanda sul perché', async () => {
+    const { GAMES } = await import('../src/content/games');
+    const { allMissions } = await import('../src/content');
+    const order = allMissions().map((m) => m.id);
+    for (const g of GAMES) {
+      expect(order).toContain(g.after);
+      for (const c of g.cards) {
+        expect(order, c.body.slice(0, 30)).toContain(c.after);
+        expect(c.why.correct).toBeLessThan(c.why.options.length);
+        expect(c.why.options.length).toBeGreaterThanOrEqual(3);
+      }
+      // all'apertura del gioco ci sono abbastanza carte per una partita
+      const opened = g.cards.filter((c) => order.indexOf(c.after) <= order.indexOf(g.after));
+      expect(opened.length, g.id).toBeGreaterThanOrEqual(4);
+    }
+  });
+
+  it('dopo un errore il feedback propone un esercizio diverso sullo stesso argomento', async () => {
+    const { makeAlternative } = await import('../src/ui/memory');
+    const { buildCards } = await import('../src/game/cards');
+    const ids = CHAPTERS.flatMap((c) => c.missions.map((m) => m.id)).slice(0, 20);
+    const cards = buildCards(ids, []);
+    const card = cards.find((c) => c.kind !== 'fact' && cards.filter((x) => x.cmd === c.cmd && x.kind !== 'fact').length > 1 && c.cmd)!;
+    const alt = makeAlternative(cards, [])({ card, box: 0, early: false, isNew: false }, new Set([`c|${card.id}`]));
+    expect(alt?.card).toBeDefined();
+    expect(alt!.card!.id).not.toBe(card.id);
+    const q = { question: 'Cosa fa `grep -c x f`?', options: ['conta', 'b'], correct: 0, explain: '' };
+    const q2 = { question: 'A cosa serve `grep -v`?', options: ['inverte', 'b'], correct: 0, explain: '' };
+    const altQ = makeAlternative(cards, [{ quiz: q }, { quiz: q2 }])({ quiz: q, box: 0, early: false, isNew: false }, new Set());
+    expect(altQ?.quiz?.question).toBe(q2.question);
+  });
+});

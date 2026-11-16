@@ -185,3 +185,10 @@ Il programma previsto in questo documento è completo. Prossimi passi possibili:
 - **Ripetizione dilazionata per competenza**: intervalli 1, 2, 4, 7, 14, 30, 60 giorni; le fragili tornano ogni giorno e pesano di più nell'allenamento misto.
 - **Cruscotto** in cima alla pagina Competenze: capitolo raggiunto, le sei misure, cosa ripassare oggi, competenze fragili, errori ricorrenti con un consiglio, andamento nel tempo, record delle simulazioni e ultimo esame.
 - I dati nuovi stanno in `learn` e `history` del salvataggio e si uniscono tra dispositivi; i salvataggi vecchi funzionano senza perdere nulla.
+
+## Aggiunto nella 1.21 (giochi nel motore, fase D)
+
+- **Phishing o no?** e **Turno al SOC** seguono il corso: il gioco si apre dopo la missione che spiega le idee che usa (F.3 per il phishing, 4.3 per il triage), e ogni caso entra nel mazzo solo dopo la missione che lo rende comprensibile (per esempio la SQL injection dopo il capitolo 07). Una partita è di 8 casi; prima tornano quelli sbagliati o in scadenza (ripetizione dilazionata per caso).
+- **Perché?** Dopo ogni scelta giusta, una domanda sul punto decisivo (quale indizio conta, cosa succede se..., qual è la difesa): conta nella misura del ragionamento.
+- **Feedback correttivo con un esercizio diverso**: dopo un errore arriva la spiegazione e poi un caso **diverso** dello stesso tipo (nei giochi), un'altra carta sullo stesso comando o un'altra domanda sulle stesse competenze (Memoria, verifiche di fine capitolo, ripasso lampo), un esercizio guidato diverso sullo stesso comando (Palestra, quando salti).
+- Tutti gli esiti arrivano al motore di apprendimento.

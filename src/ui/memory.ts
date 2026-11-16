@@ -52,6 +52,44 @@ export interface RunItem {
   isNew: boolean;
 }
 
+const itemKey = (it: RunItem): string => (it.card ? `c|${it.card.id}` : `q|${it.quiz?.question ?? ''}`);
+
+/** Argomento di una carta: il comando che allena, o il mazzo per le carte di fatti. */
+function cardTopic(c: Card): string {
+  if (c.kind === 'fact') return `deck:${c.deck}`;
+  return skillsInLine(c.cmd ?? c.answer)[0] ?? `deck:${c.deck}`;
+}
+
+/**
+ * Sceglie un esercizio diverso sullo stesso argomento: un'altra carta sullo stesso comando
+ * (o dello stesso mazzo), oppure un'altra domanda che tocca le stesse competenze.
+ */
+export function makeAlternative(cards: readonly Card[], quizzes: readonly { quiz: QuizItem; tag?: string }[]) {
+  return (item: RunItem, used: ReadonlySet<string>): RunItem | null => {
+    if (item.card) {
+      const topic = cardTopic(item.card);
+      const pool = cards.filter((c) => c.id !== item.card!.id && !used.has(`c|${c.id}`) && cardTopic(c) === topic);
+      if (!pool.length) return null;
+      const card = pool[Math.floor(Math.random() * pool.length)];
+      return { card, tag: item.tag, box: 0, early: false, isNew: false };
+    }
+    if (item.quiz) {
+      const want = new Set(skillsInQuiz(item.quiz.question, item.quiz.options));
+      if (!want.size) return null;
+      const pool = quizzes.filter((q) => q.quiz.question !== item.quiz!.question && !used.has(`q|${q.quiz.question}`) && skillsInQuiz(q.quiz.question, q.quiz.options).some((k) => want.has(k)));
+      if (pool.length) {
+        const q = pool[Math.floor(Math.random() * pool.length)];
+        return { quiz: q.quiz, tag: q.tag ?? item.tag, box: 0, early: false, isNew: false };
+      }
+      // nessuna domanda simile: un esercizio attivo sul comando della domanda
+      const cardPool = cards.filter((c) => c.kind !== 'fact' && want.has(cardTopic(c)) && !used.has(`c|${c.id}`));
+      if (!cardPool.length) return null;
+      return { card: cardPool[Math.floor(Math.random() * cardPool.length)], tag: item.tag, box: 0, early: false, isNew: false };
+    }
+    return null;
+  };
+}
+
 export interface RunResult {
   firstTry: number;
   total: number;
@@ -184,10 +222,18 @@ function runSession(box: HTMLElement, host: MemoryHost, cards: Card[], plan: Ses
  * risposta. Gli errori tornano in coda finché non vengono corretti (al massimo maxRetry volte).
  * Le carte aggiornano la ripetizione spaziata; il punteggio conta solo il primo tentativo.
  */
-export function runItems(box: HTMLElement, host: RunHost, plan: RunItem[], onFinish: (r: RunResult) => void, opts: { maxRetry?: number; xpEach?: number } = {}): void {
+export function runItems(
+  box: HTMLElement,
+  host: RunHost,
+  plan: RunItem[],
+  onFinish: (r: RunResult) => void,
+  opts: { maxRetry?: number; xpEach?: number; alternative?: (item: RunItem, used: ReadonlySet<string>) => RunItem | null } = {},
+): void {
   const { save } = host;
   const day = today();
   const maxRetry = opts.maxRetry ?? 2;
+  const alternative = opts.alternative ?? makeAlternative(buildCards(save.completed, save.known), []);
+  const used = new Set(plan.map(itemKey));
   const xpEach = opts.xpEach ?? 2;
   const queue: { item: RunItem; retry: number }[] = plan.map((item) => ({ item, retry: 0 }));
   const total = plan.length;
@@ -277,14 +323,28 @@ export function runItems(box: HTMLElement, host: RunHost, plan: RunItem[], onFin
       } else missed.push(cur.item);
       host.persist();
     }
-    if (!ok && cur.retry < maxRetry) queue.push({ item: cur.item, retry: cur.retry + 1 });
+    // dopo un errore torna un esercizio DIVERSO sullo stesso punto, se esiste: verifica la comprensione, non il ricordo della risposta
+    let swapped = false;
+    if (!ok && cur.retry < maxRetry) {
+      const alt = alternative(cur.item, used);
+      if (alt) {
+        used.add(itemKey(alt));
+        swapped = true;
+      }
+      queue.push({ item: alt ?? cur.item, retry: cur.retry + 1 });
+    }
     box.querySelectorAll<HTMLButtonElement>('.opt, .chip, [data-m="check"], [data-m="dunno"]').forEach((b) => (b.disabled = true));
     const input = box.querySelector<HTMLInputElement>('.mem-input');
     if (input) input.disabled = true;
     const sol = !card ? '' : card.code ? `<pre class="mem-code">${esc(card.answer)}</pre>` : `<p class="mem-sol">${esc(card.answer)}</p>`;
     const note = card?.note ? `<p>${inline(card.note)}</p>` : '';
     const man = card ? (card.cmd ?? (card.kind === 'cmd' ? card.answer : null)) : null;
-    const again = !ok && cur.retry < maxRetry ? '<p class="mem-again">Tornerà tra poco: l\'obiettivo è chiudere la sessione sapendola.</p>' : '';
+    const again =
+      !ok && cur.retry < maxRetry
+        ? swapped
+          ? '<p class="mem-again">Tra poco arriva una domanda diversa sullo stesso argomento: serve a verificare che il punto sia chiaro, non che tu ricordi questa risposta.</p>'
+          : '<p class="mem-again">Tornerà tra poco: l\'obiettivo è chiudere la sessione sapendola.</p>'
+        : '';
     box.querySelector('.train-explain')!.innerHTML = `
       <div class="${ok ? 'success' : 'feedback wrong'}">
         <p>${ok ? 'Giusto.' : 'Non ancora.'}${!ok && given ? ` Hai scritto: <code>${esc(given)}</code>` : ''}</p>

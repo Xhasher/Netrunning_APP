@@ -4,8 +4,8 @@ import { GENERATORS, LEVELS, generateSession, normalizeDrillAnswer, type Drill, 
 import { SYS_ROOTS } from '../content/world-admin';
 import { expandLive } from '../content/live';
 import { CHAPTER_TEST, buildChapterTest, chapterComplete, practicalPlan, recordChapterTest, recordPractical, stars } from '../game/chaptertest';
-import { runItems, type RunItem } from './memory';
-import { buildCards } from '../game/cards';
+import { makeAlternative, runItems, type RunItem } from './memory';
+import { buildCards, review } from '../game/cards';
 import { PALESTRA_SKILLS, exercisesFor, generatePalestra } from '../content/palestra';
 import { TIPS, randomTip } from '../content/tips';
 import { OPERATIONS, matchFinding, type Operation } from '../content/operations';
@@ -858,7 +858,7 @@ export class App {
           </div>`;
         box.querySelector('[data-w="go"]')!.addEventListener('click', () => this.showMission(id));
       },
-      { maxRetry: 1 },
+      { maxRetry: 1, alternative: this.alternativeFor() },
     );
   }
 
@@ -1600,9 +1600,18 @@ export class App {
           };
           if (rankFor(this.save.xp).name !== before) this.toast(`▲ Nuovo rango: ${rankFor(this.save.xp).name}`);
         },
-        { maxRetry: 3 },
+        { maxRetry: 3, alternative: this.alternativeFor() },
       );
     });
+  }
+
+  /** Esercizi alternativi per il feedback correttivo: carte sbloccate e domande delle missioni completate. */
+  private alternativeFor() {
+    const quizzes: { quiz: { question: string; options: string[]; correct: number; explain: string }; tag: string }[] = [];
+    for (const m of allMissions())
+      if (this.save.completed.includes(m.id))
+        for (const st of m.steps) if (st.kind === 'quiz') quizzes.push({ quiz: { question: st.question, options: st.options, correct: st.correct, explain: st.explain }, tag: `Ripasso · ${m.title}` });
+    return makeAlternative(buildCards(this.save.completed, this.save.known), quizzes);
   }
 
   // ------------------------------------------------------------- giochi
@@ -1639,7 +1648,7 @@ export class App {
       ${GAMES.map(
         (g) => html`
           <button class="opcard" data-g="${g.id}">
-            <span class="op-top"><span class="op-code">GIOCO</span>${best(g.id, g.cards.length)}</span>
+            <span class="op-top"><span class="op-code">${this.save.completed.includes(g.after) ? 'GIOCO' : `DOPO: ${findMission(g.after)?.mission.title ?? g.after}`}</span>${best(g.id, Math.min(8, g.cards.length))}</span>
             <span class="op-title">${g.title}</span>
             <span class="op-client">${inline(g.tagline)}</span>
           </button>`,
@@ -1659,16 +1668,37 @@ export class App {
   private showGame(id: string): void {
     const game = GAMES.find((g) => g.id === id);
     if (!game) return;
-    const deck = [...game.cards].sort(() => Math.random() - 0.5);
+    const done = new Set(this.save.completed);
+    const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+    if (!done.has(game.after)) {
+      const m = findMission(game.after);
+      this.page('game', game.title, '// gioco', `<p class="empty">Questo gioco usa idee che il corso spiega nella missione <b>${esc(m?.mission.title ?? game.after)}</b>. Completala e torna qui.</p>`);
+      return;
+    }
+    // solo le carte che il corso ha già reso comprensibili; prima quelle sbagliate in passato o in scadenza
+    const day = today();
+    const keyOf = (c: (typeof game.cards)[number]) => `g:${game.id}:${game.cards.indexOf(c)}`;
+    const open = game.cards.filter((c) => done.has(c.after));
+    const locked = game.cards.length - open.length;
+    const due = (c: (typeof open)[number]) => {
+      const r = this.save.srs[keyOf(c)];
+      return !r ? 1 : r[1] <= day ? 2 : 0;
+    };
+    const deck = [...open].sort(() => Math.random() - 0.5).sort((a, b) => due(b) - due(a)).slice(0, 8);
+    const extra = new Set<(typeof open)[number]>(); // casi diversi aggiunti dopo un errore
     let idx = -1; // -1 = introduzione
     let score = 0;
+    const firstCount = deck.length;
     let answered = false;
+    let phase: 'pick' | 'why' | 'done' = 'pick';
+    let whyOrder: number[] = [];
     const node = this.page('game', game.title, '// gioco', '<div class="train game"></div>');
     const box = node.querySelector<HTMLElement>('.game')!;
     const render = () => {
       if (idx < 0) {
         box.innerHTML = html`
           <div class="prose">${renderMarkup(game.intro)}</div>
+          <p class="small">Dopo ogni scelta c'è una domanda sul <b>perché</b>: conta per la misura del ragionamento. Se sbagli, arriva un caso diverso dello stesso tipo.${locked ? ` ${locked} casi si sbloccano più avanti nel corso.` : ''}</p>
           <div class="step-actions"><button class="next" data-t="next">Inizia ▸</button></div>`;
         return;
       }
@@ -1681,8 +1711,9 @@ export class App {
         }
         box.innerHTML = html`
           <div class="train-end">
-            <div class="xp-gain">${score}/${deck.length}</div>
-            <p>${record ? 'Nuovo record personale!' : `Il tuo record è ${prev}/${deck.length}.`}</p>
+            <div class="xp-gain">${score}/${firstCount}</div>
+            <p>${record ? 'Nuovo record personale!' : `Il tuo record è ${prev}/${firstCount}.`}</p>
+            <p class="small">I casi sbagliati torneranno per primi la prossima volta.</p>
             <div class="step-actions">
               <button class="ghost" data-t="back">Giochi</button>
               <button class="next" data-t="again">Rigioca ▸</button>
@@ -1692,17 +1723,15 @@ export class App {
       }
       const c = deck[idx];
       answered = false;
+      phase = 'pick';
       box.innerHTML = html`
-        <div class="train-head"><span>${idx + 1}/${deck.length}</span><span>Punti: ${score}</span></div>
+        <div class="train-head"><span>${idx + 1}/${deck.length}${extra.has(c) ? ' · caso simile' : ''}</span><span>Punti: ${score}</span></div>
         <div class="gcard">
           <div class="gcard-type">${c.title}</div>
           <dl class="gmeta">${c.meta.map(([k, v]) => `<div><dt>${k}</dt><dd>${inline(v)}</dd></div>`).join('')}</dl>
           <div class="gbody"></div>
         </div>
-        <div class="gchoices">
-          <button class="opt" data-c="0">${game.choices[0]}</button>
-          <button class="opt" data-c="1">${game.choices[1]}</button>
-        </div>
+        <div class="gchoices">${game.choices.map((ch, i) => `<button class="opt" data-c="${i}">${ch}</button>`).join('')}</div>
         <div class="train-explain"></div>`;
       box.querySelector('.gbody')!.textContent = c.body;
     };
@@ -1717,22 +1746,59 @@ export class App {
         this.root.scrollTop = 0;
         return;
       }
-      const btn = t.closest<HTMLElement>('[data-c]');
-      if (!btn || answered || idx < 0 || idx >= deck.length) return;
-      answered = true;
+      if (idx < 0 || idx >= deck.length) return;
       const c = deck[idx];
+      const w = t.closest<HTMLElement>('[data-w]');
+      if (w && phase === 'why') {
+        phase = 'done';
+        const pick = Number(w.dataset.w);
+        const ok = pick === c.why.correct;
+        this.learnFrom([game.topic], ok, 'ragionamento', { error: ok ? undefined : 'risposta' });
+        box.querySelectorAll<HTMLButtonElement>('[data-w]').forEach((b) => {
+          const v = Number(b.dataset.w);
+          if (v === c.why.correct) b.classList.add('right');
+          else if (v === pick) b.classList.add('wrong');
+          b.disabled = true;
+        });
+        box.querySelector('.why-explain')!.innerHTML = html`
+          <div class="${ok ? 'success' : 'feedback wrong'}">${ok ? '<p>Esatto: è il punto che decide.</p>' : `<p>Il punto decisivo è: <b>${esc(c.why.options[c.why.correct])}</b>.</p>`}${c.why.explain ? renderMarkup(c.why.explain) : ''}</div>
+          <div class="step-actions"><button class="next" data-t="next">${idx + 1 < deck.length ? 'Prossimo ▸' : 'Risultato ▸'}</button></div>`;
+        return;
+      }
+      const btn = t.closest<HTMLElement>('[data-c]');
+      if (!btn || answered) return;
+      answered = true;
       const chosen = Number(btn.dataset.c);
       const right = chosen === c.answer;
-      if (right) score++;
+      if (right && !extra.has(c)) score++;
+      review(this.save.srs, keyOf(c), right, day);
+      this.learnFrom([game.topic], right, 'quiz', { error: right ? undefined : 'risposta' });
       box.querySelectorAll<HTMLButtonElement>('[data-c]').forEach((b) => {
         const v = Number(b.dataset.c);
         if (v === c.answer) b.classList.add('right');
         else if (v === chosen) b.classList.add('wrong');
         b.disabled = true;
       });
+      // feedback correttivo: dopo un errore, un caso DIVERSO con la stessa risposta giusta
+      let added = false;
+      if (!right) {
+        const alt = open.filter((x) => x !== c && x.answer === c.answer && !deck.includes(x));
+        if (alt.length) {
+          const pick = alt[Math.floor(Math.random() * alt.length)];
+          extra.add(pick);
+          deck.push(pick);
+          added = true;
+        }
+      }
+      whyOrder = c.why.options.map((_, i) => i).sort(() => Math.random() - 0.5);
+      phase = right ? 'why' : 'done';
       box.querySelector('.train-explain')!.innerHTML = html`
-        <div class="${right ? 'success' : 'feedback wrong'}">${right ? '' : '<p>Sbagliato.</p>'}${renderMarkup(c.explain)}</div>
-        <div class="step-actions"><button class="next" data-t="next">${idx + 1 < deck.length ? 'Prossimo ▸' : 'Risultato ▸'}</button></div>`;
+        <div class="${right ? 'success' : 'feedback wrong'}">${right ? '' : '<p>Sbagliato.</p>'}${renderMarkup(c.explain)}${added ? '<p class="mem-again">Tra poco un caso diverso dello stesso tipo: serve a verificare che il ragionamento sia chiaro.</p>' : ''}</div>
+        ${
+          right
+            ? html`<div class="why"><p class="why-q"><b>Perché?</b> ${esc(c.why.question)}</p><div class="why-opts">${whyOrder.map((i) => `<button class="opt" data-w="${i}">${esc(c.why.options[i])}</button>`).join('')}</div><div class="why-explain"></div></div>`
+            : `<div class="step-actions"><button class="next" data-t="next">${idx + 1 < deck.length ? 'Prossimo ▸' : 'Risultato ▸'}</button></div>`
+        }`;
     });
     render();
   }
@@ -2121,6 +2187,23 @@ export class App {
       } else if (act === 'skip') {
         s.term.system(`↷ Sfida saltata. La soluzione sarà nel riepilogo finale.`, 'info');
         this.learnFrom(drillSkills(s.drills[s.idx]), false, s.exam ? 'esame' : s.pal ? 'palestra' : 'simulazione', { error: 'saltato' });
+        // feedback correttivo: nella Palestra, un esercizio diverso e guidato sullo stesso comando
+        const sk = s.drills[s.idx].skill;
+        if (s.pal && !s.ctest && sk && s.drills.length < 12) {
+          const taught = this.taught();
+          const more = generatePalestra(s.shell, {
+            skill: sk,
+            count: 1,
+            seed: (Date.now() ^ s.drills.length) >>> 0,
+            allowed: (e) => e.lv === 1 && e.id !== s.drills[s.idx].gid?.slice(4) && eligible({ requires: palRequires(e).filter((k) => k !== e.skill) }, taught),
+          });
+          if (more.length) {
+            more[0].title = `${more[0].title} (di nuovo, guidato)`;
+            s.drills.push(more[0]);
+            s.hinted.push(false);
+            s.term.system('Ti aggiungo in fondo un esercizio più semplice sullo stesso comando.', 'info');
+          }
+        }
         this.nextDrill('skip');
       } else if (act === 'terminal') {
         s.minimized = true;

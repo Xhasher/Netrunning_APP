@@ -3153,3 +3153,17 @@ pre.code.term .cl-note { color: #7d8399; font-family: var(--sans); font-style: i
 .errs {
   padding-left: 1.1rem;
 }
+
+.why {
+  margin-top: 0.8rem;
+}
+
+.why-q {
+  margin: 0 0 0.5rem;
+}
+
+.why-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
