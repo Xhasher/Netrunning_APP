@@ -251,3 +251,150 @@ Per ogni allarme scegli **Falso allarme** o **Escalation**. Considera il contest
 };
 
 export const GAMES: Game[] = [PHISHING, SOC];
+
+// ---------------------------------------------------------------- casi generati
+//
+// Oltre ai casi scritti a mano, ogni partita ne riceve alcuni costruiti da modelli con dati
+// sempre diversi (mittenti, domini, indirizzi, orari): così i casi non si imparano a memoria,
+// si impara a riconoscere i segnali.
+
+type R = { pick<T>(a: readonly T[]): T; int(a: number, b: number): number; next(): number };
+
+const BRANDS: [string, string][] = [
+  ['Banca Neon', 'bancaneon.nc'],
+  ['Corriere Sprint', 'corrieresprint.nc'],
+  ['NetFlux', 'netflux.nc'],
+  ['Comune di Night City', 'comune.nightcity.nc'],
+  ['Arasaka Pay', 'arasakapay.nc'],
+];
+
+function fakeDomain(r: R, real: string): string {
+  const [name, ...rest] = real.split('.');
+  const tld = rest.join('.');
+  return r.pick([
+    `${name.replace('o', '0')}.${tld}`,
+    `${name}-verifica.${tld}`,
+    `${name}.top`,
+    `${name}-sicurezza.com`,
+    `secure-${name}.${tld}`,
+  ]);
+}
+
+/** Un caso di phishing o legittimo, costruito a caso. */
+export function generatePhishingCard(r: R): Card {
+  const [brand, real] = r.pick(BRANDS);
+  const kind = r.int(0, 3);
+  if (kind === 0) {
+    const fake = fakeDomain(r, real);
+    return {
+      meta: [['Da', `${brand} <avvisi@${fake}>`], ['Oggetto', r.pick(['Azione richiesta entro oggi', 'Il tuo account sarà sospeso', 'Verifica i tuoi dati'])]],
+      title: 'Email',
+      body: `Gentile cliente, abbiamo rilevato un accesso insolito. Per evitare la sospensione entro ${r.int(2, 24)} ore conferma i tuoi dati qui: https://${fake}/login`,
+      answer: 0,
+      explain: `**Phishing.** Il dominio \`${fake}\` non è \`${real}\`: basta un carattere o una parola in più. Urgenza e minaccia completano il quadro.`,
+      after: 'chF-m3',
+      why: { question: 'Quale indizio basta da solo?', options: [`Il dominio ${fake} non è quello ufficiale ${real}`, 'Il messaggio è cortese', 'Parla di un accesso insolito', 'È arrivato di giorno'], correct: 0 },
+    };
+  }
+  if (kind === 1) {
+    const fake = fakeDomain(r, real);
+    return {
+      meta: [['Da', `${brand} <info@${real}>`], ['Oggetto', 'Aggiornamento importante']],
+      title: 'Email',
+      body: `Il mittente sembra quello vero. Il testo dice: "Clicca su ${real}/area-clienti". Passando il dito sul link, l'indirizzo vero è https://${fake}/area-clienti`,
+      answer: 0,
+      explain: `**Phishing.** Il testo del link e la destinazione vera sono diversi: conta sempre la destinazione (\`${fake}\`). Il mittente si può falsificare, o la casella vera può essere stata violata.`,
+      after: 'chF-m3',
+      why: { question: 'Cosa conta davvero, in un link?', options: ['Dove porta davvero, non il testo che mostra', 'Il colore del pulsante', 'Che il mittente abbia un nome conosciuto', 'Che il testo sia scritto bene'], correct: 0 },
+    };
+  }
+  if (kind === 2) {
+    return {
+      meta: [['Da', `${brand} <notifiche@${real}>`], ['Tipo', 'Notifica']],
+      title: 'Notifica',
+      body: `Hai effettuato un accesso dal nuovo dispositivo "${r.pick(['telefono di casa', 'portatile', 'tablet'])}" alle ${String(r.int(8, 21)).padStart(2, '0')}:${String(r.int(0, 59)).padStart(2, '0')}. Se non sei stato tu, apri l'app ufficiale e cambia la password.`,
+      answer: 1,
+      explain: '**Legittimo.** Dominio ufficiale, nessun link, nessuna richiesta di dati: ti dice di usare l\'app. È una notifica di sicurezza utile.',
+      after: 'chF-m3',
+      why: { question: 'Perché è affidabile?', options: ['Non chiede dati e ti manda all\'app ufficiale, non a un link', 'Perché usa il tuo nome', 'Perché è breve', 'Perché arriva di giorno'], correct: 0 },
+    };
+  }
+  const amount = `${r.int(1, 9)},${r.int(10, 99)} €`;
+  return {
+    meta: [['Da', `+39 3${r.int(10, 99)} ${r.int(100, 999)} ${r.int(1000, 9999)}`], ['Tipo', 'SMS']],
+    title: 'SMS',
+    body: `${brand}: il tuo pacco è in giacenza. Paga ${amount} di spese per la riconsegna: https://${fakeDomain(r, real)}/p/${r.int(10000, 99999)}`,
+    answer: 0,
+    explain: `**Phishing** via SMS (*smishing*). La cifra piccola (${amount}) serve a farti abbassare la guardia: l'obiettivo sono i dati della carta.`,
+    after: 'chF-m3',
+    why: { question: 'Cosa cerca davvero chi lo manda?', options: ['I dati della carta di credito', `I ${amount}`, 'Il tuo indirizzo di casa', 'Niente: è un errore'], correct: 0 },
+  };
+}
+
+const IP = (r: R) => `${r.pick(['198.51.100', '203.0.113', '192.0.2'])}.${r.int(2, 250)}`;
+const HH = (r: R, a: number, b: number) => `${String(r.int(a, b)).padStart(2, '0')}:${String(r.int(0, 59)).padStart(2, '0')}`;
+const PEOPLE = ['anna', 'bruno', 'carla', 'dario', 'elena', 'fabio', 'gina', 'luca', 'marta', 'nico'];
+
+/** Un allarme da smistare, costruito a caso. */
+export function generateTriageCard(r: R): Card {
+  const who = r.pick(PEOPLE);
+  const kind = r.int(0, 4);
+  if (kind === 0) {
+    const ip = IP(r);
+    const n = r.int(80, 400);
+    return {
+      meta: [['Regola', `SSH: ${n} login falliti in ${r.int(2, 6)} minuti`], ['Sorgente', `${ip} → server`], ['Ora', HH(r, 1, 4)]],
+      title: 'Allarme',
+      body: `Utenti tentati: root, admin, ${who}... Poco dopo, un login RIUSCITO come ${who} dallo stesso indirizzo.`,
+      answer: 1,
+      explain: '**Escalation, subito.** Tentativi in massa da fuori seguiti da un accesso riuscito: è un\'intrusione probabile.',
+      after: 'ch04-m3',
+      why: { question: 'Quale dettaglio rende urgente questo allarme?', options: ['Il login riuscito dopo i tentativi falliti', 'Il numero esatto dei tentativi', 'Il nome dell\'utente', 'L\'orario'], correct: 0 },
+    };
+  }
+  if (kind === 1) {
+    return {
+      meta: [['Regola', `SSH: ${r.int(3, 6)} login falliti in 2 minuti`], ['Sorgente', `192.168.1.${r.int(10, 60)} → server`], ['Ora', HH(r, 8, 18)]],
+      title: 'Allarme',
+      body: `Utente: ${who}. Pochi tentativi falliti, poi login riuscito dallo stesso indirizzo interno, in orario d'ufficio. Ieri ${who} ha cambiato password.`,
+      answer: 0,
+      explain: '**Falso allarme.** Rete interna, orario di lavoro, pochi errori e una password appena cambiata: qualcuno ha sbagliato a scriverla.',
+      after: 'ch04-m3',
+      why: { question: 'Cosa spiega i tentativi falliti?', options: ['La password cambiata il giorno prima', 'Un attacco dalla rete interna', 'Un guasto del server', 'Un virus'], correct: 0 },
+    };
+  }
+  if (kind === 2) {
+    const path = `/tmp/.${r.pick(['x', 'cache', 'sys', 'font'])}/${r.pick(['kworker', 'dbus-sync', 'systemd-helper'])}`;
+    return {
+      meta: [['Regola', 'Processo con CPU > 90% per 30 minuti'], ['Host', `web-0${r.int(1, 9)}`], ['Ora', HH(r, 0, 5)]],
+      title: 'Allarme',
+      body: `Processo: ${path}. Utente: www-data. Si collega a un indirizzo esterno sulla porta ${r.pick([3333, 4444, 8333])}.`,
+      answer: 1,
+      explain: '**Escalation.** Un programma da una cartella nascosta in /tmp, con il nome di un processo di sistema, che parla con l\'esterno: indicatore di compromissione da manuale.',
+      after: 'ch04-m3',
+      why: { question: 'Quale indizio, da solo, è già sospetto?', options: ['Un programma che parte da una cartella nascosta in /tmp', 'L\'utente www-data', 'La CPU alta', 'L\'orario notturno'], correct: 0 },
+    };
+  }
+  if (kind === 3) {
+    const city = r.pick(['Lisbona', 'Berlino', 'Tokyo', 'Atene']);
+    return {
+      meta: [['Regola', 'Login da paese insolito'], ['Utente', `${who}@azienda`], ['Ora', HH(r, 9, 19)]],
+      title: 'Allarme',
+      body: `Accesso alla posta da ${city}. Il calendario aziendale dice che ${who} è in trasferta a ${city} questa settimana. Secondo fattore (MFA) confermato dal suo telefono.`,
+      answer: 0,
+      explain: '**Falso allarme.** Il paese è insolito, ma il contesto lo spiega e l\'MFA è stato confermato dal telefono di chi viaggia.',
+      after: 'chF-m4',
+      why: { question: 'Cosa rende credibile questo accesso?', options: ['Trasferta in calendario e MFA confermato', 'L\'orario di lavoro', 'Che sia la posta', 'Il nome della città'], correct: 0 },
+    };
+  }
+  const city = r.pick(['un paese mai visto', 'un indirizzo di un servizio di anonimato', 'un centro dati estero']);
+  return {
+    meta: [['Regola', 'Login da paese insolito'], ['Utente', `direzione@azienda`], ['Ora', HH(r, 1, 4)]],
+    title: 'Allarme',
+    body: `Accesso riuscito all'account del direttore da ${city}, alle tre di notte. L'account non ha il secondo fattore. Nessuna trasferta in calendario.`,
+    answer: 1,
+    explain: '**Escalation.** Account importante, orario strano, provenienza mai vista e niente MFA: si scala subito, con una nota chiara.',
+    after: 'chF-m4',
+    why: { question: 'Cosa manca, che avrebbe potuto fermarlo?', options: ['Il secondo fattore (MFA)', 'Un antivirus', 'Un firewall sul telefono', 'Una password più corta'], correct: 0 },
+  };
+}

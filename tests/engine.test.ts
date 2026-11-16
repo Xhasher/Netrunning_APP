@@ -260,3 +260,21 @@ describe('varietà raggiungibile', () => {
     expect(t.has('pipe') && t.has('redirezioni') && t.has('jolly')).toBe(true);
   }, 120000);
 });
+
+describe('casi generati dei giochi', () => {
+  it('phishing e triage generano casi validi, vari, con entrambe le risposte', async () => {
+    const { generatePhishingCard, generateTriageCard } = await import('../src/content/games');
+    const { makeRng } = await import('../src/content/drills');
+    const ids = new Set(CHAPTERS.flatMap((c) => c.missions.map((m) => m.id)));
+    for (const gen of [generatePhishingCard, generateTriageCard]) {
+      const r = makeRng(5);
+      const cards = Array.from({ length: 60 }, () => gen(r));
+      expect(new Set(cards.map((c) => c.answer))).toEqual(new Set([0, 1]));
+      expect(new Set(cards.map((c) => c.body)).size).toBeGreaterThan(30);
+      for (const c of cards) {
+        expect(ids.has(c.after), c.after).toBe(true);
+        expect(c.why.correct).toBeLessThan(c.why.options.length);
+      }
+    }
+  });
+});

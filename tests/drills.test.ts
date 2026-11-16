@@ -56,3 +56,21 @@ describe('simulazioni', () => {
     for (const gens of Object.values(GENERATORS)) for (const g of gens) expect(STORIES[g.id]?.length, g.id).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe('riparazioni', () => {
+  it('ogni riparazione è risolvibile, si verifica dallo stato e ha una storia (30 semi)', async () => {
+    const { REPAIRS } = await import('../src/content/drills');
+    for (let seed = 1; seed <= 30; seed++) {
+      const sh = buildWorld('edge');
+      const drills = generateSession(sh, ['rip'], 2, seed * 31, undefined, { count: REPAIRS.length, repairs: true });
+      expect(drills.length).toBe(REPAIRS.length);
+      for (const d of drills) {
+        expect(d.state, d.title).toBeDefined();
+        expect(d.state!(sh), `${d.title} è già riparato prima di cominciare`).toBe(false);
+        for (const cmd of d.solve) sh.run(cmd);
+        expect(d.state!(sh), `${d.title} seme ${seed}`).toBe(true);
+      }
+    }
+    for (const g of REPAIRS) expect(STORIES[g.id]?.length, g.id).toBeGreaterThanOrEqual(2);
+  });
+});

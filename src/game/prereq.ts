@@ -5,7 +5,7 @@
 // un deck di prova, e i comandi delle sue soluzioni diventano le competenze richieste.
 // Un esercizio entra in gioco solo quando tutte sono state insegnate.
 
-import { GENERATORS, makeRng, type Ctx, type Level } from '../content/drills';
+import { GENERATORS, REPAIRS, makeRng, type Ctx, type Level } from '../content/drills';
 import { PALESTRA, type PalEx } from '../content/palestra';
 import { buildWorld } from '../content/world';
 import type { Shell } from '../engine/shell';
@@ -43,7 +43,7 @@ export function palRequires(e: PalEx): string[] {
 
 /** Competenze richieste da una sfida delle Simulazioni a un certo livello. */
 export function genRequires(chapter: string, genId: string, lv: Level): string[] {
-  const g = (GENERATORS[chapter] ?? []).find((x) => x.id === genId);
+  const g = (chapter === 'rip' ? REPAIRS : (GENERATORS[chapter] ?? [])).find((x) => x.id === genId);
   if (!g) return [];
   return requiresOf(`sim:${chapter}:${genId}:${lv}`, (c) => g.make(c), lv);
 }

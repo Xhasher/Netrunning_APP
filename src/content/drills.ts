@@ -1037,7 +1037,133 @@ const G13: Gen[] = [
  * Il "perché" di ogni sfida: chi te la chiede e cosa è successo.
  * Più varianti per generatore, così la stessa sfida non si presenta sempre uguale.
  */
+
+// ---------------------------------------------------------------- riparazioni (System Repair)
+//
+// Un sistema rotto, ogni volta in modo diverso: si legge l'errore, si trova la causa, si
+// ripara. La soluzione si verifica dallo stato del sistema, non da una risposta. I guasti
+// usano solo comandi già insegnati (prerequisiti ricavati dalla soluzione, vedi prereq.ts).
+
+export const REPAIRS: Gen[] = [
+  {
+    id: 'rip-cartella',
+    dirName: 'backup-notturno',
+    make: (c) => {
+      const { r } = c;
+      const dest = r.pick(['copie', 'salvataggi', 'archivio', 'backup']);
+      const day = `2077-11-${pad2(r.int(10, 28))}`;
+      write(c, 'errore.log', [`${day} 01:15:02 backup: avvio copia di dati.txt`, `${day} 01:15:02 backup: cp: impossibile creare '${c.dir}/${dest}/dati.txt': No such file or directory`, `${day} 01:15:02 backup: FALLITO`].join('\n') + '\n');
+      write(c, 'dati.txt', 'ordini del giorno\n');
+      const target = `${c.sh.home}/${c.dir}/${dest}/dati.txt`;
+      return {
+        title: 'Il backup che fallisce',
+        prompt: `Il backup notturno fallisce da tre giorni. Leggi \`${c.dir}/errore.log\`, capisci perché, ripara e fai tu la copia che è mancata.`,
+        hints: ['L\'errore dice che manca qualcosa nel percorso di destinazione.', `mkdir ${c.dir}/${dest} e poi cp ${c.dir}/dati.txt ${c.dir}/${dest}/`],
+        solve: [`cat ${c.dir}/errore.log`, `mkdir ${c.dir}/${dest}`, `cp ${c.dir}/dati.txt ${c.dir}/${dest}/`],
+        state: (sh) => sh.fs.get(target)?.type === 'file',
+      };
+    },
+  },
+  {
+    id: 'rip-posto',
+    dirName: 'sito',
+    make: (c) => {
+      const { r } = c;
+      const wrong = r.pick(['vecchio', 'bozze', 'da-pubblicare', 'temp']);
+      write(c, `www/${wrong}/index.html`, '<html><body>Lo Scantinato</body></html>\n');
+      write(c, 'errore.log', `server web: GET / -> 404: file ${c.dir}/www/index.html non trovato\n`);
+      const target = `${c.sh.home}/${c.dir}/www/index.html`;
+      return {
+        title: 'La pagina sparita',
+        prompt: `Il sito risponde "pagina non trovata". Leggi \`${c.dir}/errore.log\`: il server cerca la pagina in un posto preciso. Trovala e mettila dove il server la cerca.`,
+        hints: ['La pagina esiste, ma è finita in una sottocartella di www.', `ls ${c.dir}/www e poi mv ${c.dir}/www/${wrong}/index.html ${c.dir}/www/`],
+        solve: [`cat ${c.dir}/errore.log`, `ls ${c.dir}/www`, `mv ${c.dir}/www/${wrong}/index.html ${c.dir}/www/`],
+        state: (sh) => sh.fs.get(target)?.type === 'file',
+      };
+    },
+  },
+  {
+    id: 'rip-eseguibile',
+    dirName: 'script',
+    make: (c) => {
+      const f = `${c.r.pick(['controlla', 'pulisci', 'esporta', 'ruota'])}.sh`;
+      write(c, f, '#!/bin/bash\necho "fatto"\n', 'rw-r--r--');
+      write(c, 'errore.log', `cron: /bin/sh: 1: ${c.dir}/${f}: Permission denied\n`);
+      const target = `${c.sh.home}/${c.dir}/${f}`;
+      return {
+        title: 'Lo script che non parte',
+        prompt: `Il lavoro programmato non parte più. Leggi \`${c.dir}/errore.log\` e guarda i permessi di \`${c.dir}/${f}\`. Riparalo, senza dare a nessun altro il permesso di modificarlo.`,
+        hints: ['Permission denied su uno script: manca il permesso di esecuzione (x).', `chmod 755 ${c.dir}/${f}`],
+        solve: [`cat ${c.dir}/errore.log`, `ls -l ${c.dir}/${f}`, `chmod 755 ${c.dir}/${f}`],
+        state: (sh) => {
+          const p = sh.fs.get(target)?.perms ?? '';
+          return p[2] === 'x' && p[4] !== 'w' && p[7] !== 'w';
+        },
+      };
+    },
+  },
+  {
+    id: 'rip-chiave',
+    dirName: 'ssh',
+    make: (c) => {
+      const f = `id_${c.r.pick(['backup', 'deploy', 'server'])}`;
+      write(c, f, '-----BEGIN OPENSSH PRIVATE KEY-----\nNC-SIMULATA\n-----END OPENSSH PRIVATE KEY-----\n', c.r.pick(['rw-r--r--', 'rw-rw-r--', 'rw-rw-rw-']));
+      write(c, 'errore.log', [`WARNING: UNPROTECTED PRIVATE KEY FILE!`, `Permissions for '${c.dir}/${f}' are too open.`, 'It is required that your private key files are NOT accessible by others.', 'This private key will be ignored.'].join('\n') + '\n');
+      const target = `${c.sh.home}/${c.dir}/${f}`;
+      return {
+        title: 'La chiave rifiutata',
+        prompt: `Il collegamento automatico al server di backup si è fermato. Leggi \`${c.dir}/errore.log\` e ripara la chiave privata \`${c.dir}/${f}\`.`,
+        hints: ['SSH rifiuta una chiave privata leggibile da altri: deve essere solo del proprietario.', `chmod 600 ${c.dir}/${f}`],
+        solve: [`cat ${c.dir}/errore.log`, `chmod 600 ${c.dir}/${f}`],
+        state: (sh) => sh.fs.get(target)?.perms === 'rw-------',
+      };
+    },
+  },
+  {
+    id: 'rip-blocco',
+    dirName: 'attacco',
+    make: (c) => {
+      const { attacker } = authLog(c);
+      return {
+        title: 'L\'attacco in corso',
+        prompt: `Il server è sotto un attacco brute force adesso. Trova l'indirizzo in \`${c.dir}/auth.log\` e bloccalo sul firewall.`,
+        hints: ['Prima trovi l\'indirizzo con più tentativi falliti, poi ufw lo blocca (serve sudo).', `grep "Failed password" ${c.dir}/auth.log | cut -d " " -f 11 | sort | uniq -c e poi sudo ufw deny from ${attacker}`],
+        solve: [`grep "Failed password" ${c.dir}/auth.log | cut -d " " -f 11 | sort | uniq -c`, `sudo ufw deny from ${attacker}`],
+        state: (sh) => sh.firewall.includes(attacker),
+      };
+    },
+  },
+  {
+    id: 'rip-disco',
+    dirName: 'logs',
+    make: (c) => {
+      const { r } = c;
+      const big = `${r.pick(['debug', 'trace', 'verbose'])}.log`;
+      write(c, big, 'riga di debug\n'.repeat(400));
+      for (const w of r.shuffle(WORDS).slice(0, 3)) write(c, `${w}.log`, 'evento\n'.repeat(r.int(3, 20)));
+      const base = `${c.sh.home}/${c.dir}`;
+      return {
+        title: 'Il disco pieno',
+        prompt: `La cartella \`${c.dir}\` riempie il disco. Trova il file che pesa di più, **conservane una copia compressa** in \`${c.dir}/${big}.tgz\`, poi cancella l'originale.`,
+        hints: ['ls -l per le dimensioni; tar -czf per archiviare; rm solo dopo aver controllato l\'archivio.', `tar -czf ${c.dir}/${big}.tgz ${c.dir}/${big} e poi rm ${c.dir}/${big}`],
+        solve: [`ls -l ${c.dir}`, `tar -czf ${c.dir}/${big}.tgz ${c.dir}/${big}`, `rm ${c.dir}/${big}`],
+        state: (sh) => {
+          const a = sh.fs.get(`${base}/${big}.tgz`);
+          return !sh.fs.get(`${base}/${big}`) && !!a && a.type === 'file' && a.content.includes(big);
+        },
+      };
+    },
+  },
+];
+
 export const STORIES: Record<string, string[]> = {
+  'rip-cartella': [`@mama: Il backup non funziona da tre giorni. Luca è in ferie, di nuovo.`, `@nyx: Un backup che fallisce in silenzio è un disastro che aspetta. Leggi l'errore, è tutto lì.`],
+  'rip-posto': [`@mama: Il sito dice "pagina non trovata"! Ieri andava.`, `@nyx: Qualcuno ha spostato un file nel posto sbagliato. Il log del server ti dice dove lo cerca.`],
+  'rip-eseguibile': [`@rook: Il lavoro di pulizia notturno non gira più. Il log dice una sola cosa.`, `@nyx: "Permission denied" su uno script: lo conosci già.`],
+  'rip-chiave': [`@rook: Il collegamento al server di backup si è fermato dopo che qualcuno ha "sistemato" i permessi.`, `@nyx: SSH è severo con le chiavi private: se le vedono altri, le ignora. Ha ragione.`],
+  'rip-blocco': [`@nyx: Allarme adesso: qualcuno sta provando password sul server. Chiudigli la porta.`, `@rook: Il SOC del cliente chiede un blocco immediato. Trova chi e blocca.`],
+  'rip-disco': [`@mama: Il disco è pieno e il sito rallenta.`, `@nyx: Prima di cancellare, conserva. Poi libera spazio.`],
+
   percorso: [
     `@nyx: Un gioco che faccio con chi comincia: biglietti nascosti nelle cartelle. Ogni biglietto ti dice dove andare. Alla fine c'è un premio.`,
     `@rook: L'ex socio di un cliente ha lasciato istruzioni sparse nel disco, una dentro l'altra. Seguile.`,
@@ -1271,13 +1397,15 @@ export const LEVELS: Record<Level, { name: string; count: number; hints: 'free' 
 };
 
 /** Genera una sessione di sfide per i capitoli scelti, scrivendo i dati nel deck. */
-export function generateSession(sh: Shell, chapters: string[], level: Level, seed: number, allowed?: (chapter: string, genId: string, lv: Level) => boolean): Drill[] {
+export function generateSession(sh: Shell, chapters: string[], level: Level, seed: number, allowed?: (chapter: string, genId: string, lv: Level) => boolean, opts: { count?: number; repairs?: boolean } = {}): Drill[] {
   const r = makeRng(seed);
-  const pool = chapters.flatMap((ch) => (GENERATORS[ch] ?? []).filter((g) => !allowed || allowed(ch, g.id, level)).map((g) => ({ ch, g })));
+  const source = (ch: string) => (opts.repairs ? (ch === 'rip' ? REPAIRS : []) : (GENERATORS[ch] ?? []));
+  const pool = chapters.flatMap((ch) => source(ch).filter((g) => !allowed || allowed(ch, g.id, level)).map((g) => ({ ch, g })));
   if (!pool.length) return [];
   const order: { ch: string; g: Gen }[] = [];
-  while (order.length < LEVELS[level].count) order.push(...r.shuffle(pool));
-  return order.slice(0, LEVELS[level].count).map(({ ch, g }, i) => {
+  const count = opts.count ?? LEVELS[level].count;
+  while (order.length < count) order.push(...r.shuffle(pool));
+  return order.slice(0, count).map(({ ch, g }, i) => {
     const ctx: Ctx = { sh, r, lv: level, dir: `sim/${i + 1}-${g.dirName}` };
     const tales = STORIES[g.id] ?? [];
     const story = tales.length ? tales[Math.abs(seed + i * 7) % tales.length] : undefined;
