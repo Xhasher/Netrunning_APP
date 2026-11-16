@@ -6,7 +6,8 @@
 import { WORDS, NAMES, makeRng, pathAnswers, pubIp, time, write, type Ctx, type Drill, type Level, type Rng } from './drills';
 import { base64Encode, sha256 } from '../engine/sha256';
 import { DISKS_FILE, JOURNAL_FILE, SVC_FILE, encodeUnits } from '../engine/sysinfo';
-import type { Shell } from '../engine/shell';
+import { addSite, type Shell } from '../engine/shell';
+import { addDomain } from '../engine/osint';
 
 export interface PalEx {
   id: string;
@@ -1517,7 +1518,167 @@ const PWSH: PalEx[] = [
   },
 ];
 
-export const PALESTRA: PalEx[] = [...NAV, ...FILEOPS, ...TEXT, ...CRYPTO, ...ADMIN, ...NMAP, ...PWSH];
+
+// ---------------------------------------------------------------- seconda metà del corso
+
+const SECOND: PalEx[] = [
+  {
+    id: 'base64-e',
+    skill: 'base64',
+    lv: 2,
+    make: (c) => {
+      const w = `${c.r.pick(WORDS)}${c.r.int(10, 99)}`;
+      return {
+        title: 'Codifica',
+        prompt: `Un modulo web vuole il nome utente \`${w}\` codificato in Base64. Codificalo e invia il risultato con \`flag\`.`,
+        hints: ['base64 senza opzioni codifica; il testo arriva da echo con una pipe.', `echo ${w} | base64`],
+        answer: [base64Encode(w + '\n'), base64Encode(w)],
+        solve: [`echo ${w} | base64`],
+      };
+    },
+  },
+  {
+    id: 'sha256-verifica',
+    skill: 'sha256sum',
+    lv: 3,
+    make: (c) => {
+      const names = uniqName(c.r, 4, FILES).map((f) => `${f}.pkg`);
+      const bodies = names.map((f) => `${f} ${c.r.hex(12)}\n`);
+      const bad = c.r.int(0, names.length - 1);
+      names.forEach((f, i) => write(c, `pacchetti/${f}`, i === bad ? bodies[i].replace(/.$/, 'x\n') : bodies[i]));
+      write(c, 'SHA256SUMS', names.map((f, i) => `${sha256(bodies[i])}  ${c.dir}/pacchetti/${f}`).join('\n') + '\n');
+      return {
+        title: 'Il pacchetto manomesso',
+        prompt: `Il fornitore ha pubblicato le impronte dei suoi pacchetti in \`${c.dir}/SHA256SUMS\`. Uno dei file in \`${c.dir}/pacchetti\` non corrisponde. Quale? Invia il nome con \`flag\`.`,
+        hints: ['sha256sum -c ricalcola le impronte di un elenco e dice quali non tornano.', `sha256sum -c ${c.dir}/SHA256SUMS`],
+        answer: [names[bad]],
+        solve: [`sha256sum -c ${c.dir}/SHA256SUMS`],
+      };
+    },
+  },
+  {
+    id: 'ipcalc-host',
+    skill: 'ipcalc',
+    lv: 1,
+    make: (c) => {
+      const bits = c.r.pick([24, 25, 26, 27, 28, 29]);
+      const net = `10.${c.r.int(1, 250)}.${c.r.int(0, 250)}.0/${bits}`;
+      return {
+        title: 'Quanti ci stanno?',
+        prompt: `Quanti dispositivi possono avere un indirizzo nella rete \`${net}\`? Invia il numero con \`flag\`.`,
+        hints: ['ipcalc fa i conti per te: guarda Hosts/Net.', `ipcalc ${net}`],
+        answer: [String(2 ** (32 - bits) - 2)],
+        solve: [`ipcalc ${net}`],
+      };
+    },
+  },
+  {
+    id: 'ipcalc-broadcast',
+    skill: 'ipcalc',
+    lv: 2,
+    make: (c) => {
+      const bits = c.r.pick([25, 26, 27, 28]);
+      const size = 2 ** (32 - bits);
+      const a = c.r.int(1, 250);
+      const b = c.r.int(0, 250);
+      const start = c.r.int(0, 256 / size - 1) * size;
+      return {
+        title: 'Parlare a tutti',
+        prompt: `Qual è l'indirizzo di **broadcast** (quello che raggiunge tutti i dispositivi) della rete \`10.${a}.${b}.${start}/${bits}\`?`,
+        hints: ['È l\'ultimo indirizzo della rete: ipcalc lo chiama Broadcast.', `ipcalc 10.${a}.${b}.${start}/${bits}`],
+        answer: [`10.${a}.${b}.${start + size - 1}`],
+        solve: [`ipcalc 10.${a}.${b}.${start}/${bits}`],
+      };
+    },
+  },
+  {
+    id: 'curl-server',
+    skill: 'curl',
+    lv: 1,
+    make: (c) => {
+      const ip = `10.77.${c.r.int(1, 250)}.${c.r.int(2, 250)}`;
+      const server = c.r.pick(['nginx/1.14.0', 'Apache/2.4.29 (Ubuntu)', 'nginx/1.18.0', 'Apache/2.4.41 (Ubuntu)', 'lighttpd/1.4.55']);
+      addSite(ip, { headers: [`Server: ${server}`], pages: { '/': { body: '<html><body>Benvenuti</body></html>' } } });
+      return {
+        title: 'Chi risponde?',
+        prompt: `Quale programma fa da server web per \`http://${ip}/\`? Guarda le intestazioni della risposta e invia il valore di \`Server\` con \`flag\`.`,
+        hints: ['curl -I chiede solo le intestazioni.', `curl -I http://${ip}/`],
+        answer: [server],
+        solve: [`curl -I http://${ip}/`],
+      };
+    },
+  },
+  {
+    id: 'curl-commento',
+    skill: 'curl',
+    lv: 2,
+    make: (c) => {
+      const ip = `10.78.${c.r.int(1, 250)}.${c.r.int(2, 250)}`;
+      const secret = `${c.r.pick(WORDS)}${c.r.int(100, 999)}`;
+      const body = ['<html><head><title>Area clienti</title></head><body>', '<h1>Area clienti</h1>', `<!-- promemoria per lo sviluppatore: utente test, password ${secret} -->`, '<form>...</form>', '</body></html>'];
+      addSite(ip, { headers: ['Server: nginx/1.24.0'], pages: { '/': { body: body.join('\n') } } });
+      return {
+        title: 'Il commento dimenticato',
+        prompt: `Nel codice della pagina \`http://${ip}/\` uno sviluppatore ha lasciato una password in un commento HTML (\`<!-- ... -->\`). Quale password?`,
+        hints: ['curl scarica la pagina; grep tiene solo le righe dei commenti.', `curl http://${ip}/ | grep "<!--"`],
+        answer: [secret],
+        solve: [`curl http://${ip}/ | grep "<!--"`],
+      };
+    },
+  },
+  {
+    id: 'dig-mx',
+    skill: 'dig',
+    lv: 1,
+    make: (c) => {
+      const domain = `${c.r.pick(WORDS)}${c.r.int(10, 99)}.nc`;
+      const mx = `${c.r.pick(['posta', 'mail', 'mx1', 'smtp'])}.${domain}`;
+      addDomain(domain, { A: [`198.51.100.${c.r.int(2, 250)}`], MX: [`10 ${mx}.`] });
+      return {
+        title: 'Dove arriva la posta?',
+        prompt: `Quale server riceve la posta di \`${domain}\`? Chiedilo al DNS (record MX) e invia il nome con \`flag\`.`,
+        hints: ['dig chiede al DNS un tipo di record preciso.', `dig ${domain} MX`],
+        answer: [mx, mx + '.'],
+        solve: [`dig ${domain} MX`],
+      };
+    },
+  },
+  {
+    id: 'whois-data',
+    skill: 'whois',
+    lv: 1,
+    make: (c) => {
+      const domain = `${c.r.pick(WORDS)}-${c.r.pick(['shop', 'pay', 'login', 'verifica'])}${c.r.int(1, 99)}.nc`;
+      const created = `2077-11-${String(c.r.int(1, 14)).padStart(2, '0')}`;
+      addDomain(domain, { A: [`203.0.113.${c.r.int(2, 250)}`] }, { registrar: 'Night Domains Ltd', created, expires: '2078-11-30', registrant: 'Privacy protetta', techEmail: 'abuse@nightdomains.nc', nameServers: ['ns1.nightdomains.nc'] });
+      return {
+        title: 'Quanti anni ha?',
+        prompt: `Un'email sospetta porta a \`${domain}\`. Quando è stato registrato il dominio? Invia la data (AAAA-MM-GG).\n\n?? Un dominio nato pochi giorni prima di una campagna di phishing è un indizio forte.`,
+        hints: ['whois mostra i dati di registrazione di un dominio.', `whois ${domain}: cerca Creation Date`],
+        answer: [created],
+        solve: [`whois ${domain}`],
+      };
+    },
+  },
+  {
+    id: 'py-esegui',
+    skill: 'python3',
+    lv: 1,
+    make: (c) => {
+      const nums = Array.from({ length: 3 + c.r.int(0, 3) }, () => c.r.int(2, 40));
+      write(c, 'somma.py', `# conta i tentativi falliti di ogni turno\nturni = [${nums.join(', ')}]\ntotale = 0\nfor n in turni:\n    totale = totale + n\nprint(totale)\n`);
+      return {
+        title: 'Lancia lo script',
+        prompt: `Un collega ha scritto \`${c.dir}/somma.py\`. Eseguilo con Python e invia con \`flag\` il numero che stampa.`,
+        hints: ['python3 seguito dal nome del file esegue uno script.', `python3 ${c.dir}/somma.py`],
+        answer: [String(nums.reduce((a, b) => a + b, 0))],
+        solve: [`python3 ${c.dir}/somma.py`],
+      };
+    },
+  },
+];
+
+export const PALESTRA: PalEx[] = [...NAV, ...FILEOPS, ...TEXT, ...CRYPTO, ...ADMIN, ...NMAP, ...PWSH, ...SECOND];
 
 /** Comandi con almeno un esercizio, in ordine di corso. */
 export const PALESTRA_SKILLS: string[] = [...new Set(PALESTRA.map((e) => e.skill))];

@@ -220,3 +220,9 @@ Il programma previsto in questo documento è completo. Prossimi passi possibili:
 ## Corretto nella 1.24.1
 
 - Il motore della 1.20 non contava come "insegnati" i concetti mostrati nelle lezioni (pipe `|`, redirezioni `>`, caratteri jolly `*`, variabili): così escludeva per sempre 30 esercizi della Palestra su 75 e 15 sfide delle Simulazioni su 26. Ora le lezioni contano anche i concetti nelle righe di codice: a fine corso sono proponibili 74 esercizi su 75 e 25 sfide su 26 (restano fuori `touch`, che nessuna lezione spiega, e la sfida sugli script che lo richiede indirettamente). Un test lo controlla.
+
+## Aggiunto nella 1.25 (più varietà)
+
+- **12 sfide nuove nelle Simulazioni per i capitoli 01–04**, con dati sempre diversi e solo comandi già insegnati: caccia al tesoro tra biglietti (cat), il file più grande, l'ultimo modificato e il file di un altro proprietario (ls -l), mettere in ordine i log con un jolly (mkdir, mv), la copia di sicurezza (cp), la versione di SSH (nmap -sV), il dispositivo che ignora il ping, quanti account hanno una shell, il processo travestito, l'ora dell'intrusione, il nome utente più preso di mira (cut, sort, uniq). Corretto un suggerimento del capitolo 01 che citava `find`.
+- **9 esercizi nuovi nella Palestra per la seconda metà**: codificare in Base64, trovare il pacchetto manomesso con `sha256sum -c`, contare gli host e trovare il broadcast con `ipcalc`, leggere il server web e il commento dimenticato con `curl`, il server di posta con `dig`, l'età di un dominio con `whois`, eseguire uno script con `python3`.
+- Ora: Palestra 84 esercizi su 41 comandi, Simulazioni 38 sfide. A fine capitolo 01 si passa da 2 a 8 sfide disponibili, a fine capitolo 04 da 9 a 21.

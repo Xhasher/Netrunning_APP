@@ -116,7 +116,7 @@ const G01: Gen[] = [
       return {
         title: 'La flag nascosta',
         prompt: `Nella cartella \`${c.dir}\` c'è una flag nascosta nel formato \`NC{...}\`. Trovala e inviala con \`flag\`.`,
-        hints: ['Le cose nascoste hanno un nome che inizia con un punto: ls -a', `find ${c.dir} -name ".*"`],
+        hints: ['Le cose nascoste hanno un nome che inizia con un punto: ls -a mostra anche quelle.', `ls -a dentro ogni cartella di ${c.dir}, poi cat sul file nascosto`],
         answer: [flag],
         solve: [`cat ${c.dir}/${hidden}`],
       };
@@ -162,7 +162,121 @@ const G01: Gen[] = [
       };
     },
   },
+  {
+    id: 'percorso',
+    dirName: 'labirinto',
+    make: (c) => {
+      const { r, lv } = c;
+      // una catena di biglietti: ognuno dice dove si trova il successivo
+      const depth = 1 + lv;
+      const flag = `NC{${r.hex(8)}}`;
+      const places = Array.from({ length: depth + 1 }, () => r.shuffle(DIRS).slice(0, 1 + r.int(0, 1)).join('/'));
+      const notes = places.map((p, i) => `${p}/${r.pick(WORDS)}_${i}.txt`);
+      notes.forEach((n, i) => write(c, n, i < depth ? `Il prossimo biglietto è in ${c.dir}/${notes[i + 1]}\n` : `Arrivato. ${flag}\n`));
+      for (const d of r.shuffle(DIRS).slice(0, 2 + lv)) write(c, `${d}/${r.pick(WORDS)}.txt`, 'niente qui\n');
+      return {
+        title: 'Caccia al tesoro',
+        prompt: `Il primo biglietto è \`${c.dir}/${notes[0]}\`. Ogni biglietto dice dove si trova il successivo. Segui la catena fino alla flag \`NC{...}\` e inviala con \`flag\`.`,
+        hints: ['cat legge un biglietto; il percorso del successivo è scritto dentro.', `cat ${c.dir}/${notes[0]}`],
+        answer: [flag],
+        solve: notes.map((n) => `cat ${c.dir}/${n}`),
+      };
+    },
+  },
+  {
+    id: 'grande',
+    dirName: 'dischi',
+    make: (c) => {
+      const { r, lv } = c;
+      const files = r.shuffle(WORDS).slice(0, 3 + lv * 2).map((w) => `${w}.${r.pick(EXTRA)}`);
+      const big = r.pick(files);
+      for (const f of files) write(c, f, (f === big ? 'x'.repeat(400 + r.int(50, 300)) : 'x'.repeat(r.int(20, 300))) + '\n');
+      return {
+        title: 'Chi occupa più spazio?',
+        prompt: `Quale file di \`${c.dir}\` è il più **grande**? Invia il nome con \`flag\`.`,
+        hints: ['Il formato lungo di ls mostra la dimensione di ogni file, in byte.', `ls -l ${c.dir}: confronta la colonna della dimensione`],
+        answer: [big],
+        solve: [`ls -l ${c.dir}`],
+      };
+    },
+  },
+  {
+    id: 'recente',
+    dirName: 'cartella',
+    make: (c) => {
+      const { r, lv } = c;
+      const files = r.shuffle(WORDS).slice(0, 3 + lv * 2).map((w) => `${w}.txt`);
+      const days = r.shuffle(Array.from({ length: 28 }, (_, i) => i + 1)).slice(0, files.length);
+      const last = files[days.indexOf(Math.max(...days))];
+      files.forEach((f, i) => c.sh.fs.writeFile(`${c.sh.home}/${c.dir}/${f}`, 'appunti\n', { owner: c.sh.user, group: c.sh.user, mtime: `Nov ${String(days[i]).padStart(2, ' ')} ${pad2(r.int(8, 22))}:${pad2(r.int(0, 59))}` }));
+      return {
+        title: 'L\'ultimo toccato',
+        prompt: `Quale file di \`${c.dir}\` è stato modificato **per ultimo**? Invia il nome con \`flag\`.`,
+        hints: ['Il formato lungo di ls mostra anche data e ora dell\'ultima modifica.', `ls -l ${c.dir}`],
+        answer: [last],
+        solve: [`ls -l ${c.dir}`],
+      };
+    },
+  },
+  {
+    id: 'riordina',
+    dirName: 'scrivania',
+    make: (c) => {
+      const { r, lv } = c;
+      const logs = r.shuffle(WORDS).slice(0, 2 + lv).map((w) => `${w}.log`);
+      const others = r.shuffle(WORDS).slice(0, 2 + lv).map((w) => `${w}_nota.txt`);
+      for (const f of [...logs, ...others]) write(c, f, 'contenuto\n');
+      const base = `${c.sh.home}/${c.dir}`;
+      return {
+        title: 'Metti in ordine',
+        prompt: `In \`${c.dir}\` c'è confusione. Crea la cartella \`${c.dir}/log\` e spostaci dentro **tutti** i file \`.log\` (gli altri restano dove sono).`,
+        hints: ['mkdir crea la cartella; mv con il jolly *.log sposta tutti i log in un colpo.', `mkdir ${c.dir}/log e poi mv ${c.dir}/*.log ${c.dir}/log`],
+        solve: [`mkdir ${c.dir}/log`, `mv ${c.dir}/*.log ${c.dir}/log`],
+        state: (sh) => logs.every((f) => sh.fs.get(`${base}/log/${f}`)?.type === 'file' && !sh.fs.get(`${base}/${f}`)) && others.every((f) => sh.fs.get(`${base}/${f}`)?.type === 'file'),
+      };
+    },
+  },
+  {
+    id: 'copia',
+    dirName: 'lavoro',
+    make: (c) => {
+      const { r } = c;
+      const f = `${r.pick(WORDS)}_${r.int(10, 99)}.cfg`;
+      const body = `impostazione=${r.int(1, 9)}\n`;
+      write(c, f, body);
+      const target = `${c.sh.home}/${c.dir}/backup/${f}.bak`;
+      return {
+        title: 'Prima di toccare, copia',
+        prompt: `Stai per modificare \`${c.dir}/${f}\`. Prima fanne una copia di sicurezza: \`${c.dir}/backup/${f}.bak\` (la cartella \`backup\` va creata).`,
+        hints: ['mkdir per la cartella, cp per la copia con il nome nuovo.', `mkdir ${c.dir}/backup e poi cp ${c.dir}/${f} ${c.dir}/backup/${f}.bak`],
+        solve: [`mkdir ${c.dir}/backup`, `cp ${c.dir}/${f} ${c.dir}/backup/${f}.bak`],
+        state: (sh) => {
+          const n = sh.fs.get(target);
+          return !!n && n.type === 'file' && n.content === body;
+        },
+      };
+    },
+  },
+  {
+    id: 'intruso',
+    dirName: 'condivisa',
+    make: (c) => {
+      const { r, lv } = c;
+      const files = r.shuffle(WORDS).slice(0, 3 + lv * 2).map((w) => `${w}.txt`);
+      const odd = r.pick(files);
+      const owner = r.pick(NAMES.filter((n) => n !== c.sh.user));
+      for (const f of files) c.sh.fs.writeFile(`${c.sh.home}/${c.dir}/${f}`, 'dati\n', { owner: f === odd ? owner : c.sh.user, group: c.sh.user });
+      return {
+        title: 'Di chi è questo?',
+        prompt: `Tutti i file di \`${c.dir}\` sono tuoi, tranne uno. Quale? Invia il nome con \`flag\`.`,
+        hints: ['Il formato lungo di ls mostra il proprietario di ogni file.', `ls -l ${c.dir}: guarda la terza colonna`],
+        answer: [odd],
+        solve: [`ls -l ${c.dir}`],
+      };
+    },
+  },
 ];
+
 
 // ---------------------------------------------------------------- capitolo 02: reti
 
@@ -233,6 +347,41 @@ const G02: Gen[] = [
       };
     },
   },
+  {
+    id: 'versione',
+    dirName: 'rete',
+    make: (c) => {
+      const { prefix, hosts } = addLan(c, 2 + c.lv);
+      const target = c.r.pick(hosts);
+      const old = c.r.pick(['OpenSSH 7.4', 'OpenSSH 6.6.1p1', 'OpenSSH 5.3']);
+      target.ports = target.ports.filter((p) => p.port !== 22);
+      target.ports.unshift({ port: 22, service: 'ssh', version: old });
+      return {
+        title: 'Che versione sei?',
+        prompt: `Nella rete autorizzata \`${prefix}0/24\`, quale **versione** del servizio SSH gira su \`${target.ip}\`? Invia la versione (per esempio \`flag OpenSSH 9.0\`).`,
+        hints: ['nmap riconosce le versioni con un\'opzione apposta.', `nmap -sV ${target.ip}`],
+        answer: [old, old.toLowerCase()],
+        solve: [`nmap -sV ${target.ip}`],
+      };
+    },
+  },
+  {
+    id: 'muto',
+    dirName: 'rete',
+    make: (c) => {
+      const { prefix, hosts } = addLan(c, 3 + c.lv);
+      hosts.forEach((h) => (h.pingable = true));
+      const silent = c.r.pick(hosts);
+      silent.pingable = false;
+      return {
+        title: 'Chi non risponde al ping?',
+        prompt: `Nella rete autorizzata \`${prefix}0/24\` c'è un dispositivo **acceso** che però ignora il ping. Quale indirizzo? Invialo con \`flag\`.`,
+        hints: ['Prima scopri chi è acceso con nmap -sn, poi prova il ping su ognuno.', `nmap -sn ${prefix}0/24 e poi ping -c 1 su ogni indirizzo`],
+        answer: [silent.ip],
+        solve: [`nmap -sn ${prefix}0/24`, ...hosts.map((h) => `ping -c 1 ${h.ip}`)],
+      };
+    },
+  },
 ];
 
 // ---------------------------------------------------------------- capitolo 03: permessi e utenti
@@ -292,6 +441,55 @@ const G03: Gen[] = [
         hints: ['È il terzo campo, separato da due punti.', `grep ${who} ${c.dir}/passwd`],
         solve: [`grep ${who}: ${c.dir}/passwd | cut -d ":" -f 3`],
         answer: [String(uids.get(who))],
+      };
+    },
+  },
+  {
+    id: 'shell-utenti',
+    dirName: 'utenti',
+    make: (c) => {
+      const { r, lv } = c;
+      const users = r.shuffle(NAMES).slice(0, 4 + lv * 3);
+      let n = 1;
+      const lines = ['root:x:0:0:root:/root:/bin/bash', 'www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin'];
+      users.forEach((u, i) => {
+        const bash = r.next() < 0.5;
+        if (bash) n++;
+        lines.push(`${u}:x:${1000 + i}:${1000 + i}::/home/${u}:${bash ? '/bin/bash' : '/usr/sbin/nologin'}`);
+      });
+      write(c, 'passwd', lines.join('\n') + '\n');
+      return {
+        title: 'Chi può entrare?',
+        prompt: `Nel file \`${c.dir}/passwd\`, quanti utenti hanno la shell \`/bin/bash\`, cioè possono aprire un terminale? Invia il numero.`,
+        hints: ['grep tiene le righe con bash, wc -l le conta.', `cat ${c.dir}/passwd | grep bash | wc -l`],
+        answer: [String(n)],
+        solve: [`cat ${c.dir}/passwd | grep bash | wc -l`],
+      };
+    },
+  },
+  {
+    id: 'processo-strano',
+    dirName: 'processi',
+    make: (c) => {
+      const { r, lv } = c;
+      const pid = r.int(2000, 9000);
+      const name = r.pick(['kworker', 'systemd-helper', 'dbus-sync', 'cron-update']);
+      const rows = [
+        'USER         PID %CPU %MEM COMMAND',
+        'root           1  0.0  0.3 /sbin/init',
+        'root         402  0.0  0.1 /usr/sbin/cron -f',
+        'root         455  0.0  0.2 sshd: /usr/sbin/sshd -D',
+        `www-data   ${String(r.int(600, 900)).padStart(5)}  0.1  0.4 nginx: worker process`,
+      ];
+      for (let i = 0; i < lv * 2; i++) rows.push(`${r.pick(NAMES).padEnd(8)}   ${String(r.int(1000, 1999)).padStart(5)}  0.0  0.1 -bash`);
+      rows.splice(r.int(2, rows.length), 0, `${'www-data'.padEnd(8)}   ${String(pid).padStart(5)} 98.${r.int(1, 9)}  1.2 /tmp/.${r.pick(WORDS)}/${name}`);
+      write(c, 'ps.txt', rows.join('\n') + '\n');
+      return {
+        title: 'Il processo travestito',
+        prompt: `\`${c.dir}/ps.txt\` è la fotografia dei processi di un server lento. Uno è sospetto: quale **PID**?`,
+        hints: ['Cerca chi usa quasi tutta la CPU e parte da una cartella nascosta in /tmp.', `grep /tmp ${c.dir}/ps.txt`],
+        answer: [String(pid)],
+        solve: [`grep /tmp ${c.dir}/ps.txt`],
       };
     },
   },
@@ -357,6 +555,54 @@ const G04: Gen[] = [
         hints: ['grep e wc -l insieme.', `grep "Failed password" ${f} | wc -l`],
         answer: [String(fails)],
         solve: [`grep "Failed password" ${f} | wc -l`],
+      };
+    },
+  },
+  {
+    id: 'ora-ingresso',
+    dirName: 'caso',
+    make: (c) => {
+      authLog(c);
+      const f = `${c.dir}/auth.log`;
+      const text = (c.sh.fs.get(`${c.sh.home}/${f}`) as { content: string }).content;
+      const line = text.split('\n').find((l) => l.includes('Accepted password'))!;
+      const hhmm = line.split(' ')[2].slice(0, 5);
+      return {
+        title: 'A che ora è entrato?',
+        prompt: `In \`${f}\` un attaccante è riuscito a entrare con una password. A che ora? Invia ore e minuti (per esempio \`flag 03:17\`).`,
+        hints: ['Il login riuscito con password è uno solo.', `grep "Accepted password" ${f}`],
+        answer: [hhmm, line.split(' ')[2]],
+        solve: [`grep "Accepted password" ${f}`],
+      };
+    },
+  },
+  {
+    id: 'utente-preso',
+    dirName: 'caso',
+    make: (c) => {
+      const { r, lv } = c;
+      const attacker = pubIp(r);
+      const target = r.pick(['root', 'admin', 'oracle', 'test', 'backup']);
+      const others = ['root', 'admin', 'oracle', 'test', 'backup'].filter((u) => u !== target);
+      const lines: string[] = [];
+      let t = r.int(0, 20000);
+      const counts = new Map<string, number>();
+      const add = (u: string) => {
+        t += r.int(2, 9);
+        counts.set(u, (counts.get(u) ?? 0) + 1);
+        lines.push(`Nov 12 ${time(t)} server sshd[${r.int(1000, 9999)}]: Failed password for ${u} from ${attacker} port ${r.int(40000, 60000)} ssh2`);
+      };
+      for (let i = 0; i < 8 + lv * 4; i++) add(target);
+      for (const u of others) for (let i = 0; i < r.int(1, 5 + lv); i++) add(u);
+      r.shuffle(lines);
+      write(c, 'auth.log', r.shuffle(lines).join('\n') + '\n');
+      const f = `${c.dir}/auth.log`;
+      return {
+        title: 'Il bersaglio preferito',
+        prompt: `In \`${f}\` un attaccante ha provato molti nomi utente. Quale ha provato **più volte**? Invia il nome.`,
+        hints: ['Il nome utente è la nona parola di ogni riga: taglialo, ordina e conta.', `grep "Failed password" ${f} | cut -d " " -f 9 | sort | uniq -c`],
+        answer: [target],
+        solve: [`grep "Failed password" ${f} | cut -d " " -f 9 | sort | uniq -c`],
       };
     },
   },
@@ -792,6 +1038,55 @@ const G13: Gen[] = [
  * Più varianti per generatore, così la stessa sfida non si presenta sempre uguale.
  */
 export const STORIES: Record<string, string[]> = {
+  percorso: [
+    `@nyx: Un gioco che faccio con chi comincia: biglietti nascosti nelle cartelle. Ogni biglietto ti dice dove andare. Alla fine c'è un premio.`,
+    `@rook: L'ex socio di un cliente ha lasciato istruzioni sparse nel disco, una dentro l'altra. Seguile.`,
+  ],
+  grande: [
+    `@mama: Il disco del portatile è quasi pieno e non so cosa lo riempie. Trovami il file più grosso.`,
+    `@nyx: Prima regola quando un disco si riempie: guardare cosa pesa. Comincia da una cartella sola.`,
+  ],
+  recente: [
+    `@rook: Il cliente dice che "nessuno ha toccato niente" da settimane. Le date dei file dicono altro?`,
+    `@nyx: Le date dei file sono il primo pezzo di ogni timeline. Impara a leggerle.`,
+  ],
+  riordina: [
+    `@mama: Il desktop del computer della cassa è un disastro. Metti i registri da una parte, per favore.`,
+    `@nyx: Spostare file uno per uno è da principianti. Un jolly e un comando solo.`,
+  ],
+  copia: [
+    `@rook: Regola d'oro di chi tocca i sistemi degli altri: prima la copia, poi la modifica.`,
+    `@nyx: Hai visto cosa succede quando qualcuno modifica una configurazione senza copia. Tu no.`,
+  ],
+  intruso: [
+    `@mama: In questa cartella condivisa dovrebbero esserci solo file miei. Uno non mi convince.`,
+    `@nyx: Ogni file ha un proprietario. Un file che appartiene a qualcun altro, nel posto sbagliato, è una domanda da fare.`,
+  ],
+  versione: [
+    `@rook: Il cliente ha un contratto firmato: verifica quali server hanno software vecchio.`,
+    `@nyx: Sapere che SSH c'è non basta: la versione dice quali falle note si porta dietro.`,
+  ],
+  muto: [
+    `@nyx: Il silenzio al ping non vuol dire "spento". Dimostramelo su una rete vera.`,
+    `@rook: L'inventario del cliente conta un dispositivo in meno di quelli che ci sono. Quello che non risponde, forse.`,
+  ],
+  'shell-utenti': [
+    `@rook: Prima domanda di ogni audit di un server: quanti account possono aprire un terminale?`,
+    `@nyx: Gli account con una shell vera sono le porte da sorvegliare. Contale.`,
+  ],
+  'processo-strano': [
+    `@mama: Il server del sito è lentissimo di nuovo. Rook ha fotografato i processi.`,
+    `@nyx: Un nome che sembra di sistema, ma parte da una cartella nascosta. Lo riconosci?`,
+  ],
+  'ora-ingresso': [
+    `@rook: Per il rapporto serve l'ora esatta dell'intrusione. Trovala nel log.`,
+    `@nyx: Il primo punto di ogni timeline: quando è entrato.`,
+  ],
+  'utente-preso': [
+    `@nyx: Un attaccante automatico prova sempre gli stessi nomi. Quale gli interessava di più?`,
+    `@rook: Il cliente vuole sapere quale account rinforzare per primo. I tentativi te lo dicono.`,
+  ],
+
   'py-conta': [
     `@nyx: Il SOC ti passa un'esportazione degli accessi della notte. Domani te ne passeranno un'altra, e dopodomani un'altra ancora: scrivi lo script una volta e riusalo.`,
     `@rook: Un cliente vuole sapere chi ha fallito più accessi stanotte. Non contare a mano: fallo fare a Python.`,
