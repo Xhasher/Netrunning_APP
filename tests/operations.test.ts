@@ -6,6 +6,19 @@ const text = (r: { lines: { text: string }[] }) => r.lines.map((l) => l.text).jo
 
 // comandi che un giocatore userebbe per trovare ogni problema, e cosa segnalerebbe
 const PLAY: Record<string, { cmds: string[]; reports: string[] }> = {
+  sc02: {
+    cmds: [
+      'grep -i union scena/sc02/var/log/nginx/access.log | cut -d " " -f 1 | sort | uniq -c',
+      'grep 203.0.113.66 scena/sc02/var/log/nginx/access.log | grep -i upload',
+      'grep avatar.jpg scena/sc02/var/log/nginx/access.log',
+      'cat scena/sc02/var/spool/cron/crontabs/www-data',
+      'grep www-data scena/sc02/root/raccolta/processi.txt',
+      'file scena/sc02/var/www/negozio/uploads/avatar.jpg',
+      'sha256sum scena/sc02/var/www/negozio/uploads/avatar.jpg',
+      'cat scena/indicatori-web.txt',
+    ],
+    reports: ['203.0.113.66', '/var/www/negozio/uploads/avatar.jpg', 'id', '/var/spool/cron/crontabs/www-data', '4410', 'php', 'NeonShell'],
+  },
   sc01: {
     cmds: [
       'ls -la scena/sc01/home/jackie/Documenti',
@@ -144,18 +157,19 @@ describe('scena del crimine', () => {
     const { allMissions } = await import('../src/content');
     const { introduced, skillsInLine } = await import('../src/game/skills');
     const order = allMissions().map((m) => m.id);
-    const sc = OPERATIONS.find((o) => o.id === 'sc01')!;
+    for (const sc of OPERATIONS.filter((o) => o.scene)) {
     for (const f of sc.findings) {
       expect(order, f.id).toContain(f.after);
       const taught = introduced(order.slice(0, order.indexOf(f.after!) + 1), {});
       taught.add('report');
       for (const h of f.hints) {
-        const code = [...h.matchAll(/(?:^|: )((?:ls|cat|grep|sha256sum|prova|report)\b[^,:?]*)/g)].map((m) => m[1]);
+        const code = [...h.matchAll(/(?:^|: )((?:ls|cat|grep|sha256sum|prova|report|file)\b[^,:?]*)/g)].map((m) => m[1]);
         for (const line of code) for (const k of skillsInLine(line)) expect(taught.has(k), `${f.id}: ${line} usa ${k}`).toBe(true);
       }
     }
     // la scena si apre presto: almeno due indizi subito, e una conclusione corretta per ogni livello
     expect(sc.findings.filter((f) => f.after === sc.requires).length).toBeGreaterThanOrEqual(2);
     expect(sc.scene!.conclusions.some((c) => c.after === sc.requires)).toBe(true);
+    }
   });
 });

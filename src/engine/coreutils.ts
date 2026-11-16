@@ -875,6 +875,7 @@ function file(c: Ctx): number {
       else if (t.startsWith('DISKIMG')) d = 'DOS/MBR boot sector; partition 1 : ID=0x83 (Linux)';
       else if (t.startsWith('PK')) d = 'Zip archive data';
       else if (t.startsWith('TARSIM1')) d = 'POSIX tar archive (gzip compressed data)';
+      else if (t.startsWith('<?php')) d = 'PHP script, ASCII text';
       else if (t.startsWith('#!')) d = `${t.includes('python') ? 'Python script' : 'Bourne-Again shell script'}, ASCII text executable`;
       else if (t.startsWith('-----BEGIN')) d = 'PEM certificate or key';
       else if (/^[A-Za-z0-9+/=\s]{40,}$/.test(t) && t.trim().length > 40) d = 'ASCII text, with very long lines (forse Base64)';

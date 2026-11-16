@@ -44,6 +44,7 @@ import { DIFFICULTY_NAMES, DIMENSION_NAMES, ERROR_ADVICE, dueSkills, eligible, e
 import { genRequires, palRequires } from '../game/prereq';
 import { INTEREST, TASTES, TRACKS, buildProfile, explainRow, type TrackId } from '../game/orientation';
 import { FOCUS, MENTOR_NAMES, TOPICS, tutor, type Advice } from '../game/tutor';
+import { ARCH_LEVELS, MASKS, checkL1, checkL2, checkL3, makeL1, makeL2, makeL3, usable } from '../game/netarch';
 import { JOBS, JOBS_CHECKED, MARKET } from '../content/jobs';
 import { SyncError, describe as describeSave, deviceName, loadCloud, saveCloud, syncOnce, type CloudConfig } from '../game/sync';
 import { annotateGlossary, bindGlossarySearch, glossaryHtml, installGlossary } from './glossary';
@@ -836,7 +837,7 @@ export class App {
       if (hyp !== undefined) {
         o.hyp = Number(hyp);
         o.stage = 'investigate';
-        o.term.system(`Ipotesi annotata. La copia del disco è in ~/scena/sc01: comincia da lì (ls, cat, e "report" per ogni indizio).`, 'info');
+        o.term.system(`Ipotesi annotata. La copia è in ~/scena/${o.op.id}: comincia da lì (ls, cat, e "report" per ogni indizio).`, 'info');
         this.renderOp();
       } else if (concl !== undefined && o.concl && o.concl.pick === null) {
         o.concl.pick = Number(concl);
@@ -1860,6 +1861,11 @@ export class App {
         <span class="op-title">Riparazioni</span>
         <span class="op-client">Tre sistemi rotti, ogni volta in modo diverso: leggi l'errore, trova la causa, ripara. Solo guasti che sai già affrontare.</span>
       </button>
+      <button class="opcard sim-card" data-g="arch">
+        <span class="op-top"><span class="op-code">NETWORK ARCHITECT</span><span class="op-xp">${ARCH_LEVELS.filter((l) => this.save.best[`arch:${l.level}`]).length}/3 livelli</span></span>
+        <span class="op-title">Architetto di rete</span>
+        <span class="op-client">Progetta la rete del bar: indirizzi e gateway, poi sottoreti separate, poi le regole del firewall. Si apre con i capitoli sulle reti.</span>
+      </button>
       <button class="opcard sim-card" data-g="exams">
         <span class="op-top"><span class="op-code">A TEMPO · STILE CERTIFICAZIONE</span></span>
         <span class="op-title">Esami simulati</span>
@@ -1891,8 +1897,75 @@ export class App {
       else if (id === 'train') this.showTraining();
       else if (id === 'sim') this.showSimSetup();
       else if (id === 'palestra') this.showPalestra();
+      else if (id === 'arch') this.showArch();
       else if (id === 'repair') this.startSim([], 2, false, undefined, undefined, { kind: 'repair' });
       else if (id) this.showGame(id);
+    });
+  }
+
+  private showArch(level?: number): void {
+    const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+    const done = new Set(this.save.completed);
+    if (!level) {
+      const cards = ARCH_LEVELS.map((l) => {
+        const open = done.has(l.after);
+        const fm = findMission(l.after);
+        return `<button class="opcard ${open ? '' : 'locked'}" data-lv="${l.level}" ${open ? '' : 'disabled'}><span class="op-top"><span class="op-code">LIVELLO ${l.level}</span><span class="op-xp">${this.save.best[`arch:${l.level}`] ? '✔ superato' : ''}</span></span><span class="op-title">${esc(l.title)}</span><span class="op-client">${esc(l.what)}</span>${open ? '' : `<span class="op-lock">🔒 Dopo la missione ${fm ? `${fm.chapter.code}.${fm.index + 1} "${esc(fm.mission.title)}"` : l.after}</span>`}</button>`;
+      }).join('');
+      const node = this.page('arch', 'Architetto di rete', '// progettare, non solo leggere', `<div class="prose"><p>Mama apre un secondo locale e vuole la rete fatta bene da subito. Tu la progetti. Ogni partita ha indirizzi e richieste diversi; dopo ogni controllo ti spiego cosa non va.</p></div><div class="oplist">${cards}</div>`);
+      node.addEventListener('click', (e) => {
+        const lv = (e.target as HTMLElement).closest<HTMLElement>('[data-lv]')?.dataset.lv;
+        if (lv) this.showArch(Number(lv));
+      });
+      return;
+    }
+    const rnd = makeRng((Date.now() ^ Math.floor(Math.random() * 2 ** 31)) >>> 0);
+    const info = ARCH_LEVELS[level - 1];
+    let body = '';
+    let check: (box: HTMLElement) => string[] = () => [];
+    if (level === 1) {
+      const p = makeL1(rnd);
+      body = html`<p>La rete del nuovo locale è <code>${p.prefix}0/24</code>. Il router ha già l'indirizzo <code>${p.router}</code>. Dai a ogni dispositivo un indirizzo e il gateway giusto.</p>
+        <table class="arch"><tr><th>Dispositivo</th><th>Indirizzo IP</th><th>Gateway</th></tr>${p.devices.map((d, i) => `<tr><td>${esc(d)}</td><td><input class="arch-in" data-ip="${i}" inputmode="decimal" placeholder="${p.prefix}…"></td><td><input class="arch-in" data-gw="${i}" inputmode="decimal"></td></tr>`).join('')}</table>`;
+      check = (box) => checkL1(p, p.devices.map((_, i) => [box.querySelector<HTMLInputElement>(`[data-ip="${i}"]`)!.value, box.querySelector<HTMLInputElement>(`[data-gw="${i}"]`)!.value]));
+    } else if (level === 2) {
+      const p = makeL2(rnd);
+      const maskSel = (k: string) => `<select data-mask="${k}">${MASKS.map((b) => `<option value="${b}">/${b} (${usable(b)} indirizzi)</option>`).join('')}</select>`;
+      body = html`<p>Due sottoreti: <b>ospiti</b> (<code>${p.guests}</code>, fino a <b>${p.guestCount}</b> dispositivi contemporanei) e <b>staff</b> (<code>${p.staff}</code>, fino a <b>${p.staffCount}</b>). Scegli per ognuna la maschera più piccola che basta, e metti ogni dispositivo nella rete giusta.</p>
+        <p>Ospiti: ${maskSel('g')}</p><p>Staff: ${maskSel('s')}</p>
+        <table class="arch"><tr><th>Dispositivo</th><th>Rete</th></tr>${p.devices.map((d, i) => `<tr><td>${esc(d.name)}</td><td><select data-place="${i}"><option value="ospiti">ospiti</option><option value="staff">staff</option></select></td></tr>`).join('')}</table>`;
+      check = (box) =>
+        checkL2(p, {
+          guestMask: Number(box.querySelector<HTMLSelectElement>('[data-mask="g"]')!.value),
+          staffMask: Number(box.querySelector<HTMLSelectElement>('[data-mask="s"]')!.value),
+          place: p.devices.map((_, i) => box.querySelector<HTMLSelectElement>(`[data-place="${i}"]`)!.value as 'ospiti' | 'staff'),
+        });
+    } else {
+      const p = makeL3(rnd);
+      body = html`<p>Zone: <b>Internet</b>, <b>DMZ</b> (il server del sito), <b>Database</b>, <b>Staff</b>, <b>Ospiti</b>. Il firewall blocca tutto ciò che non permetti. Cosa deve funzionare:</p>
+        <ul class="small">${p.required.map((f) => `<li>${f.from} → ${f.to}, porta ${f.port}: ${esc(f.why)}</li>`).join('')}</ul>
+        <p>Scegli le regole da attivare:</p>
+        <div class="why-opts">${p.rules.map((x, i) => `<label class="opt arch-rule"><input type="checkbox" data-rule="${i}"> ${esc(x.label)}</label>`).join('')}</div>`;
+      check = (box) => checkL3(p, p.rules.map((_, i) => i).filter((i) => box.querySelector<HTMLInputElement>(`[data-rule="${i}"]`)!.checked));
+    }
+    const node = this.page('arch-run', info.title, `// architetto di rete · livello ${level}`, html`<div class="train arch-box">${body}<div class="step-actions"><button class="ghost" data-a="new">Un'altra rete</button><button class="next" data-a="check">Controlla ▸</button></div><div class="train-explain"></div></div>`);
+    const box = node.querySelector<HTMLElement>('.arch-box')!;
+    box.addEventListener('click', (e) => {
+      const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
+      if (a === 'new') return this.showArch(level);
+      if (a === 'list') return this.showArch();
+      if (a !== 'check') return;
+      const errs = check(box);
+      const ok = errs.length === 0;
+      this.learnFrom(level === 1 ? ['ip'] : level === 2 ? ['ipcalc'] : ['ufw'], ok, 'ragionamento', { error: ok ? undefined : 'risposta' });
+      if (ok && !this.save.best[`arch:${level}`]) {
+        this.save.best[`arch:${level}`] = 1;
+        this.save.xp += 40;
+        this.persist();
+      }
+      box.querySelector('.train-explain')!.innerHTML = ok
+        ? `<div class="success"><p><b>Rete corretta.</b> ${level === 3 ? 'Passa solo quello che serve: è il minimo privilegio applicato alla rete.' : level === 2 ? 'Ospiti e staff separati, ognuno con lo spazio che gli serve.' : 'Ogni dispositivo ha il suo indirizzo e sa da dove uscire.'}</p></div><div class="step-actions"><button class="ghost" data-a="list">Livelli</button><button class="next" data-a="new">Un'altra rete ▸</button></div>`
+        : `<div class="feedback wrong"><p>Da sistemare:</p><ul>${errs.map((x) => `<li>${esc(x)}</li>`).join('')}</ul><p class="small">Correggi e ricontrolla.</p></div>`;
     });
   }
 

@@ -3191,3 +3191,35 @@ pre.code.term .cl-note { color: #7d8399; font-family: var(--sans); font-style: i
 .advice li {
   margin: 0.35rem 0;
 }
+
+.arch {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.6rem 0;
+}
+
+.arch th,
+.arch td {
+  text-align: left;
+  padding: 0.3rem 0.25rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.9rem;
+}
+
+.arch-in,
+.arch-box select {
+  width: 100%;
+  min-width: 0;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  padding: 0.35rem;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+}
+
+.arch-rule {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}

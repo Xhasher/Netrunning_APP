@@ -8,7 +8,7 @@ import { sha256 } from '../engine/sha256';
 import { addDomain } from '../engine/osint';
 import { Vfs } from '../engine/vfs';
 import type { Markup } from '../game/types';
-import { SC01 } from './crimescene';
+import { SC01, SC02 } from './crimescene';
 
 export interface Finding {
   id: string;
@@ -1172,7 +1172,7 @@ Hai completato tutte le Operazioni. Il deck resta tuo: rigioca quando vuoi, e po
   },
 };
 
-export const OPERATIONS: Operation[] = [SC01, OP01, OP02, OP03, OP04, OP05, OP06, OP07, OP08, OP09];
+export const OPERATIONS: Operation[] = [SC01, SC02, OP01, OP02, OP03, OP04, OP05, OP06, OP07, OP08, OP09];
 
 export function normalizeReport(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, ' ').replace(/\/+$/, '');

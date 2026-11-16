@@ -278,3 +278,32 @@ describe('casi generati dei giochi', () => {
     }
   });
 });
+
+describe('architetto di rete', () => {
+  it('controlla indirizzi, sottoreti e regole, e spiega gli errori', async () => {
+    const n = await import('../src/game/netarch');
+    const { makeRng } = await import('../src/content/drills');
+    for (let seed = 1; seed <= 20; seed++) {
+      const r = makeRng(seed);
+      const l1 = n.makeL1(r);
+      const good = l1.devices.map((_, i) => [`${l1.prefix}${10 + i}`, l1.router] as [string, string]);
+      expect(n.checkL1(l1, good)).toEqual([]);
+      const bad = good.map((x) => [...x] as [string, string]);
+      bad[0][1] = '8.8.8.8';
+      bad[1][0] = bad[0][0];
+      expect(n.checkL1(l1, bad).length).toBeGreaterThanOrEqual(2);
+      const l2 = n.makeL2(r);
+      const ok2 = { guestMask: n.smallestMask(l2.guestCount), staffMask: n.smallestMask(l2.staffCount), place: l2.devices.map((d) => d.role) };
+      expect(n.checkL2(l2, ok2)).toEqual([]);
+      expect(n.usable(ok2.guestMask)).toBeGreaterThanOrEqual(l2.guestCount);
+      expect(n.checkL2(l2, { ...ok2, guestMask: 29 }).length).toBe(1);
+      const l3 = n.makeL3(r);
+      const right = l3.rules.map((x, i) => ({ x, i })).filter(({ x }) => x.port !== '*' && x.from !== 'Internet' || (x.from === 'Internet' && x.to === 'DMZ' && x.port === l3.web)).filter(({ x }) => !(x.to === 'Database' && x.from === 'Internet')).map(({ i }) => i);
+      expect(n.checkL3(l3, right)).toEqual([]);
+      expect(n.checkL3(l3, l3.rules.map((_, i) => i)).some((e) => e.startsWith('Troppo aperto'))).toBe(true);
+      expect(n.checkL3(l3, []).filter((e) => e.startsWith('Manca')).length).toBe(3);
+    }
+    const ids = new Set(CHAPTERS.flatMap((c) => c.missions.map((m) => m.id)));
+    for (const l of n.ARCH_LEVELS) expect(ids.has(l.after), l.after).toBe(true);
+  });
+});

@@ -45,3 +45,9 @@ Decisioni: tutor a regole (niente IA: niente credenziali nel client); dati sul l
 con fonte e data, ricontrollati a ogni versione (l'app funziona offline); Network Architect per ultimo.
 
 Dati sul lavoro (src/content/jobs.ts): raccolti il 16 novembre 2026, da ricontrollare a ogni versione.
+
+## Giochi aggiunti dopo la fase G (1.25–1.27)
+
+Sfide 01-04 e Palestra seconda metà (1.25), Riparazioni, sfida finale di capitolo, casi
+generati nei giochi (1.26), SC-02 e Architetto di rete (1.27). Prossimo, su richiesta
+dell'autore: aumentare il numero di test (verifiche nel gioco), poi la fase H (collaudo).
