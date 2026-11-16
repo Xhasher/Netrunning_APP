@@ -216,3 +216,7 @@ Il programma previsto in questo documento è completo. Prossimi passi possibili:
 - La Palestra (allenamento misto e ripasso) dà **più peso** alle competenze del percorso, senza escludere le altre.
 - Gli **argomenti del percorso** con il capitolo che li tratta; quelli non ancora nel corso (per esempio l'analisi della RAM, l'analisi dinamica dei malware) sono indicati come tali.
 - **Il lavoro in Italia** per ogni percorso: ruoli, RAL junior (e oltre, dove le fonti la danno), ingresso senza laurea, certificazioni apprezzate, remoto o ibrido, il quadro nazionale (stima ACN), Torino e Piemonte. Dati raccolti il 16 novembre 2026 con le **fonti** linkate, distinguendo stime, dati generali e annunci. Per l'analisi del malware nessuna cifra junior affidabile trovata, ed è scritto così. Nessuna certificazione garantisce un'assunzione.
+
+## Corretto nella 1.24.1
+
+- Il motore della 1.20 non contava come "insegnati" i concetti mostrati nelle lezioni (pipe `|`, redirezioni `>`, caratteri jolly `*`, variabili): così escludeva per sempre 30 esercizi della Palestra su 75 e 15 sfide delle Simulazioni su 26. Ora le lezioni contano anche i concetti nelle righe di codice: a fine corso sono proponibili 74 esercizi su 75 e 25 sfide su 26 (restano fuori `touch`, che nessuna lezione spiega, e la sfida sugli script che lo richiede indirettamente). Un test lo controlla.

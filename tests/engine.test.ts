@@ -245,3 +245,18 @@ describe('mentore del percorso', () => {
     }
   });
 });
+
+describe('varietà raggiungibile', () => {
+  it('a fine corso quasi tutti gli esercizi della Palestra e delle Simulazioni sono proponibili', () => {
+    const ids = CHAPTERS.flatMap((c) => c.missions.map((m) => m.id));
+    const t = introduced(ids, {});
+    // eccezioni note: comandi che il corso non insegna ancora in una lezione
+    const KNOWN = new Set(['pal:touch-vuoto', 'sim:ch05/script']);
+    const pal = PALESTRA.filter((e) => !KNOWN.has(`pal:${e.id}`) && ![e.skill, ...palRequires(e)].every((k) => t.has(k))).map((e) => e.id);
+    const sim = Object.entries(GENERATORS).flatMap(([c, gs]) => gs.filter((g) => !KNOWN.has(`sim:${c}/${g.id}`) && !genRequires(c, g.id, 1).every((k) => t.has(k))).map((g) => `${c}/${g.id}`));
+    expect(pal).toEqual([]);
+    expect(sim).toEqual([]);
+    // i concetti (pipe, redirezioni, jolly) contano come insegnati quando la lezione li mostra
+    expect(t.has('pipe') && t.has('redirezioni') && t.has('jolly')).toBe(true);
+  }, 120000);
+});

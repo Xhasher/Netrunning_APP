@@ -111,6 +111,23 @@ export function recordUnderstood(skills: Skills, list: readonly string[]): void 
 
 // ---------------------------------------------------------------- introdotto
 
+/**
+ * Competenze mostrate in una lezione: i comandi, e anche i concetti (pipe, redirezioni,
+ * jolly, variabili, cicli) che compaiono nelle righe di codice.
+ */
+function lessonSkills(md: string): string[] {
+  const out = new Set<string>();
+  for (const c of commandsInMarkup(md)) {
+    const k = skillOf(c);
+    if (k) out.add(k);
+  }
+  const lines: string[] = [];
+  for (const b of md.matchAll(/```\n?([\s\S]*?)```/g)) lines.push(...b[1].split('\n').map((l) => l.replace(/^[$#]\s*/, '')));
+  for (const m of md.replace(/```[\s\S]*?```/g, '').matchAll(/`([^`]+)`/g)) lines.push(m[1]);
+  for (const l of lines) if (/[|>*$]|\bfor\b|\bif\b|=/.test(l)) for (const k of skillsInLine(l)) out.add(k);
+  return [...out];
+}
+
 let lessonIdx: Map<string, { step: number; cmds: string[] }[]> | null = null;
 
 function lessons(): Map<string, { step: number; cmds: string[] }[]> {
@@ -120,7 +137,7 @@ function lessons(): Map<string, { step: number; cmds: string[] }[]> {
       for (const m of ch.missions)
         lessonIdx.set(
           m.id,
-          m.steps.flatMap((s, i) => (s.kind === 'lesson' ? [{ step: i, cmds: commandsInMarkup(s.body).map((c) => skillOf(c)).filter((c): c is string => !!c) }] : [])),
+          m.steps.flatMap((s, i) => (s.kind === 'lesson' ? [{ step: i, cmds: lessonSkills(s.body) }] : [])),
         );
   }
   return lessonIdx;
