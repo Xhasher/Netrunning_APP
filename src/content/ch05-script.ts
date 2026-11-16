@@ -1,4 +1,14 @@
+// Capitolo 05 · Scripting. Far lavorare il deck al posto tuo.
+//
+// Trama: Luca è in ferie per dieci giorni e il sito di Mama gira sul tuo deck (capitolo AM).
+// Ogni mattina devi controllare log, accessi e servizi. Al terzo giorno di comandi ripetuti
+// a mano, Nyx ti insegna a scriverli una volta sola: variabili (5.1), il primo script (5.2),
+// un guardiano che dà l'allarme da solo (5.3). La 5.4 (ch-pratica.ts) affina gli attrezzi.
+
 import type { Chapter } from '../game/types';
+
+/** Versione dei contenuti in cui il capitolo è stato rivisto (passi nuovi). */
+const V = 19;
 
 export const CH05: Chapter = {
   id: 'ch05',
@@ -16,11 +26,13 @@ export const CH05: Chapter = {
         {
           kind: 'lesson',
           title: 'Perché automatizzare',
-          body: `@nyx: Nel capitolo SOC hai scritto a mano catene di comandi lunghissime. Ora immagina di doverlo fare ogni mattina, su 50 server. Impossibile.
+          body: `Terzo giorno senza Luca. Ogni mattina la stessa routine: apri il log degli accessi, conti i tentativi falliti, cerchi gli indirizzi strani, controlli che il sito sia su. Venti minuti, sempre gli stessi comandi.
 
-@nyx: Gli analisti e i pentester bravi **automatizzano**: scrivono i comandi una volta in un file, lo **script**, e poi lo lanciano quando serve. È la differenza tra un principiante e un professionista.
+@nyx: Ti guardo da tre giorni. Scrivi le stesse catene di comandi, a mano, ogni mattina. Ora immagina di doverlo fare su cinquanta server. Impossibile.
 
-Per scrivere script servono tre ingredienti, che vedremo in questo capitolo:
+@nyx: Chi lavora bene in sicurezza **automatizza**: scrive i comandi una volta sola in un file, lo **script**, e poi lo lancia quando serve. O lo fa lanciare al computer, da solo, ogni mattina. È una delle differenze più grandi tra chi comincia e chi fa questo mestiere da anni.
+
+Per scrivere script servono tre ingredienti, e li vedrai in quest'ordine:
 - le **variabili**, per ricordare dei valori
 - un **editor**, per scrivere i file
 - le **strutture**: cicli (ripeti) e condizioni (se... allora...)`,
@@ -28,7 +40,7 @@ Per scrivere script servono tre ingredienti, che vedremo in questo capitolo:
         {
           kind: 'task',
           title: 'Le variabili che esistono già',
-          body: `Una **variabile** è un nome a cui è associato un valore. La shell ne ha già alcune, dette **variabili d'ambiente**. Si leggono mettendo un \`$\` davanti al nome:
+          body: `Una **variabile** è un nome a cui è associato un valore, come un'etichetta su una scatola. La shell ne ha già alcune pronte, dette **variabili d'ambiente**: descrivono l'ambiente in cui lavori (chi sei, dov'è la tua home, dove ti trovi). Per leggerne una, metti un \`$\` davanti al nome:
 
 \`\`\`
 echo $HOME
@@ -45,8 +57,29 @@ Prova almeno uno dei due comandi. Per vederle tutte c'è \`env\`.`,
         },
         {
           kind: 'task',
+          since: V,
+          title: 'Dove cerca i comandi',
+          body: `Tra le variabili d'ambiente ce n'è una che spiega un mistero del capitolo AM. Quando scrivi \`ls\`, come fa la shell a trovare il file \`/usr/bin/ls\`?
+
+Lo cerca nelle cartelle elencate in \`PATH\` ("percorso"), **una dopo l'altra, nell'ordine scritto**, e si ferma alla prima che contiene un programma con quel nome:
+
+\`\`\`
+echo $PATH
+\`\`\`
+
+Le cartelle sono separate da due punti. Qual è la **prima** in cui la shell cerca? Inviala con \`flag\`.`,
+          objective: 'Invia con flag la prima cartella di PATH.',
+          hints: ['echo $PATH, poi guarda cosa c\'è prima dei primi due punti.', 'flag /usr/local/bin'],
+          answer: ['/usr/local/bin', '/usr/local/bin/'],
+          solve: ['echo $PATH', 'flag /usr/local/bin'],
+          success: `\`/usr/local/bin\`. Ecco come funziona il trucco del falso \`ls\`: se un attaccante riesce a mettere un programma chiamato \`ls\` in una cartella che viene **prima** di \`/usr/bin\` nel PATH, la shell trova il suo e si ferma lì.
+
+Per questo chi difende controlla due cose: chi può scrivere nelle cartelle del PATH, e che il PATH non contenga cartelle strane come \`/tmp\` o \`.\` (la cartella attuale).`,
+        },
+        {
+          kind: 'task',
           title: 'Crea una variabile',
-          body: `Puoi creare le tue variabili con \`NOME=valore\`. **Niente spazi** attorno all'uguale! Se il valore contiene spazi, usa le virgolette:
+          body: `Ora creane una tua. Domani controllerai un altro dispositivo: se l'indirizzo è scritto in un posto solo, lo cambi una volta.
 
 \`\`\`
 BERSAGLIO="jukebox.lan"
@@ -66,7 +99,7 @@ echo "Scansiono $BERSAGLIO"
         {
           kind: 'task',
           title: 'Il risultato di un comando',
-          body: `La cosa più utile: salvare in una variabile **l'output di un comando**, con \`$(...)\`:
+          body: `La cosa più utile di tutte: mettere in una variabile **il risultato di un comando**. Si scrive il comando dentro \`$(...)\`. Prova con il conteggio che fai ogni mattina sul log del capitolo 04:
 
 \`\`\`
 FALLITI=$(grep "Failed password" caso/auth.log | wc -l)
@@ -77,12 +110,12 @@ La shell esegue prima il comando tra parentesi e mette il risultato al suo posto
           objective: 'Salva l\'output di un comando in una variabile con $(...) e stampala.',
           hints: ['Scrivi le due righe dell\'esempio, una alla volta.', 'Puoi anche scriverle su una riga sola separandole con ;'],
           check: (ev, sh) => ev.type === 'command' && ev.name === 'echo' && ev.ok && Object.values(sh.vars).includes('40') && ev.args.join(' ').includes('40'),
-          success: `40, come nel capitolo SOC, ma ora il numero è dentro una variabile e lo puoi riusare: confrontarlo, scriverlo in un report, mandarlo in un allarme...`,
+          success: `40, come nel capitolo 04, ma ora il numero è dentro una variabile e lo puoi riusare: confrontarlo, scriverlo in un report, mandarlo in un allarme...`,
         },
         {
           kind: 'task',
           title: 'Errori in silenzio',
-          body: `Ogni comando ha **due uscite**: lo **stdout** (l'output normale) e lo **stderr** (gli errori). Di solito finiscono entrambe sullo schermo.
+          body: `Uno script deve produrre un risultato pulito, senza messaggi d'errore che non interessano a nessuno. Per toglierli devi sapere una cosa: ogni comando ha **due uscite**. Lo **stdout** (*standard output*) per l'output normale, e lo **stderr** (*standard error*) per i messaggi di errore. Di solito finiscono entrambe sullo schermo, mescolate.
 
 Prova a cercare un file in tutto il sistema:
 
@@ -96,11 +129,28 @@ Vedrai anche messaggi \`Permission denied\`. Ora ripeti mandando gli errori nel 
 find / -name passwd 2>/dev/null
 \`\`\`
 
-\`2>\` vuol dire "redirigi l'uscita numero 2", cioè gli errori.`,
+Ti ricordi \`>\` della prima notte, che mandava l'output in un file? \`2>\` fa lo stesso, ma solo con l'uscita numero 2, cioè gli errori. (L'uscita numero 1 è lo stdout: \`>\` da solo vuol dire \`1>\`.)`,
           objective: 'Cerca passwd con find, nascondendo gli errori con 2>/dev/null.',
           hints: ['Scrivi: find / -name passwd 2>/dev/null'],
           check: (ev) => ev.type === 'command' && ev.name === 'find' && ev.args.includes('passwd'),
           success: `Output pulito: solo \`/etc/passwd\`. \`2>/dev/null\` lo vedrai ovunque negli script e nei comandi dei professionisti.`,
+        },
+        {
+          kind: 'task',
+          since: V,
+          title: 'Stesso strumento, altra domanda',
+          body: `Il bello di uno script con argomenti: non lo riscrivi, cambi solo la domanda. Usa \`conta.sh\` per contare i tentativi falliti nello stesso log:
+
+\`\`\`
+./conta.sh ~/caso/auth.log Failed
+\`\`\`
+
+Quante righe? Invia il numero con \`flag\`.`,
+          objective: 'Conta le righe con Failed usando conta.sh e invia il numero.',
+          hints: ['Dalla cartella dove hai salvato conta.sh: ./conta.sh ~/caso/auth.log Failed', 'flag 40'],
+          answer: ['40'],
+          solve: ['flag 40'],
+          success: `40, lo stesso numero che hai trovato a mano nel capitolo 04. Stesso risultato, ma ora con un comando corto che chiunque nel team può usare senza ricordare la catena \`grep | wc -l\`.`,
         },
         {
           kind: 'quiz',
@@ -132,7 +182,7 @@ find / -name passwd 2>/dev/null
         {
           kind: 'lesson',
           title: 'Cos\'è uno script',
-          body: `Uno **script** è un semplice file di testo che contiene comandi, uno per riga. Quando lo esegui, la shell li esegue in ordine, come se li scrivessi tu.
+          body: `@nyx: Uno **script** è un semplice file di testo che contiene comandi, uno per riga. Quando lo esegui, la shell li esegue in ordine, uno dopo l'altro, come se li scrivessi tu. Hai già incontrato uno script: \`backup.sh\`, sul vecchio server di Mama.
 
 Uno script Bash di solito si presenta così:
 
@@ -143,11 +193,13 @@ echo "Ciao, sono uno script"
 whoami
 \`\`\`
 
-- La prima riga \`#!/bin/bash\` si chiama **shebang**: dice al sistema quale programma deve eseguire il file
+- La prima riga \`#!/bin/bash\` si chiama **shebang** (da *sharp*, il nome inglese di \`#\`, e *bang*, quello di \`!\`): dice al sistema quale programma deve eseguire il file
 - Le righe che iniziano con \`#\` sono **commenti**: note per chi legge, la shell le salta
 - Per convenzione gli script Bash finiscono con \`.sh\`
 
-Per scrivere il file useremo **nano**, l'editor di testo più semplice di Linux.`,
+Per scrivere il file userai **nano**, l'editor che hai già usato per correggere la configurazione del sito di Mama.
+
+@nyx: Cominciamo da uno piccolo, per capire il meccanismo. Poi costruiamo quello che ti serve ogni mattina.`,
         },
         {
           kind: 'task',
@@ -168,6 +220,8 @@ echo "Ciao da $USER"
 date
 \`\`\`
 
+(\`date\` stampa la data e l'ora: in un controllo del mattino è utile sapere quando è stato fatto.)
+
 Poi tocca **Salva** ed **Esci**. (Nel vero nano: Ctrl+O per salvare, Ctrl+X per uscire.)`,
           objective: 'Crea e salva script/ciao.sh con nano.',
           hints: ['Prima cd script, poi nano ciao.sh', 'Nell\'editor scrivi le righe e premi Salva.'],
@@ -185,7 +239,7 @@ Poi tocca **Salva** ed **Esci**. (Nel vero nano: Ctrl+O per salvare, Ctrl+X per 
         {
           kind: 'task',
           title: 'Eseguilo',
-          body: `Il modo più semplice: chiedi a bash di eseguire il file.
+          body: `Il modo più semplice: chiedi a \`bash\`, il programma della shell, di leggere il file ed eseguire i comandi che contiene.
 
 \`\`\`
 bash ciao.sh
@@ -220,7 +274,9 @@ chmod +x ciao.sh
         {
           kind: 'lesson',
           title: 'Gli argomenti',
-          body: `Uno script diventa davvero utile quando accetta **argomenti**, come i comandi veri. Dentro lo script:
+          body: `@nyx: \`ciao.sh\` fa sempre la stessa cosa. Uno script diventa davvero utile quando accetta **argomenti**, come i comandi veri: \`cat\` ti chiede quale file, \`ping\` quale indirizzo. Così lo stesso script lavora ogni volta su dati diversi.
+
+Dentro lo script gli argomenti hanno nomi fissi:
 - \`$1\` è il primo argomento, \`$2\` il secondo, e così via
 - \`$#\` è il numero di argomenti ricevuti
 - \`$0\` è il nome dello script
@@ -237,7 +293,7 @@ lanciato con \`./saluta.sh Nyx\` stampa \`Ciao Nyx, benvenuto a Night City\`.`,
         {
           kind: 'task',
           title: 'Uno strumento vero',
-          body: `Scrivi uno script \`conta.sh\` che conta quante righe di un file contengono una parola. File e parola arrivano come argomenti:
+          body: `Ora lo strumento per la tua routine del mattino. Uno script \`conta.sh\` che conta quante righe di un file contengono una parola. File e parola arrivano come argomenti:
 
 \`\`\`
 nano conta.sh
@@ -252,7 +308,7 @@ N=$(grep "$2" "$1" | wc -l)
 echo "$2 compare in $N righe di $1"
 \`\`\`
 
-Salva, rendilo eseguibile e provalo sul log del capitolo SOC:
+Salva, rendilo eseguibile e provalo sul log del capitolo 04:
 
 \`\`\`
 chmod +x conta.sh
@@ -307,21 +363,19 @@ chmod +x conta.sh
         {
           kind: 'lesson',
           title: 'Ripetere: il ciclo for',
-          body: `Un **ciclo** ripete dei comandi per ogni elemento di una lista:
+          body: `Quinto giorno. Mama ti chiede di controllare, ogni mattina, anche che router, jukebox e cassa rispondano.
 
-\`\`\`
-for NOME in ELEMENTO1 ELEMENTO2 ELEMENTO3; do
-  comandi che usano $NOME
-done
-\`\`\`
+@nyx: Tre dispositivi, tre comandi quasi uguali. Domani magari dieci. Quando una cosa va fatta **per ogni elemento di una lista**, si usa un **ciclo**: scrivi i comandi una volta, e il deck li ripete per ogni elemento.
 
-Le parole \`do\` ("fai") e \`done\` ("fatto") racchiudono i comandi da ripetere. Ad ogni giro la variabile prende il valore successivo della lista. Esempi:
+Per esempio, il controllo di Mama:
 
 \`\`\`
 for host in gateway.lan jukebox.lan cassa.lan; do
   ping -c 1 $host
 done
 \`\`\`
+
+Si legge: "per ogni \`host\` della lista, fai (\`do\`) un ping; fatto (\`done\`)". A ogni giro la variabile \`host\` contiene l'elemento di turno. Nyx ti spiega la forma esatta tra un attimo. Altri due esempi di liste:
 
 \`\`\`
 for i in $(seq 1 5); do echo "Giro $i"; done
@@ -347,31 +401,36 @@ for f in caso/*; do echo "== $f"; wc -l $f; done
           success: `Il ciclo ha lavorato su ogni file per te. Con 3 file è comodo, con 3000 è indispensabile.`,
         },
         {
+          kind: 'task',
+          since: V,
+          title: 'Un utente alla volta',
+          body: `Un ciclo può contenere anche un \`$(...)\`. Conta i tentativi contro ognuno dei tre utenti presi di mira nel capitolo 04, in un colpo solo:
+
+\`\`\`
+for u in root admin mama; do echo "$u: $(grep "for $u from" caso/auth.log | wc -l)"; done
+\`\`\`
+
+Quale utente compare più volte? Invia il nome con \`flag\`.`,
+          objective: 'Con un ciclo, trova l\'utente più preso di mira e invialo con flag.',
+          hints: ['Il numero più alto accanto a un nome.', 'flag root'],
+          answer: ['root'],
+          solve: ['for u in root admin mama; do echo "$u: $(grep "for $u from" caso/auth.log | wc -l)"; done', 'flag root'],
+          success: `**root**, 23 righe: l'utente che esiste su ogni Linux del mondo, quindi il primo che si prova. Per \`mama\` il conteggio include anche i due login riusciti (le righe \`Accepted ... for mama from\`): un conteggio va sempre letto sapendo cosa conta davvero.
+
+Tre comandi in uno. E se domani la lista diventa di cinquanta nomi, il comando resta lungo uguale.`,
+        },
+        {
           kind: 'lesson',
           title: 'Decidere: if',
-          body: `La struttura **if** esegue dei comandi solo se una condizione è vera:
+          body: `@nyx: Un ciclo ripete. Ma un guardiano deve anche **decidere**: "se i tentativi falliti sono troppi, dai l'allarme; altrimenti stai zitto". Per decidere si usa \`if\` ("se"), seguito da \`then\` ("allora") e, se serve, \`else\` ("altrimenti").
 
-\`\`\`
-if CONDIZIONE; then
-  comandi se vera
-else
-  comandi se falsa
-fi
-\`\`\`
-
-\`then\` vuol dire "allora", \`else\` "altrimenti", e \`fi\` (cioè *if* scritto al contrario) chiude il blocco. La parte \`else\` è facoltativa.
-
-La condizione più comune si scrive tra parentesi quadre (con gli **spazi** dentro!):
+Nyx ti mostra la forma tra un attimo. Qui ti preparo il pezzo più importante: le **condizioni**, cioè le domande che \`if\` può fare. Si scrivono tra parentesi quadre, con gli **spazi** dentro:
 - \`[ -f file ]\` → il file esiste
 - \`[ -d cartella ]\` → la cartella esiste
 - \`[ "$A" = "$B" ]\` → due testi sono uguali
 - \`[ $N -gt 10 ]\` → N è maggiore di 10 (*greater than*). Poi ci sono \`-lt\` minore, \`-eq\` uguale, \`-ge\` maggiore o uguale
 
-Esempio:
-
-\`\`\`
-if [ -f /etc/shadow ]; then echo "shadow esiste"; fi
-\`\`\``,
+Le prime due servono per i file, le ultime per i numeri. Il guardiano userà proprio \`-gt\`: "se i tentativi sono più di dieci".`,
         },
         {
           kind: 'task',
@@ -389,7 +448,7 @@ if [ -f caso/auth.log ]; then echo "Log presente"; else echo "Log mancante!"; fi
         {
           kind: 'task',
           title: 'Il guardiano',
-          body: `Scrivi lo script \`allarme.sh\`: controlla un log e dà l'allarme se ci sono troppi login falliti, segnalando anche gli IP sospetti.
+          body: `Ora metti insieme tutto: variabili, \`$(...)\`, \`if\`, \`for\`, argomenti. Scrivi lo script \`allarme.sh\`: controlla un log e dà l'allarme se ci sono troppi login falliti, elencando gli IP sospetti. Se va tutto bene, lo dice e basta.
 
 \`\`\`
 nano allarme.sh
@@ -432,7 +491,9 @@ chmod +x allarme.sh
           },
           success: `**ALLARME: 40 login falliti**, con l'elenco degli IP sospetti.
 
-@nyx: Hai appena scritto un piccolo sistema di rilevamento. I SIEM veri funzionano con lo stesso principio, solo su scala enorme: regole del tipo "se succede X più di N volte, dai l'allarme". Con \`cron\` potresti farlo girare ogni 5 minuti, da solo.`,
+@nyx: Hai appena scritto un piccolo sistema di rilevamento. I SIEM veri funzionano con lo stesso principio, solo su scala enorme: regole del tipo "se succede X più di N volte, dai l'allarme". E ti ricordi \`/etc/crontab\` del capitolo AM? Con una riga lì dentro, il guardiano girerebbe da solo ogni 5 minuti.
+
+La mattina dopo, la routine dura trenta secondi. Il resto del tempo lo passi ad affinare gli attrezzi.`,
         },
         {
           kind: 'quiz',

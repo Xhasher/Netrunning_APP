@@ -242,7 +242,7 @@ In \`access.log\` (il log di un sito web) il campo 1 è l'IP del visitatore, il 
       objective: 'Stampa solo gli IP di web/access.log con awk.',
       hints: ['awk \'{print $N}\' FILE, con il numero del campo.', 'awk \'{print $1}\' web/access.log'],
       check: cmd('awk', (a) => a.some((x) => /print \$1\b/.test(x)) && a.some((x) => x.endsWith('access.log'))),
-      success: 'Una colonna pulita: ora la puoi passare a sort e uniq come hai fatto nel capitolo SOC.',
+      success: 'Una colonna pulita: ora la puoi passare a sort e uniq come hai fatto nel capitolo 04.',
     },
     {
       kind: 'task',
