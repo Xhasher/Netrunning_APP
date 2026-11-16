@@ -606,8 +606,8 @@ export class App {
         <button class="opcard ${state}" data-op="${op.id}" ${open ? '' : 'disabled'}>
           <span class="op-top">
             <span class="op-code">${op.code}</span>
-            <span class="op-kind ${op.kind}">${op.kind === 'audit' ? 'AUDIT' : op.kind === 'scena' ? 'SCENA DEL CRIMINE' : 'INCIDENT RESPONSE'}</span>
-            <span class="op-xp">${op.kind === 'scena' && open ? `${this.save.best[`scene:${op.id}`] ?? 0}/${op.findings.length} indizi · ${this.sceneOpen(op).length} aperti` : done ? '✔ completata' : `${op.xp} XP`}</span>
+            <span class="op-kind ${op.kind}">${op.kind === 'audit' ? 'AUDIT' : op.kind === 'scena' ? 'SCENA' : 'INCIDENT RESPONSE'}</span>
+            <span class="op-xp">${op.kind === 'scena' && open ? `${this.save.best[`scene:${op.id}`] ?? 0}/${this.sceneOpen(op).length} indizi` : done ? '✔ completata' : `${op.xp} XP`}</span>
           </span>
           <span class="op-title">${op.title}</span>
           <span class="op-client">Cliente: ${op.client}</span>

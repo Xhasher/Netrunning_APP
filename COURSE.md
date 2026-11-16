@@ -245,3 +245,9 @@ Il programma previsto in questo documento è completo. Prossimi passi possibili:
 - **35 domande d'esame nuove** a scenario (`exam-more.ts`): la banca passa da 50 a 85, con almeno due domande per quasi ogni capitolo.
 - **Parte pratica della verifica di capitolo** anche per i capitoli senza sfide proprie (AM, SOC, PT, DF, SJ): ora include una riparazione.
 - Versione dei contenuti 20: chi ha già iniziato una missione riprende dallo stesso punto.
+
+## Collaudo (1.28.1, fase H)
+
+- Giro automatico nel browser, a dimensione telefono, di tutte le schermate (mappa, Memoria, Operazioni e scene, Giochi e ogni gioco, Esami, Competenze, Codex, Orientamento e assaggi, Mentore, Carriera, Opzioni, Terminale, verifica e sfida finale di capitolo, una missione, debriefing) con quattro profili: utente nuovo, a metà corso, corso completato, salvataggio di una versione vecchia senza i campi nuovi. Nessun errore JavaScript, nessuna pagina che sborda in orizzontale.
+- Corretto: nelle schede delle Operazioni il codice (SC-01) e l'etichetta "SCENA DEL CRIMINE" andavano a capo male sul telefono.
+- Nuovi test automatici: un salvataggio vecchio si unisce a uno nuovo senza perdere dati (in entrambe le direzioni), un backup vecchio si legge con i campi nuovi a posto, chi era a metà missione nella versione 19 resta sullo stesso passo.

@@ -1349,6 +1349,7 @@ pre.code {
 
 .op-top {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.6rem;
   font-family: var(--mono);
@@ -1358,6 +1359,7 @@ pre.code {
 .op-code {
   color: var(--yellow);
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .op-kind {

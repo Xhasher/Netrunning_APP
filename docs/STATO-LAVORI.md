@@ -39,7 +39,7 @@ Audit (fase A) presentato il 16 novembre 2026.
 | E Digital Crime Scene (SC-01, cresce con il corso) | fatto (1.22.0) |
 | F Orientamento professionale | fatto (1.23.0) |
 | G Percorsi specializzati, mentore a regole, lavoro in Italia | fatto (1.24.0) |
-| H Collaudo | **prossima** |
+| H Collaudo | fatto (1.28.1) |
 
 Decisioni: tutor a regole (niente IA: niente credenziali nel client); dati sul lavoro in Italia
 con fonte e data, ricontrollati a ogni versione (l'app funziona offline); Network Architect per ultimo.
@@ -58,3 +58,5 @@ Riequilibrate 179 domande (giusta riconoscibile dalla lunghezza), +66 domande ne
 +35 domande d'esame, parte pratica con riparazione per AM/SOC/PT/DF/SJ. Resta: la giusta è
 ancora la più lunga nel 49% dei casi (a caso sarebbe il 25%), ma di poco; da abbassare.
 Prossimo: fase H (collaudo), poi la riscrittura dal capitolo 06.
+
+Collaudo fatto (1.28.1). Prossimo: riscrittura dal capitolo 06; abbassare la quota di domande con la giusta più lunga (49%).
