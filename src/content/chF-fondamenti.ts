@@ -250,7 +250,7 @@ Per ogni riga moltiplica probabilità per impatto. Quale rischio è il più alto
 
 Guarda R3, l'allagamento: avrebbe lo stesso impatto, ma è così raro che finisce in fondo. Senza calcolo, a sensazione, molti avrebbero messo l'acqua al primo posto.
 
-@rook: Bravo. Tanaka aggiorna il server questa settimana.`,
+@rook: Ottimo lavoro. Tanaka aggiorna il server questa settimana.`,
         },
         {
           kind: 'lesson',

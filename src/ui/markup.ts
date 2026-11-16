@@ -3,6 +3,7 @@
 const SPEAKERS: Record<string, { name: string; cls: string }> = {
   nyx: { name: 'NYX', cls: 'nyx' },
   rook: { name: 'ROOK', cls: 'rook' },
+  mama: { name: 'MAMA', cls: 'mama' },
 };
 
 function escapeHtml(s: string): string {

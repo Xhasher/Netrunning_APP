@@ -863,6 +863,14 @@ pre.code {
   color: var(--yellow);
 }
 
+.speech.mama {
+  border-left-color: var(--cyan);
+}
+
+.speech.mama .who {
+  color: var(--cyan);
+}
+
 .callout {
   display: flex;
   gap: 0.6rem;

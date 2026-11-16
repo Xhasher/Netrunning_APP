@@ -36,7 +36,11 @@ export const NETDIAG_MISSION: Mission = {
     {
       kind: 'lesson',
       title: '"La cassa non va!"',
-      body: `@rook: Mama è nel panico: "La cassa non risponde, è rotta!". Il tecnico del negozio è irraggiungibile.
+      body: `Il giorno dopo, le sette di sera. Torni al bar per il vecchio server, ma è pieno e c'è la fila al bancone. Mama ti fa segno di avvicinarti.
+
+@mama: Meno male che sei qui: la cassa non va! I clienti non riescono a pagare con la carta. Il tecnico non risponde.
+
+@rook: Niente panico. È il tuo primo lavoro da **helpdesk**: l'assistenza tecnica, quella che risponde quando "non funziona niente".
 
 @nyx: Prima lezione da helpdesk: "non funziona" non è una diagnosi. Si sale una **scala**, dal basso, e ci si ferma al primo gradino rotto:
 
