@@ -30,6 +30,10 @@ export interface TaskStep {
   ex?: 'interpreta' | 'correggi';
   /** esercizio senza suggerimenti, qualunque sia la fase del corso */
   noHints?: boolean;
+  /** la lezione sul comando va DOPO l'esercizio: prima si prova, poi si capisce (primissimi passi) */
+  lessonAfter?: boolean;
+  /** il compito spiega da sé l'opzione nuova: niente lezione breve automatica prima */
+  ownLesson?: boolean;
   title: string;
   body: Markup;
   /** cosa fare, in una riga */

@@ -1,150 +1,133 @@
+// Capitolo 01 · Jack-in. Per chi non ha mai aperto un terminale.
+//
+// Trama: una notte sola. Nyx ti mette davanti un deck e ti dà tempo fino all'alba per
+// dimostrare che puoi lavorare per Rook, il fixer. Ogni missione è una prova che lei
+// ti prepara; l'ultima è il primo lavoro vero.
+//
+// Regole di scrittura del capitolo:
+// - si scrive nel terminale dopo UNA schermata; la teoria arriva subito dopo aver provato
+// - ogni termine nuovo è spiegato nel punto in cui compare
+// - ogni comando nuovo ha la sua lezione "Nyx spiega" (content/teach.ts), inserita in
+//   automatico prima dell'esercizio: qui i compiti dicono cosa fare e perché, nella storia
+
 import type { Chapter } from '../game/types';
 
 const isCmd = (name: string) => (ev: { type: string; name?: string; ok?: boolean }) =>
   ev.type === 'command' && ev.name === name && ev.ok === true;
 
+/** Versione dei contenuti in cui il capitolo è stato riscritto (passi nuovi). */
+const V = 18;
+
 export const CH01: Chapter = {
   id: 'ch01',
   code: '01',
   title: 'Jack-in',
-  subtitle: 'Il terminale e Linux, da zero',
+  subtitle: 'Una notte per imparare il terminale, da zero',
   missions: [
     // ------------------------------------------------------------------ 1.1
     {
       id: 'ch01-m1',
-      title: 'Benvenuto a Night City',
-      tagline: 'Cos\'è Linux, cos\'è un terminale, e il tuo primo comando.',
+      title: 'Una notte sola',
+      tagline: 'Accendi il deck e scrivi il tuo primo comando.',
       xp: 100,
       steps: [
         {
           kind: 'lesson',
-          title: 'La sveglia',
-          body: `@nyx: Ehi. Sei sveglio? Bene. Mi chiamo Nyx, faccio la netrunner da prima che tu nascessi. Rook, il fixer, dice che hai del potenziale. Vediamo.
+          title: 'Sopra Lo Scantinato',
+          body: `Night City, le undici di sera. Una stanza sopra un bar che si chiama Lo Scantinato. Sul tavolo, tra due tazze di synth-caffè, c'è un computer nero grande quanto un libro.
 
-@nyx: In questa città chi controlla i computer controlla tutto. Ma ci sono due modi di usare quello che ti insegnerò: per entrare dove non devi, o per **proteggere** chi viene attaccato. Noi lavoriamo con un contratto firmato. Sempre.
+@nyx: Mi chiamo Nyx. Faccio la netrunner da prima che tu nascessi: entro nei computer degli altri. Solo in quelli di chi mi paga per scoprire da dove potrebbe entrare un criminale, e con un contratto firmato. Sempre.
 
-!! Tutto quello che fai in questo gioco è simulato: il terminale, i file, la rete. Nessun comando esce dal tuo telefono. Puoi sbagliare quanto vuoi.`,
+@nyx: Rook, il fixer che ci trova i lavori, ne ha uno per domattina e gli manca una persona. Gli ho detto che forse ce l'ho. Quindi hai **una notte** per dimostrarmi che non sei un turista.
+
+@nyx: Quello sul tavolo è un **deck**: il tuo computer. Non ha icone e non ha il mouse. Gli si parla **scrivendo**. Niente teoria, per adesso: accendilo e prova.
+
+!! Tutto quello che fai in questo gioco è simulato: il deck, i file, la rete. Nessun comando esce dal tuo telefono. Puoi sbagliare quanto vuoi, ed è il modo giusto per imparare.`,
+        },
+        {
+          kind: 'task',
+          lessonAfter: true,
+          title: 'Chi sei?',
+          body: `@nyx: La parte nera in basso è il **terminale**: lì scrivi, lì il deck ti risponde. Prima domanda che si fa a una macchina: *per te, io chi sono?*
+
+Fai così:
+- tocca la parte nera in basso (su PC: cliccaci sopra)
+- scrivi la parola qui sotto, tutta minuscola e tutta attaccata
+- premi **Invio**
+
+\`\`\`
+whoami
+\`\`\`
+
+È inglese: *who am I*, "chi sono io".`,
+          objective: 'Scrivi whoami nel terminale e premi Invio.',
+          hints: ['Scrivi esattamente: whoami (tutto minuscolo, senza spazi) e premi Invio.'],
+          check: isCmd('whoami'),
+          success: `Il deck ha risposto con il tuo nome. Hai appena dato il tuo primo **comando**: una parola che il computer capisce e a cui risponde.
+
+@nyx: Visto? Tu scrivi, lui risponde. Tutto il resto del mestiere è questo, con parole diverse.`,
         },
         {
           kind: 'lesson',
-          title: 'Cos\'è un sistema operativo',
-          body: `Un computer da solo è solo hardware: processore, memoria, disco. Il **sistema operativo** è il programma principale che fa funzionare tutto il resto: gestisce i file, la memoria, la rete, e fa partire gli altri programmi.
-
-Ne conosci già alcuni:
-- **Windows** sui PC
-- **Android** sul tuo telefono
-- **macOS / iOS** sui prodotti Apple
-
-**Linux** è un sistema operativo gratuito e open source (il codice è pubblico: chiunque può leggerlo e controllarlo). Lo trovi in posti che magari non immagini:
-- la grande maggioranza dei **server** di Internet. Un *server* è semplicemente un computer che offre un servizio ad altri computer: mostra un sito, conserva la posta, custodisce un database. Di solito resta acceso giorno e notte, spesso senza schermo né tastiera. I siti che visiti girano quasi tutti su server Linux
-- **Android**, che è costruito proprio sopra Linux
-- router, smart TV, auto, telecamere...
-
-Linux esiste in tante versioni, chiamate **distribuzioni**: Ubuntu, Debian, Kali, Red Hat... Hanno tutte lo stesso cuore, il **kernel** (la parte del sistema operativo che comanda direttamente l'hardware), ma programmi e impostazioni un po' diversi. I comandi che impari qui funzionano su tutte.
-
-?? Per questo chi lavora in sicurezza informatica DEVE conoscere Linux: è quello che troverai sia quando attacchi (in un test autorizzato) sia quando difendi.`,
-        },
-        {
-          kind: 'lesson',
-          title: 'Cos\'è il terminale',
-          body: `Di solito usi un computer con le finestre, le icone e il mouse: questa si chiama **interfaccia grafica** (GUI).
-
-Esiste un altro modo: scrivere **comandi** di testo. Il programma che li legge e li esegue si chiama **shell** (la più diffusa su Linux si chiama **bash**). La finestra in cui scrivi si chiama **terminale**.
-
-Perché usarlo se esistono le finestre?
-- è **più veloce** e più preciso, una volta imparato
-- sui server spesso **non c'è** l'interfaccia grafica: c'è solo il terminale
-- si possono **automatizzare** le cose (script)
-- quasi tutti gli strumenti di sicurezza funzionano da terminale
-
-Nella parte bassa dello schermo c'è il tuo terminale. Ogni comando segue questo schema:
-
-\`\`\`
-comando [opzioni] [argomenti]
-\`\`\`
-
-Vediamolo con un esempio che userai presto:
-
-\`\`\`
-ls -l /etc
-\`\`\`
-
-- \`ls\` è il **comando**: il nome del programma da eseguire (qui: "elenca i file")
-- \`-l\` è un'**opzione**: cambia il modo in cui il comando lavora. Le opzioni iniziano quasi sempre con un trattino \`-\` (qui: "mostra i dettagli")
-- \`/etc\` è un **argomento**: dice al comando **su cosa** lavorare (qui: la cartella \`/etc\`)
-
-Le parentesi quadre \`[ ]\` nello schema vogliono dire "facoltativo": molti comandi funzionano anche senza opzioni e senza argomenti. Comando, opzioni e argomenti sono separati da **spazi**: lo spazio è importante, \`ls-l\` tutto attaccato non funziona.
-
-Scrivi il comando e premi **Invio**. La shell lo esegue e ti mostra il risultato.`,
-        },
-        {
-          kind: 'lesson',
-          title: 'Il prompt',
-          body: `Prima del cursore vedi una scritta tipo questa. Si chiama **prompt**: è la shell che ti dice "sono pronta, scrivi".
+          title: 'La riga che ti aspetta',
+          body: `@nyx: Guarda il terminale. Prima del punto in cui scrivi c'è sempre una riga come questa:
 
 \`\`\`
 edge@deck:~$
 \`\`\`
 
-Ogni pezzo ha un significato:
-- \`edge\` → il nome dell'**utente** con cui sei collegato (sarà il tuo nome)
-- \`@deck\` → il nome del **computer** (host)
-- \`~\` → la **cartella** in cui ti trovi (la tilde \`~\` significa "la tua cartella personale", la *home*)
-- \`$\` → sei un utente **normale**. Se ci fosse \`#\` saresti **root**, l'amministratore con tutti i poteri.
+Si chiama **prompt** ("invito"): è il deck che ti dice *sono pronto, scrivi*. Non è decorazione: ogni pezzo ti dà un'informazione.
 
-?? Durante un attacco reale, vedere \`#\` nel prompt significa avere il controllo totale della macchina. È l'obiettivo di molti attaccanti, e quello che i difensori devono impedire.`,
+- \`edge\` → il tuo **nome utente** (nel tuo terminale c'è il nome che hai scelto)
+- \`@\` → si legge "presso"
+- \`deck\` → il **nome del computer** su cui stai lavorando
+- \`~\` → la **cartella** in cui ti trovi. Il simbolo \`~\` (si chiama *tilde*) vuol dire "la mia cartella personale"
+- \`$\` → sei un **utente normale**
+
+Se al posto di \`$\` ci fosse \`#\`, saresti **root**: l'amministratore, l'utente che su quel computer può fare qualsiasi cosa.
+
+?? Quando lavorerai su dieci computer insieme, il prompt sarà l'unica cosa che ti dice *su quale* stai per premere Invio. Abituati a guardarlo.`,
         },
         {
           kind: 'task',
-          title: 'Chi sei?',
-          body: `Il tuo primo comando: \`whoami\`. È l'inglese "who am I?", cioè "chi sono io?". Stampa il nome dell'utente con cui sei collegato.
-
-Tocca il terminale, scrivi il comando qui sotto e premi Invio:
-
-\`\`\`
-whoami
-\`\`\``,
-          objective: 'Scrivi whoami nel terminale e premi Invio.',
-          hints: ['Scrivi esattamente: whoami (tutto minuscolo, attaccato) e premi Invio.'],
-          check: isCmd('whoami'),
-          success: `Il terminale ha risposto con il tuo nome utente. È proprio il primo comando che un *pentester* lancia quando entra in una macchina: **sapere chi sei ti dice cosa puoi fare**.
-
-?? Un *pentester* (da *penetration tester*) è un professionista pagato per attaccare un sistema **con il permesso del proprietario**, per scoprirne i punti deboli prima che lo faccia un criminale. Lo diventerai anche tu, un passo alla volta.`,
-        },
-        {
-          kind: 'task',
-          title: 'Dove sei?',
-          body: `Ora chiediamo al sistema come si chiama questo computer. Il comando è \`hostname\` (host = computer, name = nome).
+          title: 'Come si chiama il deck?',
+          body: `@nyx: Il nome del computer lo vedi nel prompt, ma un professionista non si fida di quello che "si vede": **chiede** alla macchina.
 
 \`\`\`
 hostname
-\`\`\``,
+\`\`\`
+
+*host* è il termine tecnico per "computer collegato a una rete"; *name* è il nome.`,
           objective: 'Scopri il nome del computer con hostname.',
           hints: ['Scrivi: hostname'],
           check: isCmd('hostname'),
-          success: `Il tuo computer si chiama **deck**: è lo stesso nome che vedi nel prompt, dopo la @.`,
+          success: `Si chiama **deck**: lo stesso nome che vedi nel prompt dopo la \`@\`. Ora sai chi sei e su che macchina sei.`,
         },
         {
           kind: 'task',
           title: 'Sbagliare è normale',
-          body: `Linux è **case-sensitive**: distingue tra MAIUSCOLE e minuscole. Per lui \`whoami\` e \`Whoami\` sono due parole completamente diverse.
+          body: `@nyx: Adesso sbaglia. Sul serio: voglio che tu veda cosa succede.
 
-Proviamolo. Scrivi apposta il comando con la W maiuscola:
+Linux, il sistema che fa funzionare questo deck, distingue le lettere MAIUSCOLE dalle minuscole. Per lui \`whoami\` e \`Whoami\` sono due parole diverse. (In inglese si dice che è *case-sensitive*.)
+
+Scrivi apposta il comando con la W maiuscola:
 
 \`\`\`
 Whoami
-\`\`\`
-
-?? Sul telefono la tastiera a volte mette da sola la maiuscola a inizio frase. In questo terminale l'abbiamo disattivata, ma ricordatelo se usi altre app.`,
+\`\`\``,
           objective: 'Prova a scrivere Whoami con la W maiuscola.',
           hints: ['Scrivi: Whoami (con la W maiuscola). Vedrai un errore: è voluto!'],
           check: (ev) => ev.type === 'command' && ev.name === 'Whoami' && !ev.ok,
-          success: `\`command not found\` vuol dire "comando non trovato". È l'errore che vedrai più spesso, e quasi sempre significa un errore di battitura. Leggere gli errori con calma è metà del lavoro: ti dicono esattamente cosa non va.`,
+          success: `\`command not found\`: "comando non trovato". È l'errore che vedrai più spesso in assoluto, e quasi sempre vuol dire che hai sbagliato a scrivere.
+
+@nyx: Non è successo niente di grave, vero? Un errore non rompe il deck. Ti dice cosa non ha capito: **leggilo sempre**, con calma. Chi salta i messaggi d'errore resta fermo per ore.`,
         },
         {
           kind: 'task',
           title: 'Chiedere aiuto',
-          body: `Non devi ricordare tutto a memoria. Il comando \`help\` elenca i comandi che puoi usare in questo deck, con una breve spiegazione.
+          body: `@nyx: Seconda cosa che devi sapere da subito: **nessuno ricorda tutto**. Nemmeno io. Bisogna sapere dove guardare.
+
+Questo comando elenca tutte le parole che il deck capisce, con una riga di spiegazione ciascuna:
 
 \`\`\`
 help
@@ -152,7 +135,46 @@ help
           objective: 'Guarda l\'elenco dei comandi con help.',
           hints: ['Scrivi: help'],
           check: isCmd('help'),
-          success: `Molti di quei comandi ti sono ancora sconosciuti: li imparerai uno alla volta. Gli ultimi due (\`flag\` e \`hint\`) sono comandi del gioco: \`hint\` ti dà un suggerimento quando sei bloccato.`,
+          success: `Sono tanti, e quasi tutti ti sono sconosciuti. Va benissimo: li imparerai uno alla volta, usandoli.
+
+In fondo all'elenco ci sono due comandi che esistono solo in questo gioco: \`hint\` ti dà un suggerimento quando sei bloccato, \`flag\` serve a consegnare una risposta. Li userai presto.`,
+        },
+        {
+          kind: 'lesson',
+          title: 'Cosa hai appena usato',
+          body: `@nyx: Ora che ci hai messo le mani, ti dico come si chiamano le cose. Tre parole, e le sentirai ogni giorno.
+
+**Terminale**: la finestra nera in cui scrivi. È solo uno schermo e una tastiera.
+
+**Shell**: il programma che sta dietro al terminale. Legge quello che scrivi, lo esegue e ti mostra la risposta. Su Linux la shell più diffusa si chiama **bash**. (Per questo gli errori iniziano con \`bash:\`: è lei che ti parla.)
+
+**Comando**: la parola che scrivi. Quasi sempre è il nome di un piccolo programma: \`whoami\` è un programma che stampa il tuo nome.
+
+Perché scrivere, se esistono le finestre e le icone?
+- i computer che contano, i **server**, spesso non hanno né schermo né mouse: si comandano solo così
+- una volta imparato, è molto **più veloce**
+- un comando scritto si può **ripetere** identico, mille volte, anche da solo
+- quasi tutti gli strumenti di chi fa sicurezza funzionano così
+
+?? Un **server** è un computer che offre un servizio ad altri computer: mostra un sito, conserva la posta, custodisce dei dati. Di solito sta acceso giorno e notte, in una stanza dove non entra nessuno.`,
+        },
+        {
+          kind: 'lesson',
+          title: 'Linux',
+          body: `@nyx: Ultima cosa per stasera, poi si riparte a scrivere.
+
+Un computer, da solo, è un mucchio di pezzi: un processore che fa i calcoli, una memoria, un disco. Per farli lavorare insieme serve un programma principale, che parte per primo e gestisce tutto il resto: i file, la rete, gli altri programmi. Si chiama **sistema operativo**.
+
+Ne conosci già qualcuno: **Windows** sui PC, **Android** sul telefono, **macOS** e **iOS** sui prodotti Apple.
+
+**Linux** è un altro sistema operativo. È gratuito, e il suo codice è pubblico: chiunque può leggerlo e controllarlo (si dice *open source*). Non lo vedi quasi mai, ma è ovunque:
+- sulla grande maggioranza dei server di Internet: i siti che visiti girano quasi tutti su Linux
+- dentro Android, che è costruito sopra Linux
+- nei router, nelle TV, nelle telecamere, nelle auto
+
+Linux esiste in tante "confezioni", chiamate **distribuzioni**: Ubuntu, Debian, Kali... Cambiano i programmi inclusi e l'aspetto, ma i comandi che impari qui funzionano su tutte.
+
+@nyx: Per questo cominciamo da qui. Chi fa sicurezza passa la vita su Linux: è il sistema che dovrai difendere, ed è quello su cui girano gli attrezzi con cui lavorerai.`,
         },
         {
           kind: 'quiz',
@@ -169,46 +191,54 @@ help
         },
       ],
       recap: [
-        ['Linux', 'sistema operativo gratuito, usato dalla maggior parte dei server'],
-        ['terminale / shell', 'il terminale è la finestra, la shell (bash) è il programma che esegue i comandi'],
+        ['comando', 'una parola che il computer capisce e a cui risponde'],
+        ['terminale / shell', 'il terminale è la finestra; la shell (bash) è il programma che esegue i comandi'],
         ['prompt', 'utente@computer:cartella$ — $ utente normale, # root'],
         ['whoami', 'mostra il tuo nome utente'],
         ['hostname', 'mostra il nome del computer'],
         ['help', 'elenca i comandi disponibili'],
+        ['command not found', 'il comando non esiste: quasi sempre un errore di battitura'],
+        ['Linux', 'sistema operativo gratuito, usato dalla maggior parte dei server'],
       ],
     },
 
     // ------------------------------------------------------------------ 1.2
     {
       id: 'ch01-m2',
-      title: 'Orientarsi nel filesystem',
+      title: 'Le stanze del deck',
       tagline: 'Cartelle, percorsi e come muoversi: pwd, ls, cd.',
       xp: 150,
       steps: [
         {
           kind: 'lesson',
-          title: 'File e cartelle',
-          body: `Tutto quello che è salvato su un computer sta dentro dei **file**: un documento, una foto, un programma. I file sono organizzati in **cartelle** (in inglese *directory*), e le cartelle possono contenere altre cartelle.
+          title: 'Un edificio al buio',
+          body: `Mezzanotte. Nyx finisce il caffè.
 
-Su Windows ci sono più "dischi" (C:, D:...). Su Linux invece c'è **un unico albero** che parte da una cartella speciale chiamata **radice** (*root directory*) e scritta con una barra: \`/\`
+@nyx: Il deck non è vuoto. Ci ho messo dentro tutto quello che ti servirà nei prossimi lavori. Ma prima devi imparare a **camminarci dentro**, e senza vedere niente: come in un edificio al buio, con una torcia.
+
+Tutto quello che un computer conserva sta dentro dei **file**: un documento, una foto, un programma sono file. Per non fare confusione, i file stanno dentro delle **cartelle** (in inglese *directory*), e una cartella può contenere altre cartelle.
+
+Su Linux c'è **un solo grande edificio**. La porta d'ingresso è una cartella speciale, la **radice** (*root*), che si scrive con una barra: \`/\`. Tutto il resto sta lì dentro.
 
 \`\`\`
 /                 ← la radice: contiene tutto
-├── bin/          ← programmi di base (ls, cat...)
-├── etc/          ← file di configurazione del sistema
+├── bin/          ← i programmi di base (i comandi)
+├── etc/          ← le impostazioni del sistema
 ├── home/         ← le cartelle personali degli utenti
-│   └── edge/     ← la TUA cartella (la "home", ~)
-├── root/         ← la home dell'amministratore
+│   └── edge/     ← la TUA cartella personale
+├── root/         ← la cartella dell'amministratore
 ├── tmp/          ← file temporanei
-└── var/          ← dati che cambiano, come i log
+└── var/          ← dati che cambiano, come i registri
 \`\`\`
 
-?? Questi nomi sono uguali su quasi tutti i Linux del mondo. Un hacker sa che le password degli utenti sono in \`/etc\`, che le tracce di un attacco si cercano in \`/var/log\`, e così via.`,
+La tua cartella personale si chiama **home** ("casa"). È il posto dove parti ogni volta che accendi il deck, ed è tua: lì puoi fare quello che vuoi.
+
+?? Questi nomi sono uguali su quasi tutti i Linux del mondo. Impararli una volta vuol dire sapersi orientare su qualsiasi server.`,
         },
         {
           kind: 'task',
           title: 'Dove mi trovo?',
-          body: `In ogni momento la shell "si trova" dentro una cartella, chiamata **cartella di lavoro** (*working directory*). Per sapere quale, usa \`pwd\`: *print working directory*, "stampa la cartella di lavoro".
+          body: `@nyx: Il terminale è sempre "dentro" una cartella, anche se non la vedi. Prima regola al buio: sapere in che stanza sei.
 
 \`\`\`
 pwd
@@ -216,102 +246,131 @@ pwd
           objective: 'Scopri in quale cartella ti trovi con pwd.',
           hints: ['Scrivi: pwd'],
           check: isCmd('pwd'),
-          success: `Il risultato è il **percorso** della tua cartella: si legge da sinistra a destra, e ogni \`/\` separa una cartella dalla successiva. Sei dentro \`home\`, che è dentro \`/\` (la radice). Questa è la tua **home**, abbreviata con \`~\` nel prompt.`,
+          success: `La risposta è un **percorso**: la strada per arrivare dove sei, partendo dalla radice. Si legge da sinistra a destra, e ogni \`/\` vuol dire "entra in": dalla radice entra in \`home\`, poi nella cartella con il tuo nome.
+
+Quella è la tua home: la stessa che il prompt abbrevia con \`~\`.`,
         },
         {
           kind: 'task',
           title: 'Cosa c\'è qui?',
-          body: `Per vedere cosa contiene una cartella si usa \`ls\` (da *list*, "elenca").
+          body: `@nyx: Sai dove sei. Ora accendi la torcia.
 
 \`\`\`
 ls
-\`\`\`
-
-In questo deck le **cartelle** sono colorate di blu e finiscono con \`/\`; i **file** sono in bianco.`,
+\`\`\``,
           objective: 'Elenca il contenuto della tua home con ls.',
           hints: ['Scrivi: ls (sono una L e una S minuscole)'],
           check: (ev, sh) => ev.type === 'ls' && ev.path === sh.home,
-          success: `Ci sono 3 cartelle (\`contratti\`, \`missioni\`, \`rete\`) e un file (\`README.txt\`).
+          success: `Quelle che finiscono con \`/\` (in blu) sono **cartelle**; \`README.txt\` è un **file**.
 
-?? Su Linux l'estensione (\`.txt\`) è solo una convenzione per gli umani: un file può chiamarsi come vuoi, anche senza estensione.`,
+@nyx: Sono tante, lo so. Sono i lavori che ti aspettano: ogni cartella è un caso. Stanotte te ne servono solo due: \`missioni\` e \`laboratorio\`. Le altre, per ora, non aprirle. Tanto non capiresti niente.
+
+?? Su Linux l'estensione (\`.txt\`) è solo un'abitudine per le persone: un file può chiamarsi come vuole, anche senza estensione.`,
         },
         {
           kind: 'task',
           title: 'Entrare in una cartella',
-          body: `Per spostarti in un'altra cartella usa \`cd\` (*change directory*, "cambia cartella"), seguito dal nome della cartella.
+          body: `@nyx: Entra in \`missioni\`. E mentre lo fai, tieni d'occhio il prompt.
 
-Entra in \`missioni\`:
+\`\`\`
+cd missioni
+\`\`\``,
+          objective: 'Entra nella cartella missioni con cd.',
+          hints: ['Scrivi: cd missioni', 'Se sei in un\'altra cartella, prima torna a casa con: cd'],
+          check: (ev, sh) => ev.type === 'cd' && ev.path === sh.home + '/missioni',
+          success: `Il prompt è cambiato da \`~\` a \`~/missioni\`: sei dentro.
+
+Hai notato che \`cd\` non ha risposto niente? Su Linux vale la regola **"nessuna notizia, buona notizia"**: quando un comando sta zitto, è andato tutto bene.`,
+        },
+        {
+          kind: 'lesson',
+          since: V,
+          title: 'Comando e argomento',
+          body: `@nyx: Fermati un secondo. Hai appena fatto una cosa nuova senza accorgertene.
+
+\`whoami\` e \`pwd\` erano una parola sola. \`cd missioni\` sono **due**:
 
 \`\`\`
 cd missioni
 \`\`\`
 
-Guarda il prompt dopo il comando: cambierà da \`~\` a \`~/missioni\`.`,
-          objective: 'Entra nella cartella missioni con cd.',
-          hints: ['Scrivi: cd missioni', 'Se sei in un\'altra cartella, prima torna a casa con: cd'],
-          check: (ev, sh) => ev.type === 'cd' && ev.path === sh.home + '/missioni',
-          success: `Il prompt ora mostra \`~/missioni\`: sei dentro la cartella. \`cd\` non stampa niente quando funziona. In Linux vale spesso la regola **"nessuna notizia, buona notizia"**: se un comando non dice nulla, di solito è andato tutto bene.`,
+- \`cd\` è il **comando**: *cosa* fare (cambiare cartella)
+- \`missioni\` è l'**argomento**: *su cosa* farlo (quale cartella)
+
+In mezzo c'è uno **spazio**, ed è obbligatorio: è lo spazio a dire al deck dove finisce il comando e dove comincia l'argomento. \`cdmissioni\`, tutto attaccato, per lui è il nome di un comando che non esiste.
+
+Quasi tutti i comandi funzionano così: **il comando, uno spazio, la cosa su cui lavorare**. Alcuni, come \`pwd\`, non hanno bisogno di argomenti. Altri ne accettano più di uno, sempre separati da spazi.`,
         },
         {
           kind: 'task',
+          ownLesson: true,
           title: 'Tornare indietro',
-          body: `Ogni cartella contiene due "cartelle" speciali e invisibili:
-- \`.\` (un punto) → **la cartella stessa**
-- \`..\` (due punti) → **la cartella genitore**, quella che sta un livello sopra
+          body: `@nyx: Sei entrato. Ora esci.
 
-Quindi per salire di un livello si scrive:
+In ogni cartella esistono due nomi speciali, che non vedi ma ci sono sempre:
+- \`.\` (un punto) → **questa** cartella
+- \`..\` (due punti) → la cartella **che contiene** questa: quella un piano sopra
+
+Quindi per salire di un piano:
 
 \`\`\`
 cd ..
 \`\`\`
 
-Attenzione allo spazio tra \`cd\` e \`..\`!`,
+Attento allo spazio tra \`cd\` e i due punti: \`..\` è l'argomento.`,
           objective: 'Torna nella cartella superiore con cd ..',
           hints: ['Scrivi: cd .. (cd, uno spazio, due punti)'],
           check: (ev) => ev.type === 'command' && ev.name === 'cd' && ev.args[0]?.replace(/\/$/, '') === '..' && ev.ok,
-          success: `Sei salito di un livello: guarda come è cambiato il prompt.`,
+          success: `Il prompt è tornato a \`~\`: sei di nuovo nella tua home.`,
         },
         {
           kind: 'lesson',
-          title: 'Percorsi assoluti e relativi',
-          body: `Ci sono due modi di indicare dove si trova un file o una cartella:
+          title: 'Due modi di indicare la strada',
+          body: `@nyx: Finora hai detto al deck "entra nella stanza qui accanto". Funziona finché la stanza è accanto. Per andare lontano serve l'indirizzo completo.
 
-**Percorso assoluto**: parte sempre dalla radice \`/\`. Funziona da qualsiasi posto, come un indirizzo completo con città e via.
+Ci sono due modi di indicare dove si trova un file o una cartella.
+
+**Percorso assoluto**: comincia sempre con \`/\`, cioè parte dalla radice. È un indirizzo completo, con città e via: funziona da **qualunque** cartella tu sia.
 
 \`\`\`
 /home/edge/missioni
 \`\`\`
 
-**Percorso relativo**: NON inizia con \`/\` e parte dalla cartella in cui ti trovi adesso. È come dire "la seconda porta a destra": dipende da dove sei.
+**Percorso relativo**: **non** comincia con \`/\`. Parte dalla cartella in cui sei adesso. È come dire "la seconda porta a destra": dipende da dove ti trovi.
 
 \`\`\`
-missioni          (se sei già in /home/edge)
-../edge/missioni  (sali di uno, poi entra in edge, poi in missioni)
+missioni
 \`\`\`
 
-E poi ci sono le scorciatoie:
-- \`~\` → la tua home
-- \`cd\` da solo → torna nella home`,
+Se sei nella tua home, i due percorsi qui sopra portano nello stesso posto. Se sei altrove, il secondo non funziona più; il primo sì.
+
+Come si riconoscono? Guarda il **primo carattere**: se è \`/\` è assoluto, altrimenti è relativo.
+
+Due scorciatoie che userai sempre:
+- \`~\` → la tua home, ovunque tu sia
+- \`cd\` da solo, senza argomento → ti riporta a casa`,
         },
         {
           kind: 'task',
           title: 'Visita di sistema',
-          body: `Usiamo un percorso assoluto per andare nella cartella delle configurazioni di sistema:
+          body: `@nyx: Usciamo dalla tua cartella. Vai a vedere dove il sistema tiene le sue impostazioni, usando un percorso assoluto:
 
 \`\`\`
 cd /etc
 \`\`\`
 
-Poi guarda cosa contiene con \`ls\`.`,
+Poi guardati intorno con \`ls\`.`,
           objective: 'Vai in /etc ed elencane il contenuto con ls.',
           hints: ['Prima: cd /etc', 'Poi: ls'],
           check: (ev) => ev.type === 'ls' && ev.path === '/etc',
-          success: `Il prompt mostra \`/etc\` e non \`~\`, perché sei fuori dalla tua home. Qui ci sono i file di configurazione del sistema. Uno, \`passwd\`, contiene l'elenco degli utenti: lo esamineremo nei prossimi capitoli.`,
+          success: `Il prompt ora mostra \`/etc\` e non più \`~\`: sei fuori da casa tua.
+
+Qui stanno i file con le impostazioni del sistema. Uno si chiama \`passwd\` e contiene l'elenco degli utenti: lo aprirai tra qualche capitolo.`,
         },
         {
           kind: 'task',
           title: 'Vietato l\'ingresso',
-          body: `Non tutte le cartelle sono aperte a tutti. Prova a entrare nella home dell'amministratore:
+          body: `@nyx: Non tutte le porte si aprono. Prova a entrare nella cartella personale dell'amministratore:
 
 \`\`\`
 cd /root
@@ -319,22 +378,29 @@ cd /root
           objective: 'Prova a entrare in /root.',
           hints: ['Scrivi: cd /root'],
           check: (ev, sh) => ev.type === 'command' && ev.name === 'cd' && !ev.ok && !!ev.args[0] && sh.abs(ev.args[0]) === '/root',
-          success: `\`Permission denied\`: **permesso negato**. Linux controlla chi può fare cosa: il tuo utente normale non può entrare nella cartella di root. Questo sistema di **permessi** è una delle difese fondamentali di Linux, e aggirarlo (la *privilege escalation*) è uno degli obiettivi principali di un attaccante. Lo studieremo a fondo.`,
+          success: `\`Permission denied\`: **permesso negato**. La cartella esiste, ma il tuo utente non ha il diritto di entrarci.
+
+Linux controlla, per ogni file e ogni cartella, *chi* può fare *cosa*. Si chiamano **permessi**, e sono la prima difesa di qualsiasi sistema.
+
+@nyx: Ricordati questa porta chiusa. Metà del mio lavoro è controllare che porte così siano chiuse davvero. L'altra metà è scoprire quelle che qualcuno ha lasciato aperte.`,
         },
         {
           kind: 'task',
+          ownLesson: true,
           title: 'Casa dolce casa',
-          body: `Torna nella tua home. Hai tre modi, tutti validi:
+          body: `@nyx: Torna a casa. Hai tre modi, e portano tutti nello stesso posto:
 
 \`\`\`
 cd
-cd ~
-cd /home/TUONOME
-\`\`\``,
+\`\`\`
+
+oppure \`cd ~\`, oppure il percorso assoluto della tua home (quello che ti ha stampato \`pwd\` all'inizio).`,
           objective: 'Torna nella tua home.',
           hints: ['Il modo più veloce: scrivi solo cd e premi Invio.'],
           check: (ev, sh) => ev.type === 'cd' && ev.path === sh.home,
-          success: `Il prompt mostra di nuovo \`~\`. Ora sai muoverti nell'albero di Linux.`,
+          success: `Il prompt mostra di nuovo \`~\`.
+
+@nyx: Dentro, fuori, lontano, di nuovo a casa. Sai camminare al buio. Mezz'ora fa non sapevi cosa fosse un terminale.`,
         },
         {
           kind: 'quiz',
@@ -342,7 +408,7 @@ cd /home/TUONOME
           question: 'Sei in `/home/edge/missioni`. Dove ti porta il comando `cd ..`?',
           options: ['/', '/home', '/home/edge', '/home/edge/missioni/..'],
           correct: 2,
-          explain: `\`..\` è la cartella genitore: da \`/home/edge/missioni\` si sale di **un** livello e si arriva a \`/home/edge\`.`,
+          explain: `\`..\` è la cartella che contiene quella in cui sei: da \`/home/edge/missioni\` si sale di **un** piano e si arriva a \`/home/edge\`.`,
         },
         {
           kind: 'quiz',
@@ -350,17 +416,20 @@ cd /home/TUONOME
           question: 'Quale di questi è un percorso **assoluto**?',
           options: ['missioni/benvenuto.txt', '../etc', '/var/log/syslog', '~ (tilde)'],
           correct: 2,
-          explain: `Un percorso assoluto inizia sempre con \`/\`. \`~\` è una scorciatoia che la shell trasforma in \`/home/tuonome\`, ma scritta così non è un percorso assoluto.`,
+          explain: `Un percorso assoluto inizia sempre con \`/\`. \`~\` è una scorciatoia che la shell trasforma nel percorso della tua home, ma scritta così non è un percorso assoluto.`,
         },
       ],
       recap: [
-        ['/', 'la radice: l\'inizio di tutto il filesystem'],
+        ['file / cartella', 'i dati stanno nei file; le cartelle (directory) contengono file e altre cartelle'],
+        ['/', 'la radice: la cartella che contiene tutto'],
         ['~', 'la tua cartella personale (home)'],
         ['pwd', 'mostra la cartella in cui ti trovi'],
         ['ls', 'elenca file e cartelle'],
         ['cd CARTELLA', 'entra in una cartella'],
         ['cd ..', 'sale di un livello'],
         ['cd', 'torna nella home'],
+        ['argomento', 'ciò su cui il comando lavora, separato da uno spazio'],
+        ['percorso assoluto / relativo', 'parte da / · parte da dove sei'],
         ['Permission denied', 'non hai i permessi per quell\'azione'],
       ],
     },
@@ -373,67 +442,91 @@ cd /home/TUONOME
       xp: 150,
       steps: [
         {
+          kind: 'lesson',
+          since: V,
+          title: 'L\'una di notte',
+          body: `L'una. Dal bar di sotto sale la musica, attutita dal pavimento.
+
+@nyx: Finora hai guardato i **nomi** delle cose. Ma un nome non ti dice niente: le informazioni stanno *dentro* i file. Istruzioni, impostazioni, registri di quello che è successo: su Linux quasi tutto è un file di testo che si può leggere.
+
+@nyx: In \`missioni\` ti ho lasciato un messaggio. Leggilo. E leggilo bene, perché dentro c'è un indizio.`,
+        },
+        {
           kind: 'task',
           title: 'Leggere un file',
-          body: `Per leggere il contenuto di un file di testo si usa \`cat\` (da *concatenate*: può anche unire più file).
-
-Nyx ti ha lasciato un messaggio in \`missioni/benvenuto.txt\`. Leggilo:
+          body: `Il messaggio è nel file \`benvenuto.txt\`, dentro la cartella \`missioni\`. Dalla tua home:
 
 \`\`\`
 cat missioni/benvenuto.txt
 \`\`\`
 
-(Oppure entra prima nella cartella con \`cd missioni\` e poi scrivi \`cat benvenuto.txt\`. Il risultato è lo stesso: percorso relativo diverso, stesso file.)`,
+\`missioni/benvenuto.txt\` è un percorso relativo: "nella cartella \`missioni\`, il file \`benvenuto.txt\`". Stai leggendo un file in un'altra stanza senza entrarci.
+
+(Se preferisci, puoi fare in due passi: \`cd missioni\` e poi \`cat benvenuto.txt\`. Il file è lo stesso.)`,
           objective: 'Leggi il file benvenuto.txt con cat.',
           hints: [
             'Il file si trova nella cartella missioni, dentro la tua home.',
             'Dalla home scrivi: cat missioni/benvenuto.txt',
           ],
           check: (ev, sh) => ev.type === 'read' && ev.path === sh.home + '/missioni/benvenuto.txt',
-          success: `Hai letto il tuo primo file. Nyx accenna a un file che \`ls\` "non ti mostra"...`,
+          success: `Hai letto il tuo primo file.
+
+Nel messaggio Nyx dice che in quella cartella c'è un file che \`ls\` "non ti mostra". Tienilo a mente.`,
         },
         {
           kind: 'lesson',
           title: 'Due trucchi che ti salveranno la vita',
-          body: `I professionisti non scrivono tutto a mano. Due scorciatoie:
+          body: `@nyx: Prima di andare a caccia, due scorciatoie. Le uso da vent'anni e le uso ogni trenta secondi.
 
-**1. Il tasto TAB (autocompletamento)**
-Scrivi l'inizio di un nome e premi **TAB**: la shell completa il resto. Se ci sono più possibilità te le mostra. Prova per esempio a scrivere \`cat miss\` e poi TAB.
+**1. Il tasto TAB: completa al posto tuo**
 
-**2. La freccia SU ↑ (cronologia)**
-Premi **↑** per richiamare i comandi che hai già scritto, così non devi ridigitarli.
+Scrivi l'inizio di un nome e premi **TAB**: il deck completa il resto. Se ci sono più possibilità, te le elenca. Prova a scrivere \`cat miss\` e poi TAB.
 
-Sul telefono trovi **TAB**, **↑** e **↓** nella barra sopra la tastiera, insieme ai simboli più usati (\`/\`, \`-\`, \`.\`, \`~\`, \`|\`).
+Non serve solo a fare prima: se TAB **non completa**, vuol dire che quel nome non esiste. Hai scoperto l'errore prima ancora di premere Invio.
 
-?? TAB evita anche gli errori di battitura: se non completa, probabilmente il file non esiste o il nome è diverso.`,
+**2. La freccia SU: richiama i comandi già scritti**
+
+Premi **↑** e ricompare l'ultimo comando. Premila ancora e torni indietro, uno alla volta. Hai sbagliato una lettera in un comando lungo? ↑, correggi, Invio.
+
+Sul telefono trovi **TAB**, **↑** e **↓** nella barra sopra la tastiera, insieme ai simboli che servono più spesso (\`/\`, \`-\`, \`.\`, \`~\`, \`|\`).`,
         },
         {
           kind: 'task',
+          ownLesson: true,
           title: 'Opzioni',
-          body: `I comandi accettano **opzioni** che ne cambiano il comportamento: le hai viste nello schema \`comando [opzioni] [argomenti]\`. Di solito iniziano con un trattino \`-\`.
+          body: `@nyx: Adesso la caccia. Su Linux un file il cui nome **comincia con un punto** è **nascosto**: \`ls\` fa finta di non vederlo.
 
-?? In inglese le opzioni si chiamano anche *flag*. Non confonderle con le **flag** delle gare di hacking, che incontrerai tra un attimo: sono due cose diverse con lo stesso nome.
-
-Su Linux i file il cui nome **inizia con un punto** (es. \`.config\`) sono **nascosti**: \`ls\` normalmente non li mostra. L'opzione \`-a\` (*all*, "tutti") li fa comparire:
+Per farglielo mostrare si aggiunge al comando un'**opzione**: una parola in più, con un trattino davanti, che cambia il modo in cui il comando lavora.
 
 \`\`\`
 ls -a missioni
-\`\`\``,
+\`\`\`
+
+Adesso i pezzi sono tre, separati da spazi:
+- \`ls\` → il comando
+- \`-a\` → l'opzione (*all*, "tutti": mostra anche i nascosti)
+- \`missioni\` → l'argomento
+
+Lo schema generale di ogni comando è questo: **comando, opzioni, argomenti**.
+
+?? In inglese le opzioni si chiamano anche *flag*. Non confonderle con le **flag** delle gare di hacking, che incontrerai tra un minuto: stesso nome, cose diverse.`,
           objective: 'Mostra i file nascosti della cartella missioni con ls -a.',
           hints: ['Dalla home scrivi: ls -a missioni', 'Se sei già dentro missioni basta: ls -a'],
           check: (ev, sh) => ev.type === 'ls' && ev.path === sh.home + '/missioni' && ev.flags.includes('a'),
-          success: `Sono comparsi \`.\` e \`..\` (le cartelle speciali che conosci) e un file nascosto: \`.nota_segreta\`.
+          success: `Sono comparsi \`.\` e \`..\` (i due nomi speciali che conosci già) e un file che prima non c'era: \`.nota_segreta\`.
 
-!! "Nascosto" NON vuol dire "protetto". È solo una convenzione per non ingombrare la vista. Chiunque può vederli con \`ls -a\`. La prima cosa che fa un attaccante in una cartella è proprio \`ls -la\`.`,
+!! "Nascosto" **non** vuol dire "protetto". È solo un modo per non ingombrare l'elenco. Chiunque scriva \`ls -a\` lo vede. Chi nasconde una password in un file con il punto davanti non ha nascosto niente.`,
         },
         {
           kind: 'task',
           title: 'La prima flag',
-          body: `Leggi il file nascosto con \`cat\`. Attenzione: il punto fa parte del nome!
+          body: `@nyx: Trovato. Adesso leggilo.
 
-Dentro troverai una **flag**: un codice nel formato \`NC{...}\`. Nelle gare di hacking chiamate **CTF** (*Capture The Flag*) si cercano proprio codici come questo, nascosti dentro i sistemi.
+Usa \`cat\` come prima. Attento: il punto iniziale fa parte del nome.
 
-Quando la trovi, inviala con il comando del gioco \`flag\`:
+Dentro c'è una **flag** ("bandierina"): un codice scritto così, \`NC{...}\`. Nelle gare di hacking, che si chiamano **CTF** (*Capture The Flag*, "cattura la bandiera"), si cercano proprio codici come questo, nascosti dentro i sistemi: chi lo trova dimostra di essere arrivato fin lì.
+
+Quando l'hai trovata, consegnala con il comando del gioco \`flag\`, seguito dal codice:
 
 \`\`\`
 flag NC{...}
@@ -445,7 +538,9 @@ flag NC{...}
             'Poi scrivi: flag NC{v3d0_l_1nv1s1b1l3}',
           ],
           answer: ['NC{v3d0_l_1nv1s1b1l3}'],
-          success: `Flag catturata! 🏴 Nelle CTF vere (come picoCTF o i "box" di HackTheBox) il lavoro è proprio questo: esplorare un sistema finché non trovi la flag.`,
+          success: `Flag catturata! 🏴
+
+@nyx: La prima non si scorda. E hai fatto esattamente quello che si fa nel lavoro vero: hai letto un indizio, hai capito cosa cercare, hai usato lo strumento giusto.`,
         },
         {
           kind: 'quiz',
@@ -465,90 +560,109 @@ flag NC{...}
         ['cat FILE', 'mostra il contenuto di un file'],
         ['TAB', 'completa automaticamente comandi e nomi di file'],
         ['↑ / ↓', 'scorre i comandi già scritti'],
-        ['opzioni', 'modificano un comando, iniziano con - (es. -a)'],
+        ['opzione', 'cambia il modo in cui un comando lavora; inizia con - (es. -a)'],
+        ['comando opzioni argomenti', 'lo schema di ogni comando, con gli spazi in mezzo'],
         ['ls -a', 'mostra anche i file nascosti'],
         ['.file', 'un nome che inizia con un punto è nascosto (non protetto!)'],
-        ['flag', 'un codice segreto da trovare, come nelle gare CTF'],
+        ['flag', 'un codice da trovare e consegnare, come nelle gare CTF'],
       ],
     },
 
     // ------------------------------------------------------------------ 1.4
     {
       id: 'ch01-m4',
-      title: 'Leggere il manuale',
-      tagline: 'man, ls -l, echo e history: imparare da soli.',
+      title: 'Dieci minuti da solo',
+      tagline: 'man, ls -l, echo e history: imparare a cavarsela.',
       xp: 150,
       steps: [
         {
           kind: 'lesson',
           title: 'Il segreto dei professionisti',
-          body: `@nyx: Vuoi sapere il segreto dei migliori hacker? Non ricordano tutto. Sanno **cercare**. Il manuale è il tuo migliore amico.
+          body: `Le due. Nyx si alza e prende la giacca.
 
-Su Linux quasi ogni comando ha una **pagina di manuale** che spiega a cosa serve e quali opzioni ha. Si apre con:
+@nyx: Scendo a prendere altro caffè. Dieci minuti. Se ti blocchi **non chiamarmi**: domani, sul lavoro, non ci sarò.
 
-\`\`\`
-man NOMECOMANDO
-\`\`\`
+@nyx: Ti dico il segreto di quelli bravi. Non ricordano tutto: sanno **cercare**. E la prima cosa in cui si cerca è il manuale, che su Linux sta dentro il computer.
 
-La pagina è divisa in sezioni:
-- **NOME**: cos'è il comando
-- **SINTASSI**: come si scrive. Le parti tra \`[parentesi quadre]\` sono **facoltative**, i \`...\` vogliono dire "anche più di uno"
-- **DESCRIZIONE**: cosa fa
-- **OPZIONI**: le varianti disponibili
+Quasi ogni comando ha la sua **pagina di manuale**: spiega a cosa serve, come si scrive e quali opzioni ha. Si apre con \`man\` seguito dal nome del comando.
+
+Le pagine hanno sempre le stesse sezioni:
+- **NOME**: cosa fa, in una riga
+- **SINTASSI**: come si scrive
+- **DESCRIZIONE**: la spiegazione
+- **OPZIONI**: l'elenco delle opzioni
 - **ESEMPI**
 
-?? Il vero \`man\` di Linux è in inglese. Qui è in italiano per imparare, ma più avanti è importante abituarsi all'inglese tecnico: è la lingua della sicurezza informatica.`,
+Nella sintassi troverai due segni: ciò che sta tra parentesi quadre \`[ ]\` è **facoltativo**; le parole in MAIUSCOLO sono da **sostituire** con i tuoi valori.
+
+?? Nel vero Linux il manuale è in inglese. Qui è in italiano, per imparare. Ma l'inglese tecnico è la lingua di questo mestiere: ci arriveremo.`,
         },
         {
           kind: 'task',
           title: 'Apri il manuale',
-          body: `Leggi il manuale del comando \`ls\`:
+          body: `Nyx è uscita. Sei solo con il deck.
+
+Conosci già \`ls\` e la sua opzione \`-a\`. Ne ha altre: scoprile dal manuale.
 
 \`\`\`
 man ls
 \`\`\`
 
-Cerca nella sezione OPZIONI cosa fa \`-l\`.`,
+Cerca, nella sezione OPZIONI, cosa fa \`-l\`.`,
           objective: 'Apri il manuale di ls.',
           hints: ['Scrivi: man ls'],
           check: (ev) => ev.type === 'man' && ev.topic === 'ls',
-          success: `L'opzione \`-l\` mostra il **formato lungo**. Proviamola.`,
+          success: `Nel manuale c'è scritto: \`-l\` mostra il **formato lungo**, con molti più dettagli su ogni file. Nessuno te l'ha detto: l'hai trovato tu.`,
         },
         {
           kind: 'task',
+          ownLesson: true,
           title: 'Il formato lungo',
-          body: `Nella tua home, prova:
+          body: `Prova l'opzione che hai appena scoperto, nella tua home:
 
 \`\`\`
 ls -l
 \`\`\`
 
-Le opzioni si possono anche combinare: \`ls -la\` = \`ls -l -a\`, cioè formato lungo + file nascosti.`,
+È una elle minuscola, non il numero uno.`,
           objective: 'Elenca i file in formato lungo con ls -l.',
           hints: ['Scrivi: ls -l (trattino e una L minuscola, non il numero 1)'],
           check: (ev) => ev.type === 'ls' && ev.flags.includes('l'),
-          success: `Ogni riga ora ha molte informazioni. Le spieghiamo nella prossima lezione.`,
+          success: `Ogni file adesso occupa una riga intera, piena di informazioni. Sembra un muro di simboli, ma si legge pezzo per pezzo: te lo spiego subito.
+
+?? Le opzioni si possono unire dopo un solo trattino: \`ls -la\` vuol dire \`ls -l -a\`, cioè formato lungo **e** file nascosti.`,
         },
         {
           kind: 'lesson',
           title: 'Leggere ls -l',
-          body: `Prendiamo una riga come esempio:
+          body: `Prendiamo una riga sola:
 
 \`\`\`
 -rw-r--r--  1 edge  edge    244 Nov 11 21:04 README.txt
 \`\`\`
 
 Da sinistra a destra:
-- \`-\` → il **tipo**: \`-\` file, \`d\` cartella (*directory*)
-- \`rw-r--r--\` → i **permessi** (letti a gruppi di tre: proprietario, gruppo, tutti gli altri). \`r\` = leggere, \`w\` = scrivere, \`x\` = eseguire, \`-\` = permesso assente
-- \`1\` → numero di collegamenti (per ora ignoralo)
-- \`edge\` → il **proprietario** del file
-- \`edge\` → il **gruppo** proprietario
-- \`244\` → la **dimensione** in byte. Un **byte** è l'unità di misura dei dati: in un file di testo semplice, un byte corrisponde più o meno a un carattere. 1 KB (kilobyte) sono circa mille byte, 1 MB (megabyte) circa un milione
-- \`Nov 11 21:04\` → data dell'ultima **modifica**
+- \`-\` → il **tipo**: \`-\` vuol dire file, \`d\` vuol dire cartella (*directory*)
+- \`rw-r--r--\` → i **permessi**: chi può fare cosa con questo file
+- \`1\` → un contatore tecnico: per ora ignoralo
+- \`edge\` → il **proprietario**: l'utente a cui il file appartiene
+- \`edge\` → il **gruppo**: un insieme di utenti che condividono gli stessi permessi
+- \`244\` → la **dimensione**, in byte
+- \`Nov 11 21:04\` → data e ora dell'ultima **modifica**
 - \`README.txt\` → il **nome**
 
-?? I permessi sono uno dei punti in cui si nascondono più vulnerabilità. Un file di password leggibile da "tutti gli altri" (\`r\` nell'ultimo gruppo) è un regalo per un attaccante. Li studieremo a fondo nel capitolo su Linux avanzato.`,
+Un **byte** è l'unità di misura dei dati: in un file di testo, un byte è più o meno un carattere. Mille byte fanno un KB, un milione un MB, un miliardo un GB.
+
+I **permessi** sono nove lettere, da leggere a gruppi di tre:
+- le prime tre riguardano il **proprietario**
+- le tre in mezzo il **gruppo**
+- le ultime tre **tutti gli altri**
+
+In ogni gruppo: \`r\` = può leggere (*read*), \`w\` = può modificare (*write*), \`x\` = può eseguire come programma (*execute*). Un trattino al posto della lettera vuol dire che quel permesso manca.
+
+Quindi \`rw-r--r--\` si legge: il proprietario legge e modifica; il gruppo legge soltanto; gli altri leggono soltanto.
+
+?? Non devi impararli a memoria stanotte: c'è un capitolo intero sui permessi. Per ora ti basta saperli riconoscere.`,
         },
         {
           kind: 'quiz',
@@ -561,14 +675,14 @@ Da sinistra a destra:
             'È una cartella vuota a cui tutti possono accedere',
           ],
           correct: 1,
-          explain: `\`d\` = cartella. \`rwx\` = il proprietario (root) può fare tutto. \`------\` = gruppo e altri non possono fare niente. Ecco perché prima hai ricevuto *Permission denied*.`,
+          explain: `\`d\` = cartella. \`rwx\` = il proprietario (root) può fare tutto. \`------\` = il gruppo e gli altri non possono fare niente. Ecco perché prima hai ricevuto *Permission denied* entrando in \`/root\`.`,
         },
         {
           kind: 'task',
           title: 'L\'eco',
-          body: `\`echo\` stampa semplicemente il testo che gli scrivi. Sembra inutile, ma negli **script** (programmi fatti di comandi) è usatissimo.
+          body: `Il terminale sa anche parlare. Il comando \`echo\` ripete sullo schermo il testo che gli scrivi.
 
-Le **virgolette** raggruppano più parole in un solo argomento:
+Le **virgolette** servono a tenere insieme più parole: dicono al deck "questo è un pezzo unico, spazi compresi".
 
 \`\`\`
 echo "Ciao Night City"
@@ -576,12 +690,12 @@ echo "Ciao Night City"
           objective: 'Usa echo per stampare un messaggio.',
           hints: ['Scrivi: echo "Ciao Night City"'],
           check: (ev) => ev.type === 'command' && ev.name === 'echo' && ev.args.length > 0,
-          success: `Il terminale ha ripetuto il tuo testo. Più avanti userai \`echo\` per scrivere dentro i file e per costruire i tuoi primi script.`,
+          success: `Il deck ha ripetuto la tua frase. Sembra un comando inutile, ma tra poco lo userai per **scrivere dentro i file**, e più avanti nei tuoi primi programmi.`,
         },
         {
           kind: 'task',
           title: 'Le tracce che lasci',
-          body: `La shell ricorda tutti i comandi che scrivi. Guardali con:
+          body: `Il deck si ricorda tutto quello che gli scrivi. Guarda:
 
 \`\`\`
 history
@@ -589,14 +703,14 @@ history
           objective: 'Mostra la cronologia dei comandi con history.',
           hints: ['Scrivi: history'],
           check: isCmd('history'),
-          success: `Ecco tutto quello che hai fatto finora, numerato.
+          success: `Ecco la tua notte, comando per comando, numerata. Errori compresi.
 
-!! Questo è importante per entrambi i lati. Un **attaccante** che entra in un server legge la cronologia degli altri utenti per scoprire password scritte per errore e comandi interessanti. Un **difensore** che indaga su un'intrusione legge la cronologia per capire cosa ha fatto l'intruso. Su Linux viene salvata nel file nascosto \`~/.bash_history\`.`,
+!! La cronologia viene salvata in un file nascosto della tua home, \`.bash_history\`. Chi entra in un computer che non è suo la legge per prima cosa: ci trova i comandi usati e, a volte, password scritte per sbaglio. Chi indaga su un'intrusione la legge per capire cosa ha fatto l'intruso. **Non scrivere mai una password dentro un comando.**`,
         },
         {
           kind: 'task',
           title: 'Fare pulizia',
-          body: `Lo schermo è pieno? \`clear\` lo ripulisce (la cronologia resta).
+          body: `Lo schermo è pieno. Senti i passi di Nyx sulle scale: meglio farsi trovare in ordine.
 
 \`\`\`
 clear
@@ -604,14 +718,17 @@ clear
           objective: 'Pulisci lo schermo con clear.',
           hints: ['Scrivi: clear'],
           check: isCmd('clear'),
-          success: `Schermo pulito. Sei pronto per il tuo primo lavoro vero.`,
+          success: `Schermo pulito. (Solo lo schermo: la cronologia è ancora tutta lì.)
+
+@nyx: Sei ancora vivo. E non mi hai chiamato. Bene: adesso smetti di guardare e cominci a costruire.`,
         },
       ],
       recap: [
         ['man COMANDO', 'apre il manuale di un comando'],
-        ['[ ] nella sintassi', 'parte facoltativa'],
-        ['ls -l', 'formato lungo: tipo, permessi, proprietario, dimensione, data'],
-        ['r w x', 'permessi di lettura, scrittura, esecuzione'],
+        ['[ ] nella sintassi', 'parte facoltativa; MAIUSCOLO = da sostituire'],
+        ['ls -l', 'formato lungo: tipo, permessi, proprietario, gruppo, dimensione, data'],
+        ['r w x', 'permessi di lettura, modifica, esecuzione'],
+        ['byte', 'unità di misura dei dati: circa un carattere di testo'],
         ['echo TESTO', 'stampa un testo'],
         ['history', 'cronologia dei comandi (salvata in ~/.bash_history)'],
         ['clear', 'pulisce lo schermo'],
@@ -622,27 +739,28 @@ clear
     {
       id: 'ch01-m6',
       title: 'Costruire e demolire',
-      tagline: 'Creare, copiare, spostare e cancellare: mkdir, touch, cp, mv, rm.',
+      tagline: 'Creare, copiare, spostare e cancellare: mkdir, cp, mv e il resto.',
       xp: 150,
       steps: [
         {
           kind: 'lesson',
           title: 'Mettere le mani sui file',
-          body: `@nyx: Finora hai solo guardato. Ora impari a **cambiare** le cose: creare cartelle, scrivere file, copiarli, spostarli e cancellarli. Sono le operazioni che farai mille volte al giorno, in attacco come in difesa.
+          body: `Le tre. Nyx posa due tazze sul tavolo e si siede di fronte a te.
 
-I comandi sono brevi e vengono dall'inglese:
-- \`mkdir\` → *make directory*, crea una cartella
-- \`touch\` → crea un file vuoto
-- \`cp\` → *copy*, copia
-- \`mv\` → *move*, sposta (e rinomina)
-- \`rm\` → *remove*, cancella
+@nyx: Rook non sopporta i disordinati. Un runner che non ritrova i suoi appunti è un runner che perde le prove, e chi perde le prove non viene pagato.
 
-Lavoreremo nella cartella \`laboratorio\`, dove puoi pasticciare quanto vuoi.`,
+@nyx: Finora hai solo **guardato**: non hai cambiato niente sul deck. Adesso impari a creare, copiare, spostare, cancellare. Sono i gesti che farai mille volte al giorno.
+
+Lavorerai nella cartella \`laboratorio\`. Ci ho lasciato dentro un paio di file vecchi: lì puoi pasticciare quanto vuoi, non si rompe niente.
+
+Un comando alla volta. Per ognuno ti spiego prima a cosa serve e come è fatto, poi lo provi tu.`,
         },
         {
           kind: 'task',
           title: 'Una cartella nuova',
-          body: `Entra nel laboratorio e crea una cartella chiamata \`appunti\`:
+          body: `@nyx: Per prima cosa, un posto per i tuoi appunti.
+
+Entra nel laboratorio e crea una cartella chiamata \`appunti\`. Sono due comandi: scrivi il primo, premi Invio, poi il secondo.
 
 \`\`\`
 cd laboratorio
@@ -654,40 +772,23 @@ Poi controlla con \`ls\` che ci sia.`,
           hints: ['Prima: cd laboratorio', 'Poi: mkdir appunti'],
           state: (sh) => sh.fs.get(`${sh.home}/laboratorio/appunti`)?.type === 'dir',
           check: (ev, sh) => ev.type === 'fsop' && ev.op === 'mkdir' && ev.paths[0] === `${sh.home}/laboratorio/appunti`,
-          success: `Cartella creata. Ricorda: \`mkdir -p a/b/c\` crea anche tutte le cartelle intermedie in un colpo solo.`,
-        },
-        {
-          kind: 'lesson',
-          title: 'Scrivere dentro un file: > e >>',
-          body: `Hai visto che \`echo\` stampa un testo sullo schermo. Con il simbolo \`>\` puoi **mandare quell'output dentro un file** invece che sullo schermo. Si chiama **redirezione**:
+          success: `Cartella creata: \`ls\` ora mostra \`appunti/\`, con la barra finale delle cartelle.
 
-\`\`\`
-echo "prima riga" > note.txt
-\`\`\`
-
-Attenzione alla differenza:
-- \`>\` → **sovrascrive**: se il file esisteva, il vecchio contenuto sparisce
-- \`>>\` → **aggiunge** in fondo al file
-
-\`\`\`
-echo "seconda riga" >> note.txt
-\`\`\`
-
-La redirezione funziona con **qualsiasi** comando, non solo echo: \`ls -la > elenco.txt\` salva l'elenco dei file. È così che un analista salva le prove: \`ps aux > processi.txt\`.
-
-!! Un \`>\` al posto di \`>>\` ha cancellato più file importanti di quanto immagini. Prima di premere Invio, controlla quanti \`>\` hai scritto.`,
+Hai fatto la tua prima **modifica** al deck. Fino a un minuto fa quella cartella non esisteva.`,
         },
         {
           kind: 'task',
           title: 'Il tuo primo file',
-          body: `Crea il file \`appunti/comandi.txt\` con dentro una riga, e poi aggiungine una seconda:
+          body: `@nyx: Una cartella vuota non serve a niente. Scrivici dentro.
+
+Crea il file \`comandi.txt\` nella cartella \`appunti\`, con una prima riga; poi aggiungine una seconda. Guarda bene: il primo comando ha **un** \`>\`, il secondo ne ha **due**.
 
 \`\`\`
 echo "ls elenca i file" > appunti/comandi.txt
 echo "cd cambia cartella" >> appunti/comandi.txt
 \`\`\`
 
-Controlla il risultato con \`cat appunti/comandi.txt\`.`,
+Poi leggi il risultato con \`cat appunti/comandi.txt\`.`,
           objective: 'Scrivi almeno due righe in laboratorio/appunti/comandi.txt.',
           hints: [
             'Sei in laboratorio? Controlla con pwd.',
@@ -702,32 +803,38 @@ Controlla il risultato con \`cat appunti/comandi.txt\`.`,
             const n = sh.fs.get(`${sh.home}/laboratorio/appunti/comandi.txt`);
             return !!n && n.type === 'file' && n.content.trim().split('\n').length >= 2;
           },
-          success: `Il file ha due righe. Hai appena usato la redirezione: uno degli strumenti più potenti della shell.`,
+          success: `Il file ha due righe: il tuo primo appunto.
+
+Hai visto che i due \`echo\` non hanno stampato niente sullo schermo? Il testo è andato nel file. Con \`>\` il file è stato creato; con \`>>\` la seconda riga è stata **aggiunta in fondo**.
+
+!! Se anche la seconda volta avessi scritto un solo \`>\`, la prima riga sarebbe sparita. Prima di premere Invio, conta i \`>\`.`,
         },
         {
           kind: 'task',
           title: 'Copia di sicurezza',
-          body: `Prima di modificare un file importante, un professionista ne fa sempre una **copia di backup**:
+          body: `@nyx: Regola che ti salverà il posto di lavoro: **prima di modificare un file importante, fanne una copia**. Si chiama *backup*.
+
+Per abitudine, alle copie di sicurezza si dà l'estensione \`.bak\`.
 
 \`\`\`
 cp appunti/comandi.txt appunti/comandi.bak
 \`\`\`
 
-\`cp ORIGINE DESTINAZIONE\`: prima cosa copiare, poi dove.`,
+L'ordine è sempre lo stesso: prima **cosa** copiare, poi **dove**.`,
           objective: 'Copia comandi.txt in comandi.bak.',
           hints: ['Dalla cartella laboratorio: cp appunti/comandi.txt appunti/comandi.bak'],
           state: (sh) => sh.fs.get(`${sh.home}/laboratorio/appunti/comandi.bak`)?.type === 'file',
           check: (ev) => ev.type === 'fsop' && ev.op === 'cp' && ev.paths[1].endsWith('comandi.bak'),
-          success: `Copia fatta.
+          success: `Ora i file sono due, identici. Se rovini l'originale, hai la copia.
 
-?? Nei prossimi capitoli scoprirai che i file \`.bak\` dimenticati in giro sono una miniera d'oro per gli attaccanti: spesso contengono password. Fai i backup, ma poi mettili al sicuro.`,
+?? Un avviso per il futuro: le copie \`.bak\` dimenticate in giro sono tra le cose che un attaccante cerca per prime, perché spesso contengono password. I backup si fanno, e poi si mettono al sicuro.`,
         },
         {
           kind: 'task',
           title: 'Rinominare',
-          body: `Su Linux non esiste un comando "rinomina": si usa \`mv\` (*move*). Spostare un file nella stessa cartella con un nome diverso **è** rinominarlo.
+          body: `@nyx: Nel laboratorio c'è un file che si chiama \`bozza.txt\`. Un nome così non dice niente. Dagliene uno migliore.
 
-Dai un nome migliore alla bozza:
+Su Linux non esiste un comando "rinomina": si usa quello per spostare. Spostare un file nella stessa cartella, con un nome diverso, **è** rinominarlo.
 
 \`\`\`
 mv bozza.txt idee.txt
@@ -736,25 +843,29 @@ mv bozza.txt idee.txt
           hints: ['Dalla cartella laboratorio: mv bozza.txt idee.txt'],
           state: (sh) => !!sh.fs.get(`${sh.home}/laboratorio/idee.txt`) && !sh.fs.get(`${sh.home}/laboratorio/bozza.txt`),
           check: (ev, sh) => ev.type === 'fsop' && ev.op === 'mv' && ev.paths[1] === `${sh.home}/laboratorio/idee.txt`,
-          success: `Rinominato. \`mv\` serve anche a spostare: \`mv idee.txt appunti/\` metterebbe il file dentro la cartella appunti.`,
+          success: `\`bozza.txt\` non c'è più: al suo posto c'è \`idee.txt\`. A differenza di \`cp\`, con \`mv\` l'originale **non resta**.
+
+Lo stesso comando sposta davvero, quando la destinazione è una cartella: \`mv idee.txt appunti/\` metterebbe il file dentro \`appunti\`.`,
         },
         {
           kind: 'lesson',
-          title: 'rm: niente cestino',
-          body: `\`rm\` cancella i file. Ma attenzione: **su Linux non c'è il cestino**. Un file cancellato con \`rm\` è sparito per sempre. Il sistema non chiede nemmeno conferma.
+          title: 'Niente cestino',
+          body: `@nyx: Ora il comando di cui devi avere paura. Te lo insegno apposta adesso, alle tre di notte, quando sei stanco: così te lo ricordi.
 
-- \`rm file.txt\` → cancella un file
-- \`rm -r cartella\` → cancella una cartella **con tutto quello che contiene**
-- \`rm -f\` → *force*, non si lamenta nemmeno se il file non esiste
+Quando cancelli un file con le finestre e il mouse, finisce nel cestino e puoi ripescarlo. **Nel terminale il cestino non esiste.** Un file cancellato è perso, e il deck non ti chiede "sei sicuro?".
 
-!! \`rm -rf\` sul percorso sbagliato è uno degli errori più catastrofici che si possano fare: c'è chi ha cancellato server interi così. Regola d'oro: **rileggi il comando prima di premere Invio**, e non lanciare mai \`rm -rf\` copiato da Internet senza capirlo.
+Per questo, prima di cancellare qualsiasi cosa, si fanno due cose:
+- si **guarda** con \`ls\` che cosa si sta per cancellare
+- si **rilegge** il comando prima di premere Invio
 
-?? Un attaccante che entra in un sistema spesso usa \`rm\` per cancellare le proprie tracce, per esempio i **log** (i file in cui il sistema annota ciò che succede). Per questo le aziende copiano i log su un altro sistema in tempo reale: lo vedrai nel capitolo sul lavoro al SOC.`,
+Ogni anno qualcuno, da qualche parte, cancella un server intero con una riga scritta di fretta. Di solito è una persona esperta che si è fidata troppo delle proprie dita.
+
+!! Non eseguire mai un comando di cancellazione copiato da Internet senza averlo capito parola per parola.`,
         },
         {
           kind: 'task',
           title: 'Pulizia',
-          body: `Il file \`vecchio_log.txt\` non serve più. Cancellalo:
+          body: `@nyx: Nel laboratorio c'è un file che non serve più: \`vecchio_log.txt\`. Buttalo. Ma prima guardalo con \`ls\`.
 
 \`\`\`
 rm vecchio_log.txt
@@ -763,12 +874,14 @@ rm vecchio_log.txt
           hints: ['Dalla cartella laboratorio: rm vecchio_log.txt'],
           state: (sh) => !!sh.fs.get(`${sh.home}/laboratorio`) && !sh.fs.get(`${sh.home}/laboratorio/vecchio_log.txt`),
           check: (ev, sh) => ev.type === 'fsop' && ev.op === 'rm' && ev.paths[0] === `${sh.home}/laboratorio/vecchio_log.txt`,
-          success: `Cancellato, e senza ritorno. Ora guarda il risultato del tuo lavoro.`,
+          success: `Nessuna domanda, nessun messaggio: il file non c'è più, e non tornerà.
+
+?? Un **log** è un file in cui un programma annota, riga dopo riga, quello che succede: un diario di bordo. Chi entra di nascosto in un sistema prova spesso a cancellare i log per non lasciare tracce. Li incontrerai tra qualche capitolo, e imparerai a leggerli.`,
         },
         {
           kind: 'task',
           title: 'Il quadro d\'insieme',
-          body: `\`tree\` disegna una cartella e tutte le sottocartelle come un albero. Torna nella home e guarda il laboratorio:
+          body: `@nyx: Fammi vedere cosa hai costruito. Torna a casa e disegnami il laboratorio dall'alto.
 
 \`\`\`
 cd
@@ -777,7 +890,9 @@ tree laboratorio
           objective: 'Visualizza il laboratorio con tree.',
           hints: ['Scrivi: tree laboratorio (dalla home)', 'Se sei dentro laboratorio basta: tree'],
           check: (ev) => ev.type === 'command' && ev.name === 'tree' && ev.ok,
-          success: `Ecco tutto quello che hai costruito. Ora sai creare, scrivere, copiare, rinominare e cancellare: sei pronto per l'esame del capitolo.`,
+          success: `Eccolo: la cartella \`appunti\` con i tuoi due file, e \`idee.txt\`. Il vecchio log non c'è più.
+
+@nyx: Ordinato. A Rook piacerà. Sai creare, scrivere, copiare, rinominare e cancellare. Ti manca una cosa sola: farlo senza di me.`,
         },
         {
           kind: 'quiz',
@@ -790,18 +905,19 @@ tree laboratorio
             'Crea un nuovo file report2.txt',
           ],
           correct: 1,
-          explain: `\`>\` sovrascrive senza chiedere. Per aggiungere in fondo serve \`>>\`. Un errore classico, ed è per questo che si fanno i backup con \`cp\` prima di toccare file importanti.`,
+          explain: `Un solo \`>\` riscrive il file da capo, senza chiedere. Per aggiungere in fondo servono due \`>>\`. È un errore classico, ed è per questo che prima di toccare un file importante se ne fa una copia con \`cp\`.`,
         },
       ],
       recap: [
-        ['mkdir [-p] CARTELLA', 'crea una cartella (-p anche le intermedie)'],
-        ['touch FILE', 'crea un file vuoto'],
-        ['comando > file', 'scrive l\'output nel file, sovrascrivendolo'],
+        ['mkdir CARTELLA', 'crea una cartella'],
+        ['comando > file', 'scrive l\'output nel file, riscrivendolo da capo'],
         ['comando >> file', 'aggiunge l\'output in fondo al file'],
-        ['cp ORIGINE DEST', 'copia (la destinazione esistente viene sovrascritta)'],
-        ['mv ORIGINE DEST', 'sposta o rinomina'],
-        ['rm [-r] FILE', 'cancella per sempre: niente cestino!'],
+        ['cp ORIGINE DEST', 'copia: l\'originale resta'],
+        ['mv ORIGINE DEST', 'sposta o rinomina: l\'originale non resta'],
+        ['rm FILE', 'cancella per sempre: niente cestino!'],
         ['tree', 'mostra le cartelle come un albero'],
+        ['backup', 'copia di sicurezza, da fare prima di modificare'],
+        ['log', 'file in cui un programma annota ciò che succede'],
       ],
     },
 
@@ -809,27 +925,31 @@ tree laboratorio
     {
       id: 'ch01-m5',
       title: 'Il primo contratto',
-      tagline: 'Esame del capitolo: trova il codice di Rook da solo.',
+      tagline: 'L\'alba. Rook ti mette alla prova: trova il codice da solo.',
       xp: 250,
       steps: [
         {
           kind: 'lesson',
           title: 'Messaggio in arrivo',
-          body: `@rook: Allora sei tu il nuovo. Nyx parla bene di te, e Nyx non parla bene di nessuno.
+          body: `Le cinque e mezza. Fuori il cielo sopra Night City passa dal nero al viola. Il deck vibra: un messaggio.
 
-@rook: Ho un lavoretto. Ti ho mandato dei file nel deck, in **contratti/rook**. Leggi il brief, trova il codice d'accesso e mandamelo. Niente mano sulla spalla stavolta.
+@rook: Allora sei tu il nuovo. Nyx parla bene di te, e Nyx non parla bene di nessuno.
 
-@nyx: È il tuo esame per questo capitolo. Hai tutto quello che ti serve: \`cd\`, \`ls\`, \`ls -a\`, \`cat\`. Se ti blocchi c'è il pulsante **Suggerimento**, ma prova prima da solo. Anche sbagliare strada fa parte del lavoro.`,
+@rook: Prima di darti un lavoro vero voglio vedere come ti muovi. Ti ho mandato dei file nel deck, in **contratti/rook**. Leggi il brief, trova il codice d'accesso e mandamelo. Niente mano sulla spalla, stavolta.
+
+Nyx chiude il suo deck e si appoggia allo schienale.
+
+@nyx: Io non ti dico niente. Hai tutto quello che serve: \`cd\`, \`ls\`, \`ls -a\`, \`cat\`. Se ti blocchi c'è il pulsante **Suggerimento**, ma prima prova da solo. Sbagliare strada fa parte del lavoro.`,
         },
         {
           kind: 'task',
           title: 'Il codice di Rook',
           body: `Obiettivo: trova il codice d'accesso nelle consegne di Rook e invialo con \`flag\`.
 
-Metodo consigliato (è lo stesso che si usa nei test reali):
-- leggi **sempre** prima le istruzioni (il brief)
+Il metodo è lo stesso che si usa nel lavoro vero:
+- leggi **sempre** prima le istruzioni (il *brief*, cioè il foglio con le istruzioni del lavoro)
 - esplora con ordine, una cartella alla volta
-- non fidarti di quello che si vede: controlla anche i file nascosti`,
+- non fidarti di quello che si vede al primo sguardo: controlla anche i file nascosti`,
           objective: 'Trova il codice in contratti/rook e invialo con flag.',
           hints: [
             'Comincia con: cd contratti/rook e poi ls. Leggi brief.txt con cat.',
@@ -838,9 +958,11 @@ Metodo consigliato (è lo stesso che si usa nei test reali):
             'cat contratti/rook/consegna_b/.doppiofondo/codice.txt, poi flag NC{d0pp10_f0nd0}',
           ],
           answer: ['NC{d0pp10_f0nd0}'],
-          success: `@rook: Preciso. Mi piaci. Ci sentiamo per il prossimo lavoro: si tratta di una **rete**.
+          success: `@rook: Preciso. Mi piaci. Dormi un paio d'ore: il prossimo lavoro riguarda una **rete**, e il cliente è la proprietaria del bar che hai sotto i piedi.
 
-Hai completato il Capitolo 01! Ora sai muoverti in un sistema Linux, leggere file, trovare le cose nascoste e usare il manuale. Sono le basi su cui costruiremo tutto il resto.`,
+@nyx: Ieri sera non sapevi cos'era un terminale. Adesso sai muoverti in un sistema Linux, leggere i file, trovare quello che è nascosto, usare il manuale e tenere in ordine il tuo lavoro. È su questo che si costruisce tutto il resto.
+
+Hai completato il Capitolo 01.`,
         },
       ],
       recap: [

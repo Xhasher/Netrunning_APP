@@ -149,3 +149,11 @@ Il programma previsto in questo documento è completo. Prossimi passi possibili:
 - **Esempi dal vivo** (`src/content/live.ts`): i comandi degli esempi vengono eseguiti su un deck pulito quando la lezione viene mostrata, e sotto compare l'output vero. Un test esegue tutti gli esempi di tutte le lezioni e verifica che funzionino e che gli "errori tipici" producano davvero un errore.
 - Gli esempi usano solo comandi già incontrati e non mostrano la risposta dell'esercizio che segue. Tolta la frase "Esempi (diversi dall'esercizio che ti aspetta)…".
 - Le lezioni brevi per un'opzione nuova ("Un passo in più") mostrano l'opzione in azione, senza altre opzioni non ancora viste.
+
+## Aggiunto nella 1.18 (riscrittura per principianti, capitolo 01)
+
+- **Capitolo 01 riscritto da capo** con una trama: una notte sola, sopra il bar Lo Scantinato, per dimostrare a Nyx di poter lavorare per Rook; ogni missione è un'ora della notte, l'ultima è il primo contratto all'alba.
+- **Si scrive subito**: nella prima missione il primo comando arriva dopo una schermata; la teoria (prompt, terminale e shell, Linux) viene dopo aver provato. La lezione sul primo comando è mostrata dopo l'esercizio (`lessonAfter`).
+- Ogni termine è spiegato dove compare (comando, argomento, opzione, percorso, radice, home, permessi, byte, backup, log, flag, CTF); nuova lezione "Comando e argomento"; lo schema comando-opzioni-argomenti arriva solo quando serve.
+- I compiti raccontano cosa fare e perché, senza ripetere la lezione di Nyx che li precede; tolte le mini-lezioni automatiche dove il compito spiega già l'opzione (`ownLesson`).
+- I capitoli successivi verranno riscritti con lo stesso criterio, uno alla volta.

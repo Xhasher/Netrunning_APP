@@ -48,7 +48,7 @@ export interface SaveData {
 }
 
 /** Versione attuale dei contenuti (vedi game/migrate.ts). */
-export const CONTENT_VER = 16;
+export const CONTENT_VER = 18;
 
 export function defaultSave(): SaveData {
   return { handle: null, xp: 0, completed: [], progress: {}, fontScale: 1, ops: [], best: {}, known: [], hideKnown: true, sim: { chapters: [], level: 1 }, srs: {}, streak: { day: 0, count: 0, best: 0 }, logs: {}, exams: [], effects: true, updatedAt: 0, skills: {}, skillsBackfilled: false, chTests: {}, warmup: true, contentVer: CONTENT_VER };

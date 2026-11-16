@@ -194,14 +194,15 @@ export function addSchede(chapters: Chapter[]): void {
     for (const m of ch.missions) {
       const steps: typeof m.steps = [];
       for (const s of m.steps) {
+        const after: typeof m.steps = [];
         if (s.kind === 'task') {
           const { topics, lines } = topicsOfTask(s);
           for (const t of topics) {
             const used = flagsOf(t, lines);
             if (!seen.has(t)) {
-              const card = schedaFor(t, lines, seen);
+              const card = schedaFor(t, s.lessonAfter ? [] : lines, seen);
               seen.add(t);
-              if (card) steps.push(card);
+              if (card) (s.lessonAfter ? after : steps).push(card);
               knownFlags.set(t, used);
               continue;
             }
@@ -211,12 +212,12 @@ export function addSchede(chapters: Chapter[]): void {
             const fresh = used.filter((f) => !k.includes(f));
             knownFlags.set(t, [...k, ...fresh]);
             const todo = fresh.filter((f) => !taught(f));
-            if (!todo.length) continue;
+            if (!todo.length || s.ownLesson) continue;
             const card = livelloFor(t, todo, k, lines, seen);
             if (card) steps.push(card);
           }
         }
-        steps.push(s);
+        steps.push(s, ...after);
       }
       m.steps = steps;
     }
