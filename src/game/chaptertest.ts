@@ -151,9 +151,9 @@ function chapterNameOf(id: string | undefined): string {
  * Parte pratica: le competenze del capitolo che hanno esercizi in Palestra (pesate) e,
  * se il capitolo ha sfide generate, anche quelle.
  */
-export function practicalPlan(chId: string): { pool: { skill: string; weight: number }[]; drills: boolean } {
+export function practicalPlan(chId: string): { pool: { skill: string; weight: number }[]; drills: boolean; repair: boolean } {
   const ch = CHAPTERS.find((c) => c.id === chId);
-  if (!ch) return { pool: [], drills: false };
+  if (!ch) return { pool: [], drills: false, repair: false };
   const count = new Map<string, number>();
   for (const m of ch.missions)
     for (const s of m.steps) {
@@ -163,7 +163,10 @@ export function practicalPlan(chId: string): { pool: { skill: string; weight: nu
       for (const l of lines) for (const sk of skillsInLine(l)) if (PALESTRA_SKILLS.includes(sk)) count.set(sk, (count.get(sk) ?? 0) + 1);
     }
   const pool = [...count].map(([skill, n]) => ({ skill, weight: Math.min(4, n) }));
-  return { pool, drills: !!GENERATORS[chId]?.length };
+  const drills = !!GENERATORS[chId]?.length;
+  // i capitoli senza sfide proprie, dall'amministrazione in poi, hanno una riparazione nella parte pratica
+  const repair = !drills && CHAPTERS.findIndex((c) => c.id === chId) >= CHAPTERS.findIndex((c) => c.id === 'chAM');
+  return { pool, drills, repair };
 }
 
 /** Aggiorna il registro dopo un tentativo; restituisce true se è la prima volta che viene superata. */

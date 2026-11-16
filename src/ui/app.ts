@@ -1739,7 +1739,7 @@ export class App {
     const st = stars(r);
     const hasPrat = (() => {
       const p = practicalPlan(chId);
-      return p.pool.length > 0 || p.drills;
+      return p.pool.length > 0 || p.drills || p.repair;
     })();
     const max = hasPrat ? 2 : 1;
     const label = !r ? 'da fare' : r.passed ? `superata · ${r.best}%` : `record ${r.best}% · soglia ${CHAPTER_TEST.pass}%`;
@@ -1752,7 +1752,7 @@ export class App {
     this.chTestId = chId;
     const r = this.save.chTests[chId];
     const plan = practicalPlan(chId);
-    const hasPrat = plan.pool.length > 0 || plan.drills;
+    const hasPrat = plan.pool.length > 0 || plan.drills || plan.repair;
     const ready = chapterComplete(ch, this.save.completed);
     const items = buildChapterTest(chId, this.save.completed, this.save.known, this.save.srs, today());
     const own = items.filter((i) => !i.tag.startsWith('Ripasso')).length;
@@ -2388,9 +2388,11 @@ export class App {
     if (ctest) {
       // parte pratica della verifica di capitolo: esercizi sulle competenze del capitolo, o le sue sfide
       const plan = practicalPlan(ctest);
-      const fromPal = plan.pool.length ? generatePalestra(shell, { pool: plan.pool, count: plan.drills ? CHAPTER_TEST.practical - 1 : CHAPTER_TEST.practical, seed, allowed: palAllowed, levelOf }) : [];
+      const extra = (plan.drills ? 1 : 0) + (plan.repair ? 1 : 0);
+      const fromPal = plan.pool.length ? generatePalestra(shell, { pool: plan.pool, count: CHAPTER_TEST.practical - extra, seed, allowed: palAllowed, levelOf }) : [];
       const fromSim = plan.drills ? generateSession(shell, [ctest], 1, seed, simAllowed).slice(0, CHAPTER_TEST.practical - fromPal.length) : [];
-      drills = [...fromPal, ...fromSim];
+      const fromFix = plan.repair ? generateSession(shell, ['rip'], 2, seed + 3, simAllowed, { count: 1, repairs: true }) : [];
+      drills = [...fromPal, ...fromSim, ...fromFix];
       pal = { skill: null };
     } else if (special?.kind === 'repair') {
       drills = generateSession(shell, ['rip'], 2, seed, simAllowed, { count: 3, repairs: true });

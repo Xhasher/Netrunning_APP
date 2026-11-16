@@ -51,3 +51,10 @@ Dati sul lavoro (src/content/jobs.ts): raccolti il 16 novembre 2026, da ricontro
 Sfide 01-04 e Palestra seconda metà (1.25), Riparazioni, sfida finale di capitolo, casi
 generati nei giochi (1.26), SC-02 e Architetto di rete (1.27). Prossimo, su richiesta
 dell'autore: aumentare il numero di test (verifiche nel gioco), poi la fase H (collaudo).
+
+## Test (1.28)
+
+Riequilibrate 179 domande (giusta riconoscibile dalla lunghezza), +66 domande nelle missioni,
++35 domande d'esame, parte pratica con riparazione per AM/SOC/PT/DF/SJ. Resta: la giusta è
+ancora la più lunga nel 49% dei casi (a caso sarebbe il 25%), ma di poco; da abbassare.
+Prossimo: fase H (collaudo), poi la riscrittura dal capitolo 06.

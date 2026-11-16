@@ -214,16 +214,16 @@ export const TASTES: Record<TrackId, { title: string; intro: string; steps: Tast
     intro: 'Un ristorante ha trovato un file cancellato e uno nuovo che nessuno conosce. Ti chiamano per capire cosa è successo.',
     steps: [
       { text: 'Prima cosa da fare, appena arrivi?', options: ['Fare una copia del disco e lavorare sulla copia', 'Aprire subito i file sospetti sul computer originale', 'Spegnere tutto e reinstallare'], correct: 0, explain: 'Sull\'originale non si lavora: ogni file aperto cambia qualcosa (per esempio la data di ultimo accesso). Si fa una copia e se ne calcola l\'impronta.' },
-      { text: 'Il file nuovo è stato creato alle 02:14. Il ristorante chiude alle 23. Cosa ne pensi?', options: ['Un indizio: qualcuno ha usato il computer di notte', 'Niente: gli orari dei file non contano', 'È sicuramente il proprietario'], correct: 0, explain: 'Le date dei file sono una delle fonti della timeline. Da sole non dicono chi, ma dicono quando: e di notte non c\'era nessuno.' },
-      { text: 'Nel rapporto scrivi...', options: ['solo quello che le prove dimostrano, con gli orari', 'chi pensi sia stato, anche senza prove', 'che il computer va buttato'], correct: 0, explain: 'Un rapporto forense afferma solo ciò che si può dimostrare. Le ipotesi si scrivono come ipotesi.' },
+      { text: 'Il file nuovo è stato creato alle 02:14. Il ristorante chiude alle 23. Cosa ne pensi?', options: ['Un indizio: qualcuno era lì di notte', 'Niente: gli orari dei file non contano', 'È stato sicuramente il proprietario'], correct: 0, explain: 'Le date dei file sono una delle fonti della timeline. Da sole non dicono chi, ma dicono quando: e di notte non c\'era nessuno.' },
+      { text: 'Nel rapporto scrivi...', options: ['solo ciò che le prove dimostrano', 'chi pensi sia stato, anche senza prove', 'che il computer va buttato e ricomprato'], correct: 0, explain: 'Un rapporto forense afferma solo ciò che si può dimostrare. Le ipotesi si scrivono come ipotesi.' },
     ],
   },
   pentest: {
     title: 'Il sito della palestra',
     intro: 'Una palestra ti ha ingaggiato, con un contratto firmato, per verificare il suo sito prima dell\'apertura.',
     steps: [
-      { text: 'Il contratto copre il sito della palestra. Noti che il server ospita anche il sito di un negozio vicino. Cosa fai?', options: ['Mi limito al sito della palestra e segnalo la cosa al cliente', 'Controllo anche il negozio, già che ci sono', 'Chiedo al negozio a voce se posso'], correct: 0, explain: 'Il perimetro non si discute: quello che non è nel contratto è vietato, anche se è "lì accanto".' },
-      { text: 'Il sito mostra un messaggio d\'errore con la versione esatta del programma che usa. È un problema?', options: ['Sì, piccolo: aiuta un attaccante a cercare vulnerabilità note', 'No, è un\'informazione innocua', 'Sì, gravissimo: il sito è già compromesso'], correct: 0, explain: 'Si chiama "information disclosure": non apre la porta, ma dice a chi attacca quale chiave cercare. Gravità bassa, ma va segnalato.' },
+      { text: 'Il contratto copre il sito della palestra. Noti che il server ospita anche il sito di un negozio vicino. Cosa fai?', options: ['Resto sulla palestra e lo segnalo', 'Controllo anche il negozio, già che ci sono', 'Chiedo al negozio, a voce, se posso'], correct: 0, explain: 'Il perimetro non si discute: quello che non è nel contratto è vietato, anche se è "lì accanto".' },
+      { text: 'Il sito mostra un messaggio d\'errore con la versione esatta del programma che usa. È un problema?', options: ['Sì, piccolo: aiuta chi attacca', 'No, è un\'informazione innocua', 'Sì, grave: il sito è già bucato'], correct: 0, explain: 'Si chiama "information disclosure": non apre la porta, ma dice a chi attacca quale chiave cercare. Gravità bassa, ma va segnalato.' },
       { text: 'Hai trovato una falla vera. Il passo successivo?', options: ['Dimostrarla in modo minimo e scrivere come correggerla', 'Sfruttarla fino in fondo per vedere quanti dati escono', 'Pubblicarla per avvisare gli utenti'], correct: 0, explain: 'Il pentester dimostra senza fare danni e consegna la soluzione. Il valore del lavoro è il report.' },
     ],
   },
@@ -231,8 +231,8 @@ export const TASTES: Record<TrackId, { title: string; intro: string; steps: Tast
     title: 'Tre allarmi in dieci minuti',
     intro: 'Sei al tuo primo turno in un SOC. Arrivano tre allarmi, uno dopo l\'altro.',
     steps: [
-      { text: 'Allarme 1: un dipendente sbaglia la password 3 volte alle 9:05, poi entra. Dall\'ufficio.', options: ['Falso allarme: lo annoto e passo oltre', 'Escalation immediata', 'Blocco l\'account'], correct: 0, explain: 'Pochi errori, orario d\'ufficio, rete interna, poi successo: qualcuno ha sbagliato a scrivere. Il triage serve a non perdere tempo qui.' },
-      { text: 'Allarme 2: 400 tentativi in 2 minuti su "admin" da un indirizzo estero. Nessun accesso riuscito.', options: ['Lo annoto e controllo che non ci siano accessi riusciti; se insiste, si blocca l\'indirizzo', 'Escalation al livello 2, subito', 'Ignoro: non è entrato'], correct: 0, explain: 'È un brute force automatico, rumore di fondo di Internet. Va annotato e tenuto d\'occhio: diventa urgente se compare un accesso riuscito.' },
+      { text: 'Allarme 1: un dipendente sbaglia la password 3 volte alle 9:05, poi entra. Dall\'ufficio.', options: ['Falso allarme: lo annoto', 'Escalation immediata al L2', 'Blocco subito l\'account'], correct: 0, explain: 'Pochi errori, orario d\'ufficio, rete interna, poi successo: qualcuno ha sbagliato a scrivere. Il triage serve a non perdere tempo qui.' },
+      { text: 'Allarme 2: 400 tentativi in 2 minuti su "admin" da un indirizzo estero. Nessun accesso riuscito.', options: ['Annoto e verifico gli accessi riusciti', 'Escalation al livello 2, subito', 'Ignoro: tanto non è entrato'], correct: 0, explain: 'È un brute force automatico, rumore di fondo di Internet. Va annotato e tenuto d\'occhio: diventa urgente se compare un accesso riuscito.' },
       { text: 'Allarme 3: un accesso riuscito alle 3:12 da un paese mai visto, con l\'account del direttore, senza MFA.', options: ['Escalation subito, con una nota chiara', 'Aspetto domattina per chiedere al direttore', 'Falso allarme: sarà in vacanza'], correct: 0, explain: 'Accesso riuscito, orario strano, paese nuovo, account importante e niente secondo fattore: si scala, subito, scrivendo cosa hai visto.' },
     ],
   },
@@ -240,18 +240,18 @@ export const TASTES: Record<TrackId, { title: string; intro: string; steps: Tast
     title: 'Il server del dentista',
     intro: 'Uno studio dentistico ti chiede di sistemare il suo server prima che arrivi il nuovo gestionale.',
     steps: [
-      { text: 'Il file con le password del gestionale è leggibile da tutti gli utenti. Cosa fai?', options: ['Lo rendo leggibile solo dal proprietario (600) e faccio cambiare la password', 'Lo sposto in un\'altra cartella', 'Lo lascio: tanto lo usano solo loro'], correct: 0, explain: 'Permessi giusti e, visto che è stata esposta, password nuova. È il minimo privilegio in pratica.' },
+      { text: 'Il file con le password del gestionale è leggibile da tutti gli utenti. Cosa fai?', options: ['Permessi 600 e password nuova', 'Lo sposto in un\'altra cartella', 'Lo lascio: lo usano solo loro'], correct: 0, explain: 'Permessi giusti e, visto che è stata esposta, password nuova. È il minimo privilegio in pratica.' },
       { text: 'Sul server gira un servizio di condivisione file che nessuno usa più. Cosa fai?', options: ['Lo spengo e lo disattivo all\'avvio', 'Lo lascio acceso, non dà fastidio', 'Lo aggiorno e lo lascio acceso'], correct: 0, explain: 'Ogni servizio acceso è una porta in più. Quello che non serve si spegne: si chiama ridurre la superficie d\'attacco.' },
-      { text: 'Prima di modificare la configurazione del server web...', options: ['Faccio una copia, modifico, controllo la sintassi, poi riavvio', 'Modifico e riavvio subito', 'Riavvio tutto il server dopo la modifica'], correct: 0, explain: 'Copia, modifica, controllo, riavvio, verifica. È la sequenza che evita di spegnere un sito per una virgola.' },
+      { text: 'Prima di modificare la configurazione del server web...', options: ['Copia, modifica, controllo, riavvio', 'Modifico e riavvio subito il servizio', 'Modifico e riavvio l\'intero server'], correct: 0, explain: 'Copia, modifica, controllo, riavvio, verifica. È la sequenza che evita di spegnere un sito per una virgola.' },
     ],
   },
   malware: {
     title: 'L\'allegato della fattura',
     intro: 'Un collega ha ricevuto una "fattura" in allegato e non l\'ha aperta. Ti chiedono di capire cos\'è.',
     steps: [
-      { text: 'Dove lo esamini?', options: ['In un computer isolato, scollegato dalla rete aziendale', 'Sul mio portatile di lavoro', 'Sul computer del collega'], correct: 0, explain: 'Un programma sospetto si studia in un ambiente isolato (una "sandbox"): se è malevolo, non deve poter raggiungere niente.' },
-      { text: 'Il file si chiama fattura.pdf.exe. Cosa ti dice?', options: ['È un programma travestito da documento', 'È un PDF normale', 'È un file danneggiato'], correct: 0, explain: 'L\'estensione vera è l\'ultima: .exe, un programma. Il ".pdf" in mezzo serve a ingannare chi guarda di fretta.' },
-      { text: 'Calcoli la sua impronta (hash) e la cerchi in un elenco di programmi malevoli noti. Perché?', options: ['Se è già noto, so subito cosa fa e come difendermi', 'Per cambiarne il nome', 'Per renderlo innocuo'], correct: 0, explain: 'Le impronte dei malware noti sono condivise tra aziende: riconoscerne uno in un secondo risparmia ore di analisi.' },
+      { text: 'Dove lo esamini?', options: ['In un computer isolato', 'Sul mio portatile di lavoro', 'Sul computer del collega'], correct: 0, explain: 'Un programma sospetto si studia in un ambiente isolato (una "sandbox"): se è malevolo, non deve poter raggiungere niente.' },
+      { text: 'Il file si chiama fattura.pdf.exe. Cosa ti dice?', options: ['È un programma travestito', 'È un PDF con un nome lungo', 'È un documento danneggiato'], correct: 0, explain: 'L\'estensione vera è l\'ultima: .exe, un programma. Il ".pdf" in mezzo serve a ingannare chi guarda di fretta.' },
+      { text: 'Calcoli la sua impronta (hash) e la cerchi in un elenco di programmi malevoli noti. Perché?', options: ['Se è noto, so già cosa fa', 'Per cambiargli il nome', 'Per renderlo innocuo'], correct: 0, explain: 'Le impronte dei malware noti sono condivise tra aziende: riconoscerne uno in un secondo risparmia ore di analisi.' },
     ],
   },
 };

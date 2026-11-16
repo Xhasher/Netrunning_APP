@@ -237,3 +237,11 @@ Il programma previsto in questo documento è completo. Prossimi passi possibili:
 
 - **SC-02 · Il negozio delle magliette** (Operazioni, dopo la missione 07.3): il negozio online di Mama è stato bucato. Si indaga sulla copia del server: log del server web (scansione, SQL injection, caricamento di un file), una "immagine" che esegue comandi, un lavoro programmato di `www-data`, la fotografia dei processi. 8 indizi che si aprono con i capitoli 07 (web), 08 (SOC), 06 (impronte) e DF (firme dei file, prove): `file` rivela che `avatar.jpg` è uno script PHP, una webshell. Conclusioni a livelli e timeline. Il comando `file` ora riconosce gli script PHP.
 - **Architetto di rete** (Giochi): progettare la rete del secondo locale di Mama, con dati diversi a ogni partita e la correzione che spiega ogni errore. Livello 1 (dopo 02.4): indirizzi validi, unici, nella rete giusta, e il gateway. Livello 2 (dopo 09.2): separare ospiti e staff e scegliere la maschera più piccola che basta. Livello 3 (dopo 09.5): scegliere le regole del firewall perché passi solo il traffico che serve, segnalando sia ciò che manca sia ciò che è troppo aperto.
+
+## Aggiunto nella 1.28 (più test, e test più onesti)
+
+- **Domande riequilibrate**: in 179 domande (153 delle missioni e 26 dell'esame) la risposta giusta era molto più lunga delle altre e si poteva indovinare senza sapere. Ora la giusta è più breve e le sbagliate sono plausibili e di lunghezza simile (`quiz-fix.ts`); le spiegazioni restano complete. Stesso lavoro sulle domande sul perché dei giochi, sui casi generati e sugli assaggi dell'Orientamento. Restano 4 domande su 381 con la giusta nettamente più lunga; un test lo controlla.
+- **66 domande nuove** in 33 missioni che ne avevano due o meno (`quiz-more.ts`), molte sul perché e sul cosa succede se; nessuna domanda ripetuta nel corso (test).
+- **35 domande d'esame nuove** a scenario (`exam-more.ts`): la banca passa da 50 a 85, con almeno due domande per quasi ogni capitolo.
+- **Parte pratica della verifica di capitolo** anche per i capitoli senza sfide proprie (AM, SOC, PT, DF, SJ): ora include una riparazione.
+- Versione dei contenuti 20: chi ha già iniziato una missione riprende dallo stesso punto.

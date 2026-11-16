@@ -1,6 +1,8 @@
 // Domande d'esame "a scenario", nello stile delle certificazioni d'ingresso
 // (Security+, CySA+, eJPT, BTL1): una situazione concreta e la scelta migliore.
 
+import { EXAM_MORE } from './exam-more';
+
 export interface BankQ {
   chapter: string;
   question: string;
@@ -371,3 +373,6 @@ export const EXAM_BANK: BankQ[] = [
     explain: 'Si gestisce l\'errore previsto, si scrive cosa è successo e si passa al file successivo.',
   },
 ];
+
+// Domande aggiunte nella 1.28 (vedi exam-more.ts).
+EXAM_BANK.push(...EXAM_MORE);

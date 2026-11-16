@@ -27,6 +27,8 @@ import { addExtra } from './ex-extra';
 import { NETDIAG_MISSION, TEXTTOOLS_MISSION } from './ch-pratica';
 import { addSchede } from './schede';
 import { addExtraQuizzes, shuffleQuizOptions } from './quiz-extra';
+import { rebalanceQuizzes } from './quiz-fix';
+import { addMoreQuizzes } from './quiz-more';
 
 export const CHAPTERS: Chapter[] = [CH01, CHF, CH02, CH03, CH04, CHAM, CH05, CH06, CHPY, CH07, CH08, CHSOC, CH09, CH10, CH11, CHPT, CH12, CHDF, CHSJ, CH13];
 
@@ -40,7 +42,9 @@ CH12.missions.push(PWSH_MISSION, PSIR_MISSION);
 
 addExtra(CHAPTERS);
 addExtraQuizzes(CHAPTERS);
+addMoreQuizzes(CHAPTERS);
 addSchede(CHAPTERS);
+rebalanceQuizzes(CHAPTERS);
 shuffleQuizOptions(CHAPTERS);
 
 /** Il resto del corso: capitoli pianificati, mostrati nella mappa come "in arrivo". */

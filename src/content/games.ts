@@ -252,6 +252,33 @@ Per ogni allarme scegli **Falso allarme** o **Escalation**. Considera il contest
 
 export const GAMES: Game[] = [PHISHING, SOC];
 
+// Domande sul perché riequilibrate (1.28): la risposta giusta non deve riconoscersi dalla lunghezza.
+const WHY_FIX: Record<string, string[]> = {
+  'Cosa fai se la chiave "deck-laptop" NON l\'hai aggiunta tu?': ['La tolgo dal sito vero, entrando da solo', 'Rispondo all\'email chiedendo spiegazioni', 'Clicco il link dell\'email e la cancello', 'Ignoro: è solo una notifica automatica'],
+  'Perché un avviso senza link e con un interno telefonico è rassicurante?': ['Non chiede niente e si può verificare', 'È scritto in un italiano corretto', 'Arriva di sabato, a ufficio chiuso', 'È firmato con nome e cognome'],
+  'Cosa succede se inserisci la password su quella pagina?': ['La riceve l\'attaccante, per la posta vera', 'Niente: la pagina finta non funziona', 'Microsoft cambia subito la password', 'Ricevi i tre messaggi bloccati'],
+  'Quale proprietà della triade CIA viene colpita da questa truffa?': ['Integrità', 'Disponibilità', 'Riservatezza', 'Nessuna delle tre'],
+  'Perché questa notifica è affidabile anche se parla di soldi?': ['Ti manda all\'app, non chiede dati', 'La cifra del pagamento è piccola', 'Il bar indicato esiste davvero', 'Ha il logo ufficiale della banca'],
+  'Perché chiedono solo 1,99 €?': ['Per avere i dati della carta', 'È il prezzo vero del servizio', 'Per non farsi notare dalla banca', 'Per un errore del corriere'],
+  'Cosa sta cercando di aggirare chi chiede il codice?': ['Il secondo fattore del TUO account', 'L\'antivirus del tuo telefono', 'Il firewall della rete di Rook', 'La password dell\'account di Rook'],
+  'Perché è importante saper dire anche "legittimo"?': ['Vedere minacce ovunque fa perdere tempo', 'I messaggi di Nyx sono sempre sicuri', 'Il phishing non usa nomi conosciuti', 'Non lo è: meglio segnalare tutto'],
+  'Quale dettaglio sposta di più verso il falso allarme?': ['IP interno, orario d\'ufficio, poi successo', 'Che i tentativi siano esattamente 5', 'Che l\'utente si chiami proprio mama', 'Che il server continui a rispondere'],
+  'Qual è il primo passo dopo l\'escalation?': ['Prove al sicuro, poi contenere', 'Cancellare auth.log e riavviare', 'Spegnere il server in silenzio', 'Aspettare il turno del giorno dopo'],
+  'Quale indizio, da solo, è già un indicatore di compromissione?': ['Parte da una cartella nascosta in /tmp', 'La CPU è vicina al cento per cento', 'Gira con l\'utente www-data', 'È partito in piena notte'],
+  'Perché nei pentest veri si avvisa il SOC del cliente?': ['Per distinguere il test da un attacco', 'Per farsi pagare qualche ora in più', 'Per spegnere il SOC durante il test', 'Non serve: il SOC non se ne accorge'],
+  'Perché un secondo utente con UID 0 è così grave?': ['UID 0 è root, qualunque nome abbia', 'Il nome sysupdate è sospetto', 'È stato creato di sera tardi', 'Marco non è un amministratore'],
+  'Cosa rende questo login molto più credibile?': ['MFA confermato e ferie in calendario', 'Lisbona è una città molto turistica', 'L\'orario delle 10:20, in pieno giorno', 'Che l\'accesso sia alla sola posta'],
+  'Quale segnale fa pensare che l\'attacco possa aver funzionato?': ['Una risposta di 48 KB invece di 800 byte', 'Il numero totale di richieste fatte', 'L\'orario serale delle richieste', 'Il nome della pagina presa di mira'],
+  'Cosa avrebbe reso questo allarme preoccupante?': ['Percorsi da attaccante, da IP non verificato', 'Più di trenta pagine non trovate', 'L\'orario delle sei del mattino', 'Il nome Googlebot nell\'intestazione'],
+  'Come si è accorto il sistema della modifica?': ['È cambiata l\'impronta del file', 'Lo ha segnalato l\'attaccante', 'Il file è diventato più lento', 'Per caso, durante un backup'],
+};
+for (const g of GAMES)
+  for (const c of g.cards) {
+    const f = WHY_FIX[c.why.question];
+    if (f) c.why = { ...c.why, options: f, correct: 0 };
+  }
+
+
 // ---------------------------------------------------------------- casi generati
 //
 // Oltre ai casi scritti a mano, ogni partita ne riceve alcuni costruiti da modelli con dati
@@ -293,7 +320,7 @@ export function generatePhishingCard(r: R): Card {
       answer: 0,
       explain: `**Phishing.** Il dominio \`${fake}\` non è \`${real}\`: basta un carattere o una parola in più. Urgenza e minaccia completano il quadro.`,
       after: 'chF-m3',
-      why: { question: 'Quale indizio basta da solo?', options: [`Il dominio ${fake} non è quello ufficiale ${real}`, 'Il messaggio è cortese', 'Parla di un accesso insolito', 'È arrivato di giorno'], correct: 0 },
+      why: { question: 'Quale indizio basta da solo?', options: [`Il dominio non è ${real}`, 'Il tono è molto cortese e formale', 'Parla di un accesso insolito', 'È arrivato in orario d\'ufficio'], correct: 0 },
     };
   }
   if (kind === 1) {
@@ -316,7 +343,7 @@ export function generatePhishingCard(r: R): Card {
       answer: 1,
       explain: '**Legittimo.** Dominio ufficiale, nessun link, nessuna richiesta di dati: ti dice di usare l\'app. È una notifica di sicurezza utile.',
       after: 'chF-m3',
-      why: { question: 'Perché è affidabile?', options: ['Non chiede dati e ti manda all\'app ufficiale, non a un link', 'Perché usa il tuo nome', 'Perché è breve', 'Perché arriva di giorno'], correct: 0 },
+      why: { question: 'Perché è affidabile?', options: ['Nessun link, nessun dato richiesto', 'Usa il tuo nome e cognome', 'È breve e scritta bene', 'Arriva in pieno giorno'], correct: 0 },
     };
   }
   const amount = `${r.int(1, 9)},${r.int(10, 99)} €`;
@@ -349,7 +376,7 @@ export function generateTriageCard(r: R): Card {
       answer: 1,
       explain: '**Escalation, subito.** Tentativi in massa da fuori seguiti da un accesso riuscito: è un\'intrusione probabile.',
       after: 'ch04-m3',
-      why: { question: 'Quale dettaglio rende urgente questo allarme?', options: ['Il login riuscito dopo i tentativi falliti', 'Il numero esatto dei tentativi', 'Il nome dell\'utente', 'L\'orario'], correct: 0 },
+      why: { question: 'Quale dettaglio rende urgente questo allarme?', options: ['Il login riuscito alla fine', 'Il numero esatto dei tentativi', 'Il nome dell\'utente provato', 'L\'orario notturno dei tentativi'], correct: 0 },
     };
   }
   if (kind === 1) {
@@ -372,7 +399,7 @@ export function generateTriageCard(r: R): Card {
       answer: 1,
       explain: '**Escalation.** Un programma da una cartella nascosta in /tmp, con il nome di un processo di sistema, che parla con l\'esterno: indicatore di compromissione da manuale.',
       after: 'ch04-m3',
-      why: { question: 'Quale indizio, da solo, è già sospetto?', options: ['Un programma che parte da una cartella nascosta in /tmp', 'L\'utente www-data', 'La CPU alta', 'L\'orario notturno'], correct: 0 },
+      why: { question: 'Quale indizio, da solo, è già sospetto?', options: ['Parte da una cartella nascosta', 'Gira con l\'utente www-data', 'Usa molta CPU da mezz\'ora', 'È attivo in piena notte'], correct: 0 },
     };
   }
   if (kind === 3) {
@@ -384,7 +411,7 @@ export function generateTriageCard(r: R): Card {
       answer: 0,
       explain: '**Falso allarme.** Il paese è insolito, ma il contesto lo spiega e l\'MFA è stato confermato dal telefono di chi viaggia.',
       after: 'chF-m4',
-      why: { question: 'Cosa rende credibile questo accesso?', options: ['Trasferta in calendario e MFA confermato', 'L\'orario di lavoro', 'Che sia la posta', 'Il nome della città'], correct: 0 },
+      why: { question: 'Cosa rende credibile questo accesso?', options: ['Trasferta e MFA confermato', 'È in orario di lavoro', 'Riguarda solo la posta', 'La città è molto nota'], correct: 0 },
     };
   }
   const city = r.pick(['un paese mai visto', 'un indirizzo di un servizio di anonimato', 'un centro dati estero']);
