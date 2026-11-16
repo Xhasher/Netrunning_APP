@@ -29,5 +29,17 @@ Filo della trama finora: notte da Nyx (01) → giornata da Rook (F) → pentest 
 
 Documento dell'autore con l'evoluzione del sistema didattico (motore adattivo unico,
 prerequisiti per esercizio, orientamento professionale, percorsi specializzati, portfolio).
-Audit (fase A) presentato il 16 novembre 2026 nella conversazione; vedi la sezione seguente quando
-le fasi successive partono.
+Audit (fase A) presentato il 16 novembre 2026.
+
+| Fase | Stato |
+|---|---|
+| A Audit | fatto |
+| B-C Motore unico, prerequisiti, livello adattivo, ripasso, cruscotto | fatto (1.20.0) |
+| D Giochi esistenti nel motore (Phishing/Triage legati al capitolo, feedback con esercizio diverso, domande sul perché) | **prossima** |
+| E Digital Crime Scene | da fare |
+| F Orientamento professionale | da fare |
+| G Percorsi specializzati e tutor a regole | da fare |
+| H Collaudo | da fare |
+
+Decisioni: tutor a regole (niente IA: niente credenziali nel client); dati sul lavoro in Italia
+con fonte e data, ricontrollati a ogni versione (l'app funziona offline); Network Architect per ultimo.

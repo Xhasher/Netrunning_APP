@@ -2,6 +2,7 @@
 // sincronizza i progressi tra l'APK e la versione browser. Nessun server nostro:
 // i dati restano nell'account GitHub del giocatore.
 
+import { mergeLearn } from './engine';
 import { migrateProgress } from './migrate';
 import type { SaveData } from './state';
 
@@ -118,11 +119,21 @@ export function mergeSaves(localIn: SaveData, remoteIn: SaveData): SaveData {
     chTests[k] = { best: Math.max(o.best, v.best), day: Math.max(o.day, v.day), passed: o.passed || v.passed, tries: Math.max(o.tries, v.tries), prat };
   }
 
+  const learn = mergeLearn(older.learn ?? {}, newer.learn ?? {});
+  const hist = new Map<number, SaveData['history'][number]>();
+  for (const h of [...(older.history ?? []), ...(newer.history ?? [])]) {
+    const o = hist.get(h[0]);
+    if (!o || h[1] > o[1]) hist.set(h[0], h);
+  }
+  const history = [...hist.values()].sort((a, b) => a[0] - b[0]).slice(-90);
+
   return {
     ...older,
     ...newer,
     skills,
     chTests,
+    learn,
+    history,
     warmup: local.warmup,
     skillsBackfilled: !!(local.skillsBackfilled || remote.skillsBackfilled),
     handle: newer.handle ?? older.handle,

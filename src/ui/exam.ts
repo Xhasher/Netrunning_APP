@@ -4,6 +4,8 @@ import { allMissions } from '../content';
 import { today } from '../game/cards';
 import { EXAMS, buildExam, chapterName, examPool, grade, type ExamKind, type ExamRecord } from '../game/exam';
 import type { SaveData } from '../game/state';
+import { recordAttempt } from '../game/engine';
+import { skillsInQuiz } from '../game/skills';
 import { inline, renderMarkup } from './markup';
 
 export interface ExamHost {
@@ -128,6 +130,11 @@ function runTheory(box: HTMLElement, host: ExamHost, kind: ExamKind): void {
     const r = grade(qs, answers, spec.pass);
     const secs = Math.min(spec.minutes * 60, Math.round((Date.now() - started) / 1000));
     recordExam(save, { kind, day: today(), score: r.score, total: r.total, pct: r.pct, passed: r.passed, secs });
+    save.learn ??= {};
+    qs.forEach((q, i) => {
+      const skills = skillsInQuiz(q.question, q.options);
+      if (skills.length) recordAttempt(save.learn, { skills, ok: answers[i] === q.correct, kind: 'esame', day: today(), error: answers[i] === q.correct ? undefined : 'risposta' });
+    });
     const xp = r.passed ? (kind === 'finale' ? 120 : 60) : 0;
     save.xp += xp;
     host.persist();

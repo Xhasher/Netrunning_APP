@@ -6,12 +6,18 @@
 //   esercitato  → l'ha usato in un esercizio riuscito, anche con suggerimenti
 //   acquisito   → l'ha usato senza suggerimenti in almeno due situazioni diverse
 //   consolidato → l'ha usato di nuovo senza aiuti almeno 7 giorni dopo l'acquisizione
+//
+// Nomi mostrati (dalla 1.20): non affrontata, introdotta, compresa, in esercitazione,
+// consolidata (= acquisita), mantenuta nel tempo (= consolidata), e un settimo stato,
+// "applicata autonomamente", che viene dal motore (engine.ts): usata da sola in tre tipi
+// di attività diversi e ricordata a distanza di giorni.
 
 import { CHAPTERS } from '../content';
 import '../engine/manual';
 import { ALIASES, MANPAGES } from '../engine/manpages';
 import { commandsInLine, commandsInMarkup } from './cmdparse';
 import type { LogEntry } from './coach';
+import { appliedAutonomously, type Learn } from './engine';
 
 export interface SkillEvidence {
   /** esercizi riusciti (con o senza aiuti) */
@@ -28,8 +34,8 @@ export interface SkillEvidence {
 
 export type Skills = Record<string, SkillEvidence>;
 
-export const STATES = ['non ancora vista', 'introdotta', 'compresa', 'esercitata', 'acquisita', 'consolidata'] as const;
-export type StateIndex = 0 | 1 | 2 | 3 | 4 | 5;
+export const STATES = ['non affrontata', 'introdotta', 'compresa', 'in esercitazione', 'consolidata', 'mantenuta nel tempo', 'applicata autonomamente'] as const;
+export type StateIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 /** Moduli della nuova architettura e competenze che contengono. */
 export const MODULES: { id: string; name: string; core: boolean; skills: string[] }[] = [
@@ -137,6 +143,8 @@ export interface SkillContext {
   intro: Set<string>;
   /** carte di Memoria: [scatola, scadenza] per id */
   srs: Record<string, [number, number]>;
+  /** registro del motore di apprendimento (facoltativo) */
+  learn?: Learn;
 }
 
 /** La Memoria conta come "compreso" quando una carta sul comando è salita almeno alla seconda scatola. */
@@ -151,7 +159,7 @@ function memoryUnderstood(srs: Record<string, [number, number]>, skill: string):
 
 export function stateOf(ctx: SkillContext, skill: string): StateIndex {
   const e = ctx.skills[skill];
-  if (e?.cons) return 5;
+  if (e?.cons) return appliedAutonomously(ctx.learn?.[skill]) ? 6 : 5;
   if (e?.acq !== undefined) return 4;
   if (e && e.ex > 0) return 3;
   if (e?.comp || memoryUnderstood(ctx.srs, skill)) return 2;
@@ -172,9 +180,11 @@ export function nextStep(ctx: SkillContext, skill: string): string {
     case 3:
       return e && e.solo.length === 1 ? 'Ancora una situazione diversa senza suggerimenti.' : 'Usala senza suggerimenti in due situazioni diverse.';
     case 4:
-      return 'Riusala senza aiuti tra qualche giorno: Palestra, Simulazioni o esami.';
+      return 'Riusala senza aiuti tra almeno una settimana: Palestra, Simulazioni o esami.';
+    case 5:
+      return 'Usala da sola in tre tipi di attività diverse (missioni, Palestra, Simulazioni, Operazioni, esami).';
     default:
-      return 'Consolidata. Continua a usarla per non perderla.';
+      return 'Applicata in autonomia. Continua a usarla per non perderla.';
   }
 }
 
@@ -205,8 +215,19 @@ export function backfill(skills: Skills, logs: Record<string, LogEntry[]>, day: 
 export function moduleSummary(ctx: SkillContext): { id: string; name: string; core: boolean; counts: number[]; skills: { id: string; state: StateIndex }[] }[] {
   return MODULES.map((m) => {
     const skills = m.skills.filter((s) => MANPAGES[s]).map((s) => ({ id: s, state: stateOf(ctx, s) }));
-    const counts = [0, 0, 0, 0, 0, 0];
+    const counts = [0, 0, 0, 0, 0, 0, 0];
     for (const s of skills) counts[s.state]++;
     return { id: m.id, name: m.name, core: m.core, counts, skills };
   });
+}
+
+/** Competenze toccate da una domanda a scelta multipla (dichiarate, o lette dal testo). */
+export function skillsInQuiz(question: string, options: readonly string[], declared?: readonly string[]): string[] {
+  const cmds = declared ?? commandsInMarkup(question + '\n' + options.map((o) => '`' + o + '`').join('\n'));
+  return [...new Set(cmds.flatMap((c) => skillsInLine(c)))];
+}
+
+/** Una domanda chiede di ragionare sul perché (non solo di ricordare)? */
+export function isWhyQuestion(question: string): boolean {
+  return /\bperch[ée]\b|cosa succede|cosa concludi|cosa vuol dire|qual è la causa|cosa rischia/i.test(question);
 }

@@ -1530,18 +1530,38 @@ export function exercisesFor(skill: string): PalEx[] {
  * Una serie di esercizi. Con una competenza: dal livello 1 al 3 (5 esercizi).
  * Senza: allenamento misto sulle competenze indicate, prima le più deboli.
  */
-export function generatePalestra(sh: Shell, opts: { skill?: string; pool?: { skill: string; weight: number }[]; count?: number; seed: number }): Drill[] {
+export interface PalestraOptions {
+  skill?: string;
+  pool?: { skill: string; weight: number }[];
+  count?: number;
+  seed: number;
+  /** filtro del motore: l'esercizio richiede solo cose già insegnate? */
+  allowed?: (e: PalEx) => boolean;
+  /** livello consigliato dal motore per una competenza (allenamento misto) */
+  levelOf?: (skill: string) => Level;
+}
+
+/** Esercizio di una competenza al livello più vicino a quello chiesto, senza superarlo se possibile. */
+function nearestLevel(list: PalEx[], want: Level, r: Rng): PalEx {
+  const below = list.filter((e) => e.lv <= want);
+  const best = below.length ? Math.max(...below.map((e) => e.lv)) : Math.min(...list.map((e) => e.lv));
+  return r.pick(list.filter((e) => e.lv === best));
+}
+
+export function generatePalestra(sh: Shell, opts: PalestraOptions): Drill[] {
   const r = makeRng(opts.seed);
+  const allowed = opts.allowed ?? (() => true);
+  const usable = (skill: string) => exercisesFor(skill).filter(allowed);
   let chosen: PalEx[] = [];
   if (opts.skill) {
-    const ex = exercisesFor(opts.skill);
+    const ex = usable(opts.skill);
     if (!ex.length) return [];
     const count = opts.count ?? 5;
     // sale di livello: prima i livelli bassi, poi quelli alti
     const byLv = [1, 2, 3].map((lv) => ex.filter((e) => e.lv === lv)).filter((l) => l.length);
     for (let i = 0; i < count; i++) chosen.push(r.pick(byLv[Math.min(byLv.length - 1, Math.floor((i * byLv.length) / count))]));
   } else {
-    const pool = (opts.pool ?? []).filter((p) => exercisesFor(p.skill).length);
+    const pool = (opts.pool ?? []).filter((p) => usable(p.skill).length);
     if (!pool.length) return [];
     const count = opts.count ?? 6;
     const total = pool.reduce((s, p) => s + p.weight, 0);
@@ -1554,7 +1574,8 @@ export function generatePalestra(sh: Shell, opts: { skill?: string; pool?: { ski
         if (pick.skill !== last || pool.length === 1) break;
       }
       last = pick.skill;
-      chosen.push(r.pick(exercisesFor(pick.skill)));
+      const list = usable(pick.skill);
+      chosen.push(opts.levelOf ? nearestLevel(list, opts.levelOf(pick.skill), r) : r.pick(list));
     }
   }
   chosen = chosen.slice(0, 12);

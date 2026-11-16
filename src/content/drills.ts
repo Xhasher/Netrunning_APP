@@ -976,9 +976,9 @@ export const LEVELS: Record<Level, { name: string; count: number; hints: 'free' 
 };
 
 /** Genera una sessione di sfide per i capitoli scelti, scrivendo i dati nel deck. */
-export function generateSession(sh: Shell, chapters: string[], level: Level, seed: number): Drill[] {
+export function generateSession(sh: Shell, chapters: string[], level: Level, seed: number, allowed?: (chapter: string, genId: string, lv: Level) => boolean): Drill[] {
   const r = makeRng(seed);
-  const pool = chapters.flatMap((ch) => (GENERATORS[ch] ?? []).map((g) => ({ ch, g })));
+  const pool = chapters.flatMap((ch) => (GENERATORS[ch] ?? []).filter((g) => !allowed || allowed(ch, g.id, level)).map((g) => ({ ch, g })));
   if (!pool.length) return [];
   const order: { ch: string; g: Gen }[] = [];
   while (order.length < LEVELS[level].count) order.push(...r.shuffle(pool));

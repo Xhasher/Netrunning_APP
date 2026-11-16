@@ -1,3 +1,4 @@
+import type { Learn, Snapshot } from './engine';
 import { allMissions } from '../content';
 import type { LogEntry } from './coach';
 import type { ExamRecord } from './exam';
@@ -43,6 +44,10 @@ export interface SaveData {
   chTests: Record<string, ChapterTestRecord>;
   /** ripasso lampo prima delle missioni nuove */
   warmup: boolean;
+  /** registro del motore di apprendimento: dati per competenza (vedi engine.ts) */
+  learn: Learn;
+  /** andamento nel tempo: un punto al giorno */
+  history: Snapshot[];
   /** versione dei contenuti per cui sono scritti i progressi (passi inseriti dopo spostano gli indici) */
   contentVer?: number;
 }
@@ -51,7 +56,7 @@ export interface SaveData {
 export const CONTENT_VER = 19;
 
 export function defaultSave(): SaveData {
-  return { handle: null, xp: 0, completed: [], progress: {}, fontScale: 1, ops: [], best: {}, known: [], hideKnown: true, sim: { chapters: [], level: 1 }, srs: {}, streak: { day: 0, count: 0, best: 0 }, logs: {}, exams: [], effects: true, updatedAt: 0, skills: {}, skillsBackfilled: false, chTests: {}, warmup: true, contentVer: CONTENT_VER };
+  return { handle: null, xp: 0, completed: [], progress: {}, fontScale: 1, ops: [], best: {}, known: [], hideKnown: true, sim: { chapters: [], level: 1 }, srs: {}, streak: { day: 0, count: 0, best: 0 }, logs: {}, exams: [], effects: true, updatedAt: 0, skills: {}, skillsBackfilled: false, chTests: {}, warmup: true, learn: {}, history: [], contentVer: CONTENT_VER };
 }
 
 export function loadSave(): SaveData {

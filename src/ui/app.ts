@@ -39,7 +39,9 @@ import { analyze, type Analysis, type LogEntry } from '../game/coach';
 import { EXAMS } from '../game/exam';
 import { today } from '../game/cards';
 import { recordExam, renderExamsHome } from './exam';
-import { MODULES, STATES, backfill, introduced, moduleSummary, nextStep, recordSuccess, recordUnderstood, skillsInLine, stateOf, type SkillContext } from '../game/skills';
+import { MODULES, STATES, backfill, introduced, isWhyQuestion, moduleSummary, nextStep, recordSuccess, recordUnderstood, skillsInLine, skillsInQuiz, stateOf, type SkillContext } from '../game/skills';
+import { DIFFICULTY_NAMES, DIMENSION_NAMES, ERROR_ADVICE, dueSkills, eligible, errorKind, isFragile, levelFor, overallDimensions, recordAttempt, recurringErrors, reviewWeight, snapshot, type ActivityKind, type Difficulty, type Dimensions } from '../game/engine';
+import { genRequires, palRequires } from '../game/prereq';
 import { SyncError, describe as describeSave, deviceName, loadCloud, saveCloud, syncOnce, type CloudConfig } from '../game/sync';
 import { annotateGlossary, bindGlossarySearch, glossaryHtml, installGlossary } from './glossary';
 import { openManual } from './manual';
@@ -89,6 +91,20 @@ function entryOf(sh: Shell, step: number, outcome: string | null, events: ShellE
   return e;
 }
 
+/** Tipo di attività dal contesto usato per le prove di competenza. */
+function kindOfContext(ctx: string): ActivityKind {
+  if (ctx === 'esame') return 'esame';
+  if (ctx.startsWith('op:')) return 'operazione';
+  if (ctx.startsWith('sim:')) return 'simulazione';
+  if (ctx.startsWith('pal')) return 'palestra';
+  return 'missione';
+}
+
+/** Competenze che una sfida chiede (dalla sua soluzione di riferimento). */
+function drillSkills(d: Drill): string[] {
+  return [...new Set([...(d.skill ? [d.skill] : []), ...d.solve.flatMap((l) => skillsInLine(l))])];
+}
+
 const finePointer = () => window.matchMedia?.('(pointer: fine)').matches ?? false;
 
 export class App {
@@ -101,6 +117,8 @@ export class App {
   private sim: {
     drills: Drill[];
     idx: number;
+    /** inizio della sfida in corso (per i tempi del motore) */
+    started: number;
     level: Level;
     chapters: string[];
     results: ('ok' | 'skip')[];
@@ -1072,12 +1090,10 @@ export class App {
     if (step?.kind !== 'quiz') return;
     const firstTry = r.quizPicked === null;
     r.quizPicked = i;
-    if (i === step.correct && firstTry) {
-      const list = (step.skills ?? commandsInMarkup(step.question + '\n' + step.options.map((o) => '`' + o + '`').join('\n'))).map((c) => skillsInLine(c)).flat();
-      if (list.length) {
-        recordUnderstood(this.save.skills, list);
-        this.persist();
-      }
+    if (firstTry) {
+      const list = skillsInQuiz(step.question, step.options, step.skills);
+      if (i === step.correct && list.length) recordUnderstood(this.save.skills, list);
+      this.learnFrom(list, i === step.correct, isWhyQuestion(step.question) ? 'ragionamento' : 'quiz', { error: i === step.correct ? undefined : 'risposta' });
     }
     if (i === step.correct) this.markDone();
     else this.renderStep(true);
@@ -1286,18 +1302,39 @@ export class App {
   }
 
   /** Registra le competenze usate e festeggia quelle appena acquisite o consolidate. */
-  private credit(used: string[], ctx: string, helped: boolean): void {
+  private credit(used: string[], ctx: string, helped: boolean, sec?: number): void {
     if (!used.length) return;
     const promoted = recordSuccess(this.save.skills, used, ctx, helped, today());
-    this.persist();
+    this.learnFrom(used, true, kindOfContext(ctx), { helped, sec });
     if (promoted.length) {
       const names = promoted.map((p) => `${p} (${STATES[stateOf(this.skillCtx(), p)]})`).join(', ');
       this.toast(`★ Competenza: ${names}`);
     }
   }
 
+  /** Consegna un esito al motore di apprendimento e aggiorna l'andamento del giorno. */
+  private learnFrom(skills: readonly string[], ok: boolean, kind: ActivityKind, opts: { helped?: boolean; sec?: number; error?: string } = {}): void {
+    if (!skills.length) return;
+    const day = today();
+    recordAttempt(this.save.learn, { skills, ok, kind, day, ...opts });
+    const ctx = this.skillCtx();
+    const solid = Object.keys(this.save.skills).filter((k) => stateOf(ctx, k) >= 4).length;
+    this.save.history = snapshot(this.save.history, day, solid, overallDimensions(this.save.learn).precisione);
+    this.persist();
+  }
+
+  /** Competenze già insegnate (lezioni viste). */
+  private taught(): Set<string> {
+    return introduced(this.save.completed, this.save.progress);
+  }
+
+  /** Livello consigliato dal motore per una competenza. */
+  private levelOf(skill: string): Difficulty {
+    return levelFor(this.save.learn[skill], stateOf(this.skillCtx(), skill));
+  }
+
   private skillCtx(): SkillContext {
-    return { skills: this.save.skills, intro: introduced(this.save.completed, this.save.progress), srs: this.save.srs };
+    return { skills: this.save.skills, intro: introduced(this.save.completed, this.save.progress), srs: this.save.srs, learn: this.save.learn };
   }
 
   /** Annota nel diario della missione il comando appena eseguito (per l'analisi finale). */
@@ -1305,6 +1342,11 @@ export class App {
     const r = this.run;
     const e = this.shell ? entryOf(this.shell, r?.step ?? 0, outcome, events) : null;
     if (r && e) this.pushLog(r.mission.id, e);
+    if (r && e?.e && e.l) this.learnFrom(skillsInLine(e.l), false, 'missione', { error: errorKind(e.e) });
+    else if (r && outcome === 'wrong-answer') {
+      const used = (this.save.logs[r.mission.id] ?? []).filter((x) => x.s === r.step && x.l && !x.e).flatMap((x) => skillsInLine(x.l));
+      this.learnFrom(used, false, 'missione', { error: 'risposta' });
+    }
     if (r && e?.l && outcome !== 'pass' && this.currentStep()?.kind === 'task' && !this.stepIsDone()) {
       r.tries++;
       // il suggerimento era bloccato in attesa di un tentativo: aggiorna il pulsante
@@ -1697,10 +1739,60 @@ export class App {
 
   // ------------------------------------------------------------- competenze
 
+  /** Capitolo a cui si è arrivati: il primo non ancora completo. */
+  private reachedChapter(): Chapter | null {
+    return CHAPTERS.find((ch) => ch.missions.some((m) => !this.save.completed.includes(m.id))) ?? null;
+  }
+
+  /** Il cruscotto del motore di apprendimento, in cima alla pagina Competenze. */
+  private dashboardHtml(): string {
+    const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+    const learn = this.save.learn;
+    const day = today();
+    const ch = this.reachedChapter();
+    const done = ch ? ch.missions.filter((m) => this.save.completed.includes(m.id)).length : 0;
+    const taught = this.taught();
+    const dims = overallDimensions(learn);
+    const pct = (v: number | null) => (v === null ? '—' : `${Math.round(v * 100)}%`);
+    const dimRow = (k: keyof Dimensions) => {
+      const v = dims[k];
+      return `<li><span class="dim-name">${DIMENSION_NAMES[k]}</span><span class="dim-bar"><i style="width:${v === null ? 0 : Math.round(v * 100)}%"></i></span><span class="dim-val">${pct(v)}</span></li>`;
+    };
+    const due = dueSkills(learn, taught, day).slice(0, 8);
+    const fragile = Object.keys(learn).filter((k) => taught.has(k) && isFragile(learn[k])).slice(0, 8);
+    const errs = recurringErrors(learn).slice(0, 3);
+    const chip = (k: string) => `<button class="chip" data-train="${esc(k)}"><code>${esc(k)}</code> · ${DIFFICULTY_NAMES[this.levelOf(k)]}</button>`;
+    const h = this.save.history;
+    const first = h.find((x) => x[0] >= day - 30) ?? h[0];
+    const last = h[h.length - 1];
+    const trend =
+      first && last && last[0] > first[0]
+        ? `In ${last[0] - first[0]} giorni: competenze consolidate da <b>${first[1]}</b> a <b>${last[1]}</b>, precisione dal ${Math.round(first[2] * 100)}% al ${Math.round(last[2] * 100)}%.`
+        : 'L\'andamento compare dopo qualche giorno di attività.';
+    const sims = [1, 2, 3].map((lv) => this.save.best[`sim-${lv}`]).some((x) => x !== undefined)
+      ? ([1, 2, 3] as Level[]).map((lv) => (this.save.best[`sim-${lv}`] !== undefined ? `${LEVELS[lv].name}: ${this.save.best[`sim-${lv}`]}/${LEVELS[lv].count}` : '')).filter(Boolean).join(' · ')
+      : 'nessuna simulazione ancora';
+    const exam = this.save.exams[this.save.exams.length - 1];
+    return html`
+      <section class="dash">
+        <div class="dash-head"><span class="kicker">// capitolo raggiunto</span><b>${ch ? `${esc(ch.code)} · ${esc(ch.title)}` : 'Corso completato'}</b>${ch ? `<span class="small">${done}/${ch.missions.length} missioni</span>` : ''}</div>
+        <h3>Come stai andando</h3>
+        <ul class="dims">${(Object.keys(DIMENSION_NAMES) as (keyof Dimensions)[]).map(dimRow).join('')}</ul>
+        <p class="small">Sei misure separate. <b>Conoscenza</b>: domande di teoria. <b>Memoria</b>: prove riuscite senza aiuti dopo almeno tre giorni. <b>Precisione</b>: tentativi riusciti. <b>Autonomia</b>: riusciti senza suggerimenti. <b>Trasferimento</b>: competenze usate da sole in tipi di attività diversi. <b>Ragionamento</b>: domande sul perché.</p>
+        <h3>Da ripassare oggi</h3>
+        ${due.length ? `<div class="chips">${due.map(chip).join('')}</div><div class="step-actions"><button class="next" data-review="1">Ripasso misto ▸</button></div>` : '<p class="small">Niente in scadenza. Le competenze tornano a intervalli che si allungano: 1, 2, 4, 7, 14, 30 giorni.</p>'}
+        ${fragile.length ? html`<h3>Competenze fragili</h3><p class="small">Sbagliate spesso, o dimenticate dopo qualche giorno. Tocca per allenarle al livello consigliato.</p><div class="chips">${fragile.map(chip).join('')}</div>` : ''}
+        ${errs.length ? html`<h3>Errori ricorrenti</h3><ul class="errs">${errs.map((e) => `<li><b>${esc(e.kind)}</b> (${e.n} volte, su ${e.skills.map((k) => `<code>${esc(k)}</code>`).join(', ')}): ${inline(ERROR_ADVICE[e.kind] ?? '')}</li>`).join('')}</ul>` : ''}
+        <h3>Nel tempo</h3>
+        <p class="small">${trend}</p>
+        <p class="small">Simulazioni, record: ${sims}.${exam ? ` Ultimo esame: ${exam.kind}, ${exam.pct}% (${exam.passed ? 'superato' : 'non superato'}).` : ''}</p>
+      </section>`;
+  }
+
   private showSkills(): void {
     const ctx = this.skillCtx();
     const mods = moduleSummary(ctx);
-    const total = [0, 0, 0, 0, 0, 0];
+    const total = [0, 0, 0, 0, 0, 0, 0];
     for (const m of mods) m.counts.forEach((n, i) => (total[i] += n));
     const all = total.reduce((a, b) => a + b, 0);
     const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -1710,13 +1802,15 @@ export class App {
       .map((name, i) => `<span class="sk-key"><i class="st${i + 1}"></i>${name}</span>`)
       .join('');
     const content = html`
-      <div class="prose sk-intro">${renderMarkup('Ogni comando e ogni concetto è una **competenza**. Lo stato si calcola da quello che fai: un esercizio riuscito la rende *esercitata*; due situazioni diverse risolte **senza suggerimenti** la rendono *acquisita*; riusarla bene a distanza di almeno una settimana la rende *consolidata*.')}</div>
-      <div class="sk-total">${bar(total, all)}<span class="sk-nums">${total[4] + total[5]} acquisite o consolidate su ${all}</span></div>
+      ${this.dashboardHtml()}
+      <h3>Tutte le competenze</h3>
+      <div class="prose sk-intro">${renderMarkup('Ogni comando e ogni concetto è una **competenza**. Lo stato si calcola da quello che fai, mai da un\'autovalutazione: un esercizio riuscito la mette *in esercitazione*; due situazioni diverse risolte **senza suggerimenti** la rendono *consolidata*; riusarla bene a distanza di almeno una settimana la rende *mantenuta nel tempo*; usarla da sola in tre tipi di attività diversi la rende *applicata autonomamente*.')}</div>
+      <div class="sk-total">${bar(total, all)}<span class="sk-nums">${total[4] + total[5] + total[6]} consolidate o oltre, su ${all}</span></div>
       <div class="sk-legend">${legend}</div>
       ${mods
         .map(
           (m) => html`
-            <details class="sk-mod" ${m.counts[3] + m.counts[4] + m.counts[1] + m.counts[2] > 0 ? 'open' : ''}>
+            <details class="sk-mod" ${m.counts.slice(1).some((n) => n > 0) ? 'open' : ''}>
               <summary><span class="sk-mid">${m.id}</span><span class="sk-mname">${esc(m.name)}${m.core ? '' : ' <em>· avanzato</em>'}</span>${bar(m.counts, m.skills.length || 1)}</summary>
               <ul class="sk-list">
                 ${m.skills
@@ -1732,6 +1826,9 @@ export class App {
       <div class="step-actions"><button class="next" data-palestra="1">Palestra dei comandi ▸</button></div>`;
     const node = this.page('skills', 'Competenze', '// cosa sai fare davvero', content);
     node.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('[data-review]')) return this.startSim([], 1, false, { skill: null });
+      const one = (e.target as HTMLElement).closest<HTMLElement>('[data-train]')?.dataset.train;
+      if (one) return this.startSim([], 1, false, { skill: one });
       if ((e.target as HTMLElement).closest('[data-palestra]')) return this.showPalestra();
       const m = (e.target as HTMLElement).closest<HTMLElement>('[data-man]')?.dataset.man;
       if (m) openManual(m);
@@ -1781,9 +1878,10 @@ export class App {
   /** Competenze allenabili: quelle già incontrate nel corso (almeno "introdotte"). */
   private palestraPool(): { skill: string; weight: number }[] {
     const ctx = this.skillCtx();
+    const day = today();
     return PALESTRA_SKILLS.map((sk) => ({ skill: sk, st: stateOf(ctx, sk) }))
       .filter((x) => x.st >= 1)
-      .map((x) => ({ skill: x.skill, weight: 6 - x.st }));
+      .map((x) => ({ skill: x.skill, weight: reviewWeight(this.save.learn[x.skill], x.st, day) }));
   }
 
   private palestraVerdict(drills: Drill[]): string {
@@ -1839,6 +1937,14 @@ export class App {
     let chosen = new Set(prefs.chapters.filter((c) => avail.some((a) => a.id === c)));
     if (!chosen.size) chosen = new Set(avail.map((a) => a.id));
     let level: Level = prefs.level;
+    // livello consigliato dal motore: la media dei livelli delle competenze che le sfide di questi capitoli chiedono
+    const recommend = (): Level => {
+      const taught = this.taught();
+      const skills = [...chosen].flatMap((c) => (GENERATORS[c] ?? []).flatMap((g) => genRequires(c, g.id, 1))).filter((k) => taught.has(k));
+      if (!skills.length) return 1;
+      const avg = skills.reduce((a, k) => a + this.levelOf(k), 0) / skills.length;
+      return Math.max(1, Math.min(3, Math.round(avg))) as Level;
+    };
     const node = this.page(
       'sim-setup',
       'Simulazioni',
@@ -1866,6 +1972,11 @@ export class App {
     const sync = () => {
       node.querySelectorAll<HTMLElement>('[data-ch]').forEach((b) => b.classList.toggle('on', chosen.has(b.dataset.ch!)));
       node.querySelectorAll<HTMLElement>('[data-lv]').forEach((b) => b.classList.toggle('on', Number(b.dataset.lv) === level));
+      const rec = recommend();
+      node.querySelectorAll<HTMLElement>('[data-lv]').forEach((b) => {
+        b.querySelector('.rec-lv')?.remove();
+        if (Number(b.dataset.lv) === rec) b.insertAdjacentHTML('beforeend', '<span class="rec rec-lv">consigliato per te</span>');
+      });
       node.querySelector<HTMLButtonElement>('[data-go]')!.disabled = chosen.size === 0;
     };
     node.addEventListener('click', (e) => {
@@ -1890,18 +2001,29 @@ export class App {
   private startSim(chapters: string[], level: Level, exam = false, pal?: { skill: string | null }, ctest?: string): void {
     const shell = buildWorld(this.save.handle!, () => this.simHint(true));
     const seed = (Date.now() ^ Math.floor(Math.random() * 2 ** 31)) >>> 0;
+    // il motore: solo esercizi che chiedono cose già insegnate, al livello adatto
+    const taught = this.taught();
+    const palAllowed = (e: { skill: string } & Parameters<typeof palRequires>[0]) => eligible({ requires: palRequires(e).filter((k) => k !== e.skill) }, taught);
+    const simAllowed = (ch: string, id: string, lv: Level) => eligible({ requires: genRequires(ch, id, lv) }, taught);
+    const levelOf = (k: string) => this.levelOf(k);
     let drills: Drill[];
     if (ctest) {
       // parte pratica della verifica di capitolo: esercizi sulle competenze del capitolo, o le sue sfide
       const plan = practicalPlan(ctest);
-      const fromPal = plan.pool.length ? generatePalestra(shell, { pool: plan.pool, count: plan.drills ? CHAPTER_TEST.practical - 1 : CHAPTER_TEST.practical, seed }) : [];
-      const fromSim = plan.drills ? generateSession(shell, [ctest], 1, seed).slice(0, CHAPTER_TEST.practical - fromPal.length) : [];
+      const fromPal = plan.pool.length ? generatePalestra(shell, { pool: plan.pool, count: plan.drills ? CHAPTER_TEST.practical - 1 : CHAPTER_TEST.practical, seed, allowed: palAllowed, levelOf }) : [];
+      const fromSim = plan.drills ? generateSession(shell, [ctest], 1, seed, simAllowed).slice(0, CHAPTER_TEST.practical - fromPal.length) : [];
       drills = [...fromPal, ...fromSim];
       pal = { skill: null };
-    } else drills = pal ? generatePalestra(shell, pal.skill ? { skill: pal.skill, seed } : { pool: this.palestraPool(), seed }) : generateSession(shell, chapters, level, seed);
-    if (!drills.length) return ctest ? this.showChapterTest(ctest) : this.showPalestra();
+    } else
+      drills = pal
+        ? generatePalestra(shell, pal.skill ? { skill: pal.skill, seed, allowed: palAllowed } : { pool: this.palestraPool(), seed, allowed: palAllowed, levelOf })
+        : generateSession(shell, chapters, level, seed, simAllowed);
+    if (!drills.length) {
+      this.toast('Nessun esercizio adatto a ciò che hai studiato finora: prosegui il corso e torna qui.');
+      return ctest ? this.showChapterTest(ctest) : pal ? this.showPalestra() : this.showSimSetup();
+    }
     const term = new TerminalView(shell, (ev) => this.onSimEvents(ev));
-    this.sim = { drills, idx: 0, level, chapters, results: [], hinted: drills.map(() => false), hintLevel: 0, term, shell, minimized: false, solvedNow: false, log: [], pal, ctest, exam: exam ? { started: Date.now(), deadline: Date.now() + EXAMS.pratico.minutes * 60_000 } : null };
+    this.sim = { drills, idx: 0, started: Date.now(), level, chapters, results: [], hinted: drills.map(() => false), hintLevel: 0, term, shell, minimized: false, solvedNow: false, log: [], pal, ctest, exam: exam ? { started: Date.now(), deadline: Date.now() + EXAMS.pratico.minutes * 60_000 } : null };
     const palName = ctest ? 'VERIFICA · PARTE PRATICA' : pal ? (pal.skill ? `PALESTRA · ${pal.skill}` : 'PALESTRA · ALLENAMENTO MISTO') : '';
     if (pal) {
       term.system(`── ${palName} · ${drills.length} esercizi ──`, 'banner');
@@ -1998,6 +2120,7 @@ export class App {
         this.renderSim();
       } else if (act === 'skip') {
         s.term.system(`↷ Sfida saltata. La soluzione sarà nel riepilogo finale.`, 'info');
+        this.learnFrom(drillSkills(s.drills[s.idx]), false, s.exam ? 'esame' : s.pal ? 'palestra' : 'simulazione', { error: 'saltato' });
         this.nextDrill('skip');
       } else if (act === 'terminal') {
         s.minimized = true;
@@ -2064,11 +2187,14 @@ export class App {
     const wrong = !solved && events.some((ev) => ev.type === 'answer') && !!d.answer;
     const entry = entryOf(s.shell, s.idx, solved ? 'pass' : wrong ? 'wrong-answer' : null, events);
     if (entry) s.log.push(entry);
+    const kind: ActivityKind = s.exam ? 'esame' : s.pal ? 'palestra' : 'simulazione';
+    if (entry?.e && entry.l) this.learnFrom(skillsInLine(entry.l), false, kind, { error: errorKind(entry.e) });
+    else if (wrong) this.learnFrom(drillSkills(d), false, kind, { error: 'risposta' });
     if (!solved) return;
     s.solvedNow = true;
     {
       const used = s.log.filter((e) => e.s === s.idx && e.l && !e.e).flatMap((e) => skillsInLine(e.l));
-      this.credit(used, s.exam ? 'esame' : s.pal ? (d.gid ?? 'pal') : `sim:${d.gid ?? d.title}`, s.hinted[s.idx] || s.hintLevel > 0);
+      this.credit(used, s.exam ? 'esame' : s.pal ? (d.gid ?? 'pal') : `sim:${d.gid ?? d.title}`, s.hinted[s.idx] || s.hintLevel > 0, Math.round((Date.now() - s.started) / 1000));
     }
     s.term.system(`✔ ${s.pal ? 'ESERCIZIO RISOLTO' : 'SFIDA RISOLTA'} (${s.idx + 1}/${s.drills.length})`, 'ok');
     this.renderSim();
@@ -2080,6 +2206,7 @@ export class App {
     if (!s) return;
     s.results.push(result);
     s.idx++;
+    s.started = Date.now();
     s.hintLevel = 0;
     s.solvedNow = false;
     s.minimized = false;

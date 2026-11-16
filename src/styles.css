@@ -2954,6 +2954,10 @@ html.fx .toast {
   background: var(--yellow);
 }
 
+.st6 {
+  background: var(--pink);
+}
+
 .st0 {
   background: transparent;
   border: 1px solid var(--line);
@@ -3099,3 +3103,53 @@ pre.code.term .cl-cmd { color: #fff; font-weight: 600; }
 pre.code.term .cl-cmd i { color: var(--cyan); font-style: normal; }
 pre.code.term .cl-out { color: #aeb4c8; }
 pre.code.term .cl-note { color: #7d8399; font-family: var(--sans); font-style: italic; }
+
+/* cruscotto del motore di apprendimento */
+.dash {
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  padding: 0.8rem 0.9rem;
+  margin-bottom: 1.2rem;
+}
+
+.dash-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.dims {
+  list-style: none;
+  padding: 0;
+  margin: 0.4rem 0;
+}
+
+.dims li {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr 3rem;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.25rem 0;
+}
+
+.dim-bar {
+  height: 0.55rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.dim-bar i {
+  display: block;
+  height: 100%;
+  background: var(--cyan-dim);
+}
+
+.dim-val {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.errs {
+  padding-left: 1.1rem;
+}

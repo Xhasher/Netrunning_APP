@@ -16,6 +16,8 @@ import {
   type SessionItem,
 } from '../game/cards';
 import type { SaveData } from '../game/state';
+import { recordAttempt } from '../game/engine';
+import { isWhyQuestion, skillsInLine, skillsInQuiz } from '../game/skills';
 import { openManual } from './manual';
 import { inline, renderMarkup } from './markup';
 
@@ -262,6 +264,12 @@ export function runItems(box: HTMLElement, host: RunHost, plan: RunItem[], onFin
     answered = true;
     if (cur.retry === 0) {
       if (card) review(save.srs, card.id, ok, day, cur.item.early);
+      // il motore di apprendimento riceve anche le risposte di Memoria, ripassi e verifiche
+      const skills = card ? (card.kind === 'fact' ? [] : skillsInLine(card.cmd ?? card.answer)) : quiz ? skillsInQuiz(quiz.question, quiz.options) : [];
+      if (skills.length) {
+        save.learn ??= {};
+        recordAttempt(save.learn, { skills, ok, day, kind: card ? 'memoria' : quiz && isWhyQuestion(quiz.question) ? 'ragionamento' : 'quiz', error: ok ? undefined : 'risposta' });
+      }
       if (ok) {
         firstTry++;
         xp += xpEach;
