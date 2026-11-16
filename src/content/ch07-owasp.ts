@@ -80,6 +80,23 @@ Le categorie si scrivono con una sigla: **A** più il numero in classifica. Qui 
 !! Conoscere la Top 10 serve a **trovare e far correggere** questi problemi, in un lavoro autorizzato. Per esercitarti sul serio esistono laboratori costruiti apposta, come la PortSwigger Web Security Academy (gratuita) e OWASP Juice Shop.`,
       },
       {
+        kind: 'task',
+        since: 23,
+        title: 'Il tuo primo report OWASP',
+        body: `@rook: Prima del negozio di Judy, rimetti in ordine quello che hai trovato sul sito del jukebox. In \`web/segnalazioni.txt\` ci sono i tre problemi delle missioni precedenti, numerati.
+
+\`\`\`
+cat web/segnalazioni.txt
+\`\`\`
+
+Quale numero corrisponde alla categoria **A03 · Injection**? Invialo con \`flag\`.`,
+        objective: 'Trova la segnalazione che appartiene ad A03 · Injection.',
+        hints: ['Injection vuol dire che un dato dell\'utente diventa parte di un comando o di una query.', 'È quella con UNION SELECT: flag 2'],
+        answer: ['2'],
+        solve: ['cat web/segnalazioni.txt', 'flag 2'],
+        success: `La **2**, la SQL injection di \`playlist.php\`. La 1 (Apache vecchio di anni) è **A06**, componenti vulnerabili e obsoleti; la 3 (il percorso nascosto in un commento) è **A05**, configurazione sbagliata. Tre problemi, tre famiglie diverse, tre cure diverse.`,
+      },
+      {
         kind: 'quiz',
         title: 'Classifica',
         question: 'Un utente scopre che cambiando `/profilo?id=88` in `/profilo?id=89` vede i dati di un altro utente. Quale categoria?',

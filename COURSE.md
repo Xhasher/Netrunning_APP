@@ -263,3 +263,8 @@ Il programma previsto in questo documento è completo. Prossimi passi possibili:
 - **Capitolo PY rivisto** con la trama: Luca torna dalle ferie, vede il guardiano in bash e propone Python ("tra un mese avrai cinquanta controlli diversi"); lo script delle porte diventa il suo strumento mensile, quello del firmware va nel cron; alla fine Mama chiede di controllare il sito nuovo del jukebox, che apre il capitolo 07. Luca ha la sua voce nelle lezioni.
 - Tolta la frase "Esempio (diverso da quello che ti chiedo)"; "capitolo 4" diventa "capitolo 04".
 - Nuovo esercizio nella PY.2: il dizionario dei servizi con `.get`, per chiedere una porta che c'è e una che non c'è senza far fermare lo script.
+
+## Aggiunto nella 1.31 (capitolo 07 rivisto)
+
+- **Capitolo 07 rivisto** con la trama che continua: il sito nuovo del jukebox chiesto da Mama alla fine del capitolo Python (l'ha fatto un amico di Luca, "bravo, ma va di fretta"), poi la Top 10 e il negozio di Judy.
+- Nuovo esercizio nella 7.4, che prima non ne aveva: il primo report OWASP, cioè classificare i tre problemi trovati sul sito del jukebox (componenti obsoleti A06, injection A03, configurazione A05) leggendo `web/segnalazioni.txt`.

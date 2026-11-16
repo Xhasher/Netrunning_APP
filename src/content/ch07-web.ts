@@ -16,7 +16,9 @@ export const CH07: Chapter = {
         {
           kind: 'lesson',
           title: 'Il nuovo incarico',
-          body: `@rook: Mama ha fatto fare un sito al jukebox: la gente sceglie le canzoni dal telefono. Dopo l'ultimo casino vuole che tu lo controlli. Stesso contratto di prima: rete \`192.168.1.0/24\`, niente fuori scope.
+          body: `@rook: Il sito nuovo del jukebox di cui parlava Mama: la gente sceglie le canzoni dal telefono. Dopo l'ultimo casino vuole che tu lo controlli prima di pubblicizzarlo. Stesso contratto di prima: rete \`192.168.1.0/24\`, niente fuori scope.
+
+@luca: L'ha fatto un mio amico. È bravo, ma va di fretta.
 
 @nyx: La maggior parte degli attacchi oggi passa dal web. Prima di difendere un sito devi capire come parla: il protocollo **HTTP**.`,
         },

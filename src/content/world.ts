@@ -878,6 +878,17 @@ function addShopAndMail(sh: Shell, home: string, mine: { owner: string; group: s
     },
   });
   fs.writeFile(
+    `${home}/web/segnalazioni.txt`,
+    [
+      'SEGNALAZIONI - sito del jukebox (bozza del report)',
+      '',
+      '1. L\'intestazione Server rivela Apache/2.4.29, una versione di anni fa con vulnerabilità note.',
+      '2. playlist.php accetta UNION SELECT nel parametro id: il database risponde con dati non previsti.',
+      '3. Un commento HTML nella home rivela un percorso di amministrazione "nascosto".',
+    ].join('\n') + '\n',
+    mine,
+  );
+  fs.writeFile(
     `${home}/web/negozio-contratto.txt`,
     [
       'CONTRATTO DI AUDIT - Judy BD (negozio online)',
