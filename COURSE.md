@@ -157,3 +157,12 @@ Il programma previsto in questo documento è completo. Prossimi passi possibili:
 - Ogni termine è spiegato dove compare (comando, argomento, opzione, percorso, radice, home, permessi, byte, backup, log, flag, CTF); nuova lezione "Comando e argomento"; lo schema comando-opzioni-argomenti arriva solo quando serve.
 - I compiti raccontano cosa fare e perché, senza ripetere la lezione di Nyx che li precede; tolte le mini-lezioni automatiche dove il compito spiega già l'opzione (`ownLesson`).
 - I capitoli successivi verranno riscritti con lo stesso criterio, uno alla volta.
+
+## Aggiunto nella 1.19 (riscrittura per principianti, capitolo F)
+
+- **Capitolo F riscritto** con una trama: il giorno dopo la notte del capitolo 01, alla scrivania di Rook nel retro di Lo Scantinato. Ogni missione è un'ora della giornata con un cliente diverso (la clinica, l'emporio Tanaka, Neon Ottica, lo studio dentistico Kabuki, il contratto della sera); alla fine Rook ti manda da Mama Reyes, il capitolo 02.
+- Si comincia dal terminale: prima si leggono le segnalazioni dei clienti con `cat`, poi arriva la teoria della triade CIA.
+- Ogni termine spiegato dove compare (ransomware, cifrare, backup, BEC, IBAN, log, MFA, NIST, impronta della password, indirizzo IP); liste lunghe divise in lezioni più brevi, con esempi concreti.
+- Nuove lezioni: "Cosa si fa con un rischio", "Non tutti i secondi fattori sono uguali", "Altri attacchi da riconoscere" (brute force, password spraying, credential stuffing, DoS, man in the middle, supply chain).
+- Nuovi esercizi: leggere le segnalazioni del mattino; riconoscere la mail di phishing tra tre messaggi (`fondamenti/messaggi.txt`). La missione F.3 ora ha un esercizio pratico.
+- Il caso dello studio commercialisti si chiude nella lezione sul GDPR (notifica entro 72 ore).
