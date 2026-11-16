@@ -43,6 +43,8 @@ import { MODULES, STATES, backfill, introduced, isWhyQuestion, moduleSummary, ne
 import { DIFFICULTY_NAMES, DIMENSION_NAMES, ERROR_ADVICE, dueSkills, eligible, errorKind, isFragile, levelFor, overallDimensions, recordAttempt, recurringErrors, reviewWeight, snapshot, type ActivityKind, type Difficulty, type Dimensions } from '../game/engine';
 import { genRequires, palRequires } from '../game/prereq';
 import { INTEREST, TASTES, TRACKS, buildProfile, explainRow, type TrackId } from '../game/orientation';
+import { FOCUS, MENTOR_NAMES, TOPICS, tutor, type Advice } from '../game/tutor';
+import { JOBS, JOBS_CHECKED, MARKET } from '../content/jobs';
 import { SyncError, describe as describeSave, deviceName, loadCloud, saveCloud, syncOnce, type CloudConfig } from '../game/sync';
 import { annotateGlossary, bindGlossarySearch, glossaryHtml, installGlossary } from './glossary';
 import { openManual } from './manual';
@@ -490,6 +492,7 @@ export class App {
           : `<div class="continue done"><span class="c-kicker">${s.completed.length}/${total} MISSIONI</span>
               <span class="c-title">Hai completato tutte le missioni disponibili!</span>
               <span class="c-tag">Nuovi capitoli sono in arrivo. Intanto prova i laboratori nella sezione Carriera.</span></div>`}
+        ${this.save.orient?.choice ? this.mentorCardHtml() : ''}
         <div class="tip" data-act="tip">
           <span class="tip-k">TRUCCO DEL MESTIERE · ${tip.area.toUpperCase()}</span>
           <span class="tip-t">${inline(tip.text)}</span>
@@ -510,6 +513,7 @@ export class App {
             </div>
             <span class="ch-count">${doneCount}/${ch.missions.length}</span>
           </div>
+          ${s.orient?.choice && FOCUS[s.orient.choice].includes(ch.id) ? `<p class="ch-focus">★ Centrale per il percorso ${TRACKS.find((t) => t.id === s.orient.choice)!.name}</p>` : ''}
           <ol class="missions"></ol>
           ${doneCount === ch.missions.length ? this.chapterTestButton(ch.id) + `<button class="ch-debrief" data-debrief="${ch.id}">Debriefing del capitolo ▸</button>` : ''}
         </article>`);
@@ -571,6 +575,7 @@ export class App {
       else if (t.dataset.act === 'skills') this.showSkills();
       else if (t.dataset.act === 'career') this.showCareer();
       else if (t.dataset.act === 'orient') this.showOrientation();
+      else if (t.dataset.act === 'mentor') this.showMentor();
       else if (t.dataset.act === 'settings') this.showSettings();
       else if (t.dataset.act === 'title') this.showTitle();
       else if (t.dataset.act === 'tip') {
@@ -2150,9 +2155,12 @@ export class App {
   private palestraPool(): { skill: string; weight: number }[] {
     const ctx = this.skillCtx();
     const day = today();
+    // il percorso scelto: le sue competenze tornano più spesso, senza escludere le altre
+    const choice = this.save.orient?.choice;
+    const track = new Set(choice ? TRACKS.find((t) => t.id === choice)!.skills : []);
     return PALESTRA_SKILLS.map((sk) => ({ skill: sk, st: stateOf(ctx, sk) }))
       .filter((x) => x.st >= 1)
-      .map((x) => ({ skill: x.skill, weight: reviewWeight(this.save.learn[x.skill], x.st, day) }));
+      .map((x) => ({ skill: x.skill, weight: reviewWeight(this.save.learn[x.skill], x.st, day) * (track.has(x.skill) ? 1.5 : 1) }));
   }
 
   private palestraVerdict(drills: Drill[]): string {
@@ -2748,6 +2756,7 @@ export class App {
     const disliked = TRACKS.filter((t) => o.tastes[t.id]?.[1] === 1).map((t) => TASTES[t.id].title);
     const content = html`
       <div class="prose">${renderMarkup('Quale settore della sicurezza fa per te? Qui lo scopri mettendo insieme **tre cose diverse**, che restano separate: cosa ti **interessa**, cosa ti è **piaciuto** provare, e cosa hai **dimostrato** di saper fare nel corso.\n\n!! Non è un test psicologico né una prova scientifica di attitudine: è un aiuto a ragionare. L\'interesse non è capacità, e la capacità cresce con lo studio. **La scelta è tua**, e puoi cambiarla quando vuoi.')}</div>
+      ${o.choice ? `<div class="step-actions"><button class="next" data-mentor="1">Apri il ${MENTOR_NAMES[o.choice]} ▸</button></div>` : ''}
       <h3>1 · I tuoi interessi</h3>
       <p class="small">${answered}/${INTEREST.length} risposte. Situazioni di tutti i giorni: non servono conoscenze tecniche e non ci sono risposte giuste.</p>
       <div class="step-actions"><button class="${ready ? 'ghost' : 'next'}" data-int="1">${answered ? 'Rifai il test' : 'Inizia il test'} ▸</button></div>
@@ -2770,6 +2779,7 @@ export class App {
         return this.showOrientation();
       }
       if (t.closest('[data-int]')) return this.runInterest();
+      if (t.closest('[data-mentor]')) return this.showMentor();
       const taste = t.closest<HTMLElement>('[data-taste]')?.dataset.taste as TrackId | undefined;
       if (taste) return this.runTaste(taste);
       const prac = t.closest<HTMLElement>('[data-prac]')?.dataset.prac;
@@ -2779,6 +2789,95 @@ export class App {
       if (prac === 'game-phishing') return this.showGame('phishing');
       if (prac === 'sim') return this.showSimSetup();
       if (prac === 'palestra') return this.showPalestra();
+    });
+  }
+
+  /** Il consiglio del mentore, calcolato dai dati del motore. */
+  private mentorAdvice() {
+    const choice = this.save.orient.choice!;
+    const ctx = this.skillCtx();
+    const next = allMissions().find((m) => !this.save.completed.includes(m.id) && isUnlocked(this.save, m.id));
+    const found = next ? findMission(next.id) : null;
+    const chName = (id: string) => {
+      const c = CHAPTERS.find((x) => x.id === id);
+      return c ? `${c.code} · ${c.title}` : id;
+    };
+    return tutor({
+      track: choice,
+      learn: this.save.learn,
+      taught: ctx.intro,
+      state: (k) => stateOf(ctx, k),
+      completed: new Set(this.save.completed),
+      day: today(),
+      next: found ? { id: found.mission.id, title: found.mission.title, chapter: found.chapter.id, chapterTitle: chName(found.chapter.id) } : null,
+      pendingTests: CHAPTERS.filter((c) => chapterComplete(c, this.save.completed) && !this.save.chTests[c.id]?.passed).map((c) => c.id),
+      chapterTitle: chName,
+      chapterDone: (id) => {
+        const c = CHAPTERS.find((x) => x.id === id);
+        return !!c && chapterComplete(c, this.save.completed);
+      },
+    });
+  }
+
+  private mentorCardHtml(): string {
+    const m = this.mentorAdvice();
+    const first = m.today[0];
+    return html`<button class="tip mentor-card" data-act="mentor"><span class="tip-k">${m.name.toUpperCase()} · OGGI</span><span class="tip-t">${first ? inline(first.text) : 'Niente di urgente: prosegui il corso.'}</span></button>`;
+  }
+
+  private runAdvice(a: Advice): void {
+    const act = a.act;
+    if (!act) return;
+    if (act.kind === 'skill') return this.startSim([], 1, false, { skill: act.skill });
+    if (act.kind === 'mission') return this.showMission(act.id);
+    if (act.kind === 'chtest') return this.showChapterTest(act.chapter);
+    if (act.act === 'scene') return this.showOperation('sc01');
+    if (act.act === 'ops') return this.showOps();
+    if (act.act === 'game-soc') return this.showGame('soc');
+    if (act.act === 'game-phishing') return this.showGame('phishing');
+    if (act.act === 'sim') return this.showSimSetup();
+    if (act.act === 'palestra') return this.showPalestra();
+  }
+
+  private showMentor(): void {
+    const choice = this.save.orient?.choice;
+    if (!choice) return this.showOrientation();
+    const m = this.mentorAdvice();
+    const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+    const job = JOBS[choice];
+    const chName = (id: string) => {
+      const c = CHAPTERS.find((x) => x.id === id);
+      return c ? `${c.code} · ${c.title}` : id;
+    };
+    const link = (s: { label: string; url: string }) => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a></li>`;
+    const content = html`
+      <div class="prose">${renderMarkup(`@nyx: Da oggi ti segue il **${m.name}**. Guarda i tuoi dati veri: cosa hai studiato, cosa sbagli, cosa stai per dimenticare. Non ti propone mai cose che il corso non ti ha ancora spiegato. La base comune resta per tutti: il percorso decide solo dove scavare di più.`)}</div>
+      <h3>Oggi</h3>
+      <ol class="advice">${m.today.map((a, i) => `<li>${inline(a.text)}${a.act ? ` <button class="linkbtn" data-adv="${i}">vai ▸</button>` : ''}</li>`).join('') || '<li>Niente di urgente: prosegui il corso.</li>'}</ol>
+      <h3>Per il tuo lavoro</h3>
+      <p class="small">${m.strong.length ? `Già solide: ${m.strong.map((k) => `<code>${esc(k)}</code>`).join(', ')}. ` : ''}${m.gaps.length ? `Da rinforzare: ${m.gaps.map((k) => `<code>${esc(k)}</code>`).join(', ')}.` : 'Nessuna lacuna sulle competenze già insegnate.'}</p>
+      ${m.upcoming.length ? `<p class="small">I prossimi capitoli centrali per te: ${m.upcoming.map(esc).join(' · ')}.</p>` : ''}
+      <details class="dash"><summary>Gli argomenti del percorso, e dove li trovi</summary><ul class="small">${TOPICS[choice].map(([t, c]) => `<li>${esc(t)}: ${c ? esc(chName(c)) : '<i>non ancora nel corso: arriverà più avanti</i>'}</li>`).join('')}</ul></details>
+      <h3>Il lavoro in Italia</h3>
+      <p class="small">Dati raccolti il ${JOBS_CHECKED} da fonti pubbliche. Sono <b>indicativi</b>: ${esc(job.kind)}.</p>
+      <ul class="small">
+        <li><b>Ruoli</b>: ${job.roles.map(esc).join('; ')}</li>
+        <li><b>RAL junior</b>: ${job.junior ? esc(job.junior) : 'nessun dato affidabile trovato'}${job.later ? `; ${esc(job.later)}` : ''}</li>
+        <li><b>Senza laurea</b>: ${esc(job.noDegree)}</li>
+        <li><b>Certificazioni apprezzate</b>: ${job.certs.map(esc).join('; ')}</li>
+        <li><b>Remoto o ibrido</b>: ${esc(job.remote)}</li>
+      </ul>
+      <p class="small">${esc(MARKET.shortage)} ${esc(MARKET.north)} ${esc(MARKET.referrals)}</p>
+      <p class="small"><b>Torino e Piemonte</b>: ${esc(MARKET.torino)}</p>
+      <p class="small"><b>Attenzione</b>: ${esc(MARKET.caution)}</p>
+      <details><summary>Fonti</summary><ul class="small">${[...job.sources, ...MARKET.sources].map(link).join('')}</ul></details>
+      <div class="step-actions"><button class="ghost" data-orient="1">Cambia percorso</button></div>`;
+    const node = this.page('mentor', m.name, `// ${m.track.name}`, content);
+    node.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      const i = t.closest<HTMLElement>('[data-adv]')?.dataset.adv;
+      if (i !== undefined) return this.runAdvice(m.today[Number(i)]);
+      if (t.closest('[data-orient]')) return this.showOrientation();
     });
   }
 

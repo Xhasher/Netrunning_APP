@@ -209,3 +209,39 @@ describe('orientamento professionale', () => {
     for (const t of Object.values(TASTES)) for (const st of t.steps) expect(st.correct).toBeLessThan(st.options.length);
   });
 });
+
+describe('mentore del percorso', () => {
+  it('propone solo competenze già insegnate, prima quelle del percorso, e la prossima missione', async () => {
+    const { tutor, FOCUS, TOPICS } = await import('../src/game/tutor');
+    const { TRACKS } = await import('../src/game/orientation');
+    const { JOBS } = await import('../src/content/jobs');
+    const l: Learn = {};
+    // grep (SOC) esercitata e scaduta; nmap (pentest) fragile ma NON ancora insegnata
+    recordAttempt(l, { skills: ['grep'], ok: true, kind: 'palestra', day: 1 });
+    for (let i = 0; i < 4; i++) recordAttempt(l, { skills: ['nmap'], ok: false, kind: 'palestra', day: 1, error: 'opzione' });
+    const out = tutor({
+      track: 'soc',
+      learn: l,
+      taught: new Set(['grep', 'ls']),
+      state: () => 3,
+      completed: new Set(['chF-m3']),
+      day: 20,
+      next: { id: 'ch04-m1', title: 'Il diario del server', chapter: 'ch04', chapterTitle: '04 · Primo turno al SOC' },
+      pendingTests: [],
+      chapterTitle: (id) => id,
+      chapterDone: () => false,
+    });
+    const skills = out.today.flatMap((a) => (a.act?.kind === 'skill' ? [a.act.skill] : []));
+    expect(skills).toContain('grep');
+    expect(skills).not.toContain('nmap');
+    expect(out.today.some((a) => a.act?.kind === 'mission' && a.text.includes('centrale'))).toBe(true);
+    // ogni capitolo citato esiste, ogni percorso ha dati sul lavoro (con fonti quando dà cifre)
+    const ids = new Set(CHAPTERS.map((c) => c.id));
+    for (const t of TRACKS) {
+      for (const c of FOCUS[t.id]) expect(ids.has(c), c).toBe(true);
+      for (const [, c] of TOPICS[t.id]) if (c) expect(ids.has(c), c).toBe(true);
+      const j = JOBS[t.id];
+      if (j.junior) expect(j.sources.length, t.id).toBeGreaterThan(0);
+    }
+  });
+});

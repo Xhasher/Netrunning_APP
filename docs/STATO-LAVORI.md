@@ -38,8 +38,10 @@ Audit (fase A) presentato il 16 novembre 2026.
 | D Giochi esistenti nel motore (Phishing/Triage legati al capitolo, feedback con esercizio diverso, domande sul perché) | fatto (1.21.0) |
 | E Digital Crime Scene (SC-01, cresce con il corso) | fatto (1.22.0) |
 | F Orientamento professionale | fatto (1.23.0) |
-| G Percorsi specializzati e tutor a regole | **prossima** |
-| H Collaudo | da fare |
+| G Percorsi specializzati, mentore a regole, lavoro in Italia | fatto (1.24.0) |
+| H Collaudo | **prossima** |
 
 Decisioni: tutor a regole (niente IA: niente credenziali nel client); dati sul lavoro in Italia
 con fonte e data, ricontrollati a ogni versione (l'app funziona offline); Network Architect per ultimo.
+
+Dati sul lavoro (src/content/jobs.ts): raccolti il 16 novembre 2026, da ricontrollare a ogni versione.

@@ -3175,3 +3175,19 @@ pre.code.term .cl-note { color: #7d8399; font-family: var(--sans); font-style: i
 .chip.off {
   opacity: 0.6;
 }
+
+.ch-focus {
+  margin: 0.2rem 0 0.4rem;
+  font-size: 0.8rem;
+  color: var(--yellow);
+}
+
+.mentor-card {
+  text-align: left;
+  width: 100%;
+  border-left-color: var(--yellow);
+}
+
+.advice li {
+  margin: 0.35rem 0;
+}
