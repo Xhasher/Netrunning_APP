@@ -257,3 +257,9 @@ Il programma previsto in questo documento è completo. Prossimi passi possibili:
 - **Capitolo 06 rivisto** con la trama: Luca, dalle ferie, dice di aver salvato le password del bar "in un file cifrato" (è solo Base64, 6.1); arriva un aggiornamento del jukebox manomesso (6.2); il vecchio server conservava male le password dello staff (6.3). Il capitolo si chiude con il password manager per lo staff e un biglietto di Nyx per Luca.
 - Spiegati meglio certificato e autorità di certificazione, il problema dello scambio della chiave, i prefissi delle impronte delle password su Linux (`$y$` yescrypt, `$6$` SHA-512, `$1$` MD5 obsoleto). "Capitolo SOC" diventa "capitolo 04".
 - Nuovo esercizio difensivo nella 6.3: l'audit dei formati delle password del vecchio server, per trovare l'account ancora con il formato obsoleto (la soluzione è reimpostare la password, non indovinarla).
+
+## Aggiunto nella 1.30 (capitolo PY rivisto)
+
+- **Capitolo PY rivisto** con la trama: Luca torna dalle ferie, vede il guardiano in bash e propone Python ("tra un mese avrai cinquanta controlli diversi"); lo script delle porte diventa il suo strumento mensile, quello del firmware va nel cron; alla fine Mama chiede di controllare il sito nuovo del jukebox, che apre il capitolo 07. Luca ha la sua voce nelle lezioni.
+- Tolta la frase "Esempio (diverso da quello che ti chiedo)"; "capitolo 4" diventa "capitolo 04".
+- Nuovo esercizio nella PY.2: il dizionario dei servizi con `.get`, per chiedere una porta che c'è e una che non c'è senza far fermare lo script.

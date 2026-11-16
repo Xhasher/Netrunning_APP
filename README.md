@@ -4,7 +4,7 @@ Un gioco per Android che insegna **ethical hacking, penetration testing e cyber 
 
 Si gioca in un **terminale Linux simulato**: comandi, file, rete e bersagli sono tutti finti, quindi si può sperimentare senza rischi e senza connessione.
 
-## Contenuti (v1.29)
+## Contenuti (v1.30)
 
 | Capitolo | Missioni | Argomenti |
 |---|---|---|

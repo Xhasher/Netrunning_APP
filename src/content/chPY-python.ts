@@ -2,6 +2,15 @@ import type { ShellEvent } from '../engine/types';
 import type { Chapter } from '../game/types';
 
 // Python per la sicurezza: dal primo print a strumenti veri per l'analisi.
+//
+// Trama: Luca torna dalle ferie e vede il guardiano in bash (capitolo 05). "Bello, ma tra un
+// mese avrai cinquanta controlli diversi." Nyx passa a Python: il primo programma (PY.1),
+// decidere e ripetere sull'inventario delle porte (PY.2), rifare in Python l'indagine del
+// capitolo 04 (PY.3), gli attrezzi di chi difende (PY.4). Alla fine Mama chiede di controllare
+// il sito nuovo del jukebox: è il capitolo 07.
+
+/** Versione dei contenuti in cui il capitolo è stato rivisto (passi nuovi). */
+const V = 22;
 
 type PyEv = Extract<ShellEvent, { type: 'python' }>;
 const pyRun = (test: (ev: PyEv) => boolean) => (ev: ShellEvent) => ev.type === 'python' && ev.ok && test(ev);
@@ -23,7 +32,11 @@ export const CHPY: Chapter = {
         {
           kind: 'lesson',
           title: 'Perché Python',
-          body: `@nyx: Con bash hai imparato a incollare comandi. Funziona finché il lavoro è semplice. Quando devi contare, confrontare, ricordare, decidere su migliaia di righe, ti serve un linguaggio vero. Per chi fa sicurezza quel linguaggio è **Python**.
+          body: `Luca è tornato dalle ferie, abbronzato e un po' imbarazzato per la storia del Base64. Guarda il tuo guardiano in bash e annuisce.
+
+@luca: Bello. Ma tra un mese avrai cinquanta controlli diversi, e bash diventerà un groviglio. Io queste cose le scrivo in Python.
+
+@nyx: Ha ragione. Con bash hai imparato a incollare comandi. Funziona finché il lavoro è semplice. Quando devi contare, confrontare, ricordare, decidere su migliaia di righe, ti serve un linguaggio vero. Per chi fa sicurezza quel linguaggio è **Python**.
 
 Perché proprio Python:
 - si legge quasi come l'inglese: è il più facile da imparare tra i linguaggi "seri"
@@ -40,9 +53,7 @@ Si usa in due modi:
         {
           kind: 'task',
           title: 'La prima riga',
-          body: `In Python, \`print(...)\` mostra qualcosa sullo schermo. Il testo va tra virgolette (semplici o doppie), i numeri no. Più valori separati da virgole vengono stampati con uno spazio in mezzo.
-
-Esempio (diverso da quello che ti chiedo):
+          body: `In Python, \`print(...)\` mostra qualcosa sullo schermo. Il testo va tra virgolette (semplici o doppie), i numeri no. Più valori separati da virgole vengono stampati con uno spazio in mezzo. Per esempio:
 
 \`\`\`
 python3 -c "print('Porte aperte:', 3)"
@@ -200,7 +211,9 @@ Leggi il traceback, apri il file con \`nano\`, correggi e rieseguilo finché fun
         {
           kind: 'lesson',
           title: 'if, elif, else',
-          body: `Per far decidere il programma si usa \`if\`. La condizione finisce con \`:\` e le righe che dipendono da lei sono **rientrate** di 4 spazi. Il rientro **è** la sintassi: è così che Python sa dove finisce il blocco.
+          body: `@luca: Primo lavoro vero. Ogni mese passo nmap sui server dei clienti e confronto a occhio le porte aperte con quelle pericolose. Ci metto un'ora. Fammelo fare a Python.
+
+@nyx: Per farlo, il programma deve saper **decidere** e **ripetere**. Per far decidere il programma si usa \`if\`. La condizione finisce con \`:\` e le righe che dipendono da lei sono **rientrate** di 4 spazi. Il rientro **è** la sintassi: è così che Python sa dove finisce il blocco.
 
 \`\`\`
 tentativi = 37
@@ -282,6 +295,25 @@ Poi eseguilo con \`python3 py/porte.py\`.`,
           success: `Tre porte: **21** (FTP, credenziali in chiaro), **23** (Telnet, tutto in chiaro) e **3389** (RDP, il desktop remoto di Windows, tra i bersagli preferiti dei ransomware). Il tuo script ha fatto in un istante quello che faresti confrontando a occhio due elenchi, e lo rifarà identico su mille server.`,
         },
         {
+          kind: 'task',
+          since: V,
+          title: 'Il dizionario dei servizi',
+          body: `@luca: E quando trovo una porta che non conosco? Mi serve un modo rapido per chiedere "cos'è la 3306?".
+
+Un dizionario fa proprio questo. Scrivi una riga che crea un dizionario porta → servizio e chiede la **3306** con \`.get\`, che non va in errore se la chiave manca:
+
+\`\`\`
+python3 -c "servizi = {22: 'SSH', 3306: 'MySQL', 3389: 'RDP'}; print(servizi.get(3306, 'sconosciuta'))"
+\`\`\`
+
+Poi prova anche con una porta che non c'è, per esempio la 8080: cosa stampa?`,
+          objective: 'Usa un dizionario con .get per una porta presente e una assente.',
+          hints: ['Una riga con servizi.get(3306, ...) e una con servizi.get(8080, ...).', 'python3 -c "servizi = {22: \'SSH\', 3306: \'MySQL\'}; print(servizi.get(8080, \'sconosciuta\'))"'],
+          check: pyRun((ev) => ev.src.includes('.get(') && ev.out.some((l) => /sconosciut/i.test(l))),
+          solve: ['python3 -c "servizi = {22: \'SSH\', 3306: \'MySQL\', 3389: \'RDP\'}; print(servizi.get(8080, \'sconosciuta\'))"'],
+          success: `Con \`servizi[8080]\` Python si sarebbe fermato con un \`KeyError\`; con \`.get(8080, 'sconosciuta')\` risponde con il valore di riserva e lo script continua. In uno strumento che gira da solo di notte, è la differenza tra un report e un errore.`,
+        },
+        {
           kind: 'lesson',
           title: 'Le funzioni',
           body: `Una **funzione** è un pezzo di codice con un nome, che si può riusare. Si definisce con \`def\`, riceve dei **parametri** e con \`return\` restituisce un risultato:
@@ -356,7 +388,7 @@ Poi esegui \`python3 py/cvss.py\`: ogni riga deve mostrare il punteggio e la gra
         {
           kind: 'lesson',
           title: 'Aprire un file',
-          body: `@rook: Ricordi il caso del bar di Mama, nel capitolo 4? L'hai risolto con una catena di grep, cut, sort e uniq. Ora lo rifai in Python: è il modo in cui si costruiscono strumenti che poi usa tutto il team.
+          body: `@rook: Ricordi il caso del bar di Mama, nel capitolo 04? L'hai risolto con una catena di grep, cut, sort e uniq. Ora lo rifai in Python: è il modo in cui si costruiscono strumenti che poi usa tutto il team.
 
 Il modo giusto di leggere un file:
 
@@ -626,7 +658,9 @@ Scrivi \`py/controlla.py\` che, per ogni percorso dell'elenco, stampa il numero 
         {
           kind: 'lesson',
           title: 'E adesso?',
-          body: `@nyx: Con questo capitolo hai le basi che si chiedono a un junior: leggere e scrivere script, lavorare su file e log, contare, cercare, verificare.
+          body: `@luca: Lo script delle porte lo uso da domani. E quello del firmware lo metto nel cron, ogni notte.
+
+@nyx: Con questo capitolo hai le basi che si chiedono a un junior: leggere e scrivere script, lavorare su file e log, contare, cercare, verificare.
 
 Come continuare, fuori dal deck:
 - installa Python sul tuo computer (python.org, o già presente su Linux e macOS) e rifai questi esercizi su file veri
@@ -634,7 +668,9 @@ Come continuare, fuori dal deck:
 - librerie da conoscere per nome: **requests** (parlare con API web), **scapy** (pacchetti di rete), **paramiko** (SSH), **pandas** (tabelle di dati)
 - un esercizio che vale un colloquio: uno script che legge un log di autenticazione e produce un report con gli IP da bloccare, e lo pubblichi su GitHub
 
-?? Nei colloqui per analista spesso chiedono di leggere uno script e dire cosa fa. Leggere codice altrui è un'abilità a parte: allenala aprendo script di strumenti open source e chiedendoti, riga per riga, cosa succede.`,
+?? Nei colloqui per analista spesso chiedono di leggere uno script e dire cosa fa. Leggere codice altrui è un'abilità a parte: allenala aprendo script di strumenti open source e chiedendoti, riga per riga, cosa succede.
+
+@mama: Bene, adesso che sapete parlare ai computer in due lingue: il jukebox ha un sito nuovo, la gente sceglie le canzoni dal telefono. Me lo controllate?`,
         },
         {
           kind: 'quiz',

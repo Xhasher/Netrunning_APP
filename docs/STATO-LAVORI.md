@@ -19,8 +19,9 @@ chi gioca (niente "bravo", "pronto", "benvenuto" al maschile).
 | AM Amministrare Linux | rivisto (1.19.4) |
 | 05 Scripting | rivisto (1.19.5) |
 | 06 Crittografia | rivisto (1.29.0) |
-| PY Python | **prossimo** |
-| 07, 08, SOC, 09, 10, 11, PT, 12, DF, SJ, 13 | da fare |
+| PY Python | rivisto (1.30.0) |
+| 07 Web | **prossimo** |
+| 08, SOC, 09, 10, 11, PT, 12, DF, SJ, 13 | da fare |
 
 Filo della trama finora: notte da Nyx (01) → giornata da Rook (F) → pentest al bar di Mama (02)
 → vecchio server (03) → intrusione e cryptominer (04) → il sito sul deck, Luca in ferie (AM)

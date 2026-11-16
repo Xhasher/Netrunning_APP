@@ -3225,3 +3225,11 @@ pre.code.term .cl-note { color: #7d8399; font-family: var(--sans); font-style: i
   gap: 0.5rem;
   align-items: center;
 }
+
+.speech.luca {
+  border-left-color: var(--green);
+}
+
+.speech.luca .who {
+  color: var(--green);
+}
