@@ -29,5 +29,5 @@ Filo della trama finora: notte da Nyx (01) → giornata da Rook (F) → pentest 
 
 Documento dell'autore con l'evoluzione del sistema didattico (motore adattivo unico,
 prerequisiti per esercizio, orientamento professionale, percorsi specializzati, portfolio).
-Audit (fase A) presentato il 2077-11-16 nella conversazione; vedi la sezione seguente quando
+Audit (fase A) presentato il 16 novembre 2026 nella conversazione; vedi la sezione seguente quando
 le fasi successive partono.
