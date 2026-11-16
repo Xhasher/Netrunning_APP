@@ -6,6 +6,21 @@ const text = (r: { lines: { text: string }[] }) => r.lines.map((l) => l.text).jo
 
 // comandi che un giocatore userebbe per trovare ogni problema, e cosa segnalerebbe
 const PLAY: Record<string, { cmds: string[]; reports: string[] }> = {
+  sc01: {
+    cmds: [
+      'ls -la scena/sc01/home/jackie/Documenti',
+      'cat scena/sc01/home/jackie/Documenti/fornitori.txt',
+      'cat scena/sc01/etc/passwd',
+      'ls -l scena/sc01/home/jackie/Documenti/fornitori.txt',
+      'grep tecnico scena/sc01/root/raccolta/processi.txt',
+      'grep Accepted scena/sc01/var/log/auth.log',
+      'ls -la scena/sc01/home/tecnico',
+      'sha256sum scena/sc01/home/tecnico/.local/sync',
+      'cat scena/indicatori.txt',
+      'prova scena/sc01/home/jackie/Documenti/fornitori.txt',
+    ],
+    reports: ['.fornitori.txt.bak', 'NC99 6666 0101 2077 1313', 'tecnico', 'rw-rw-rw-', '/home/tecnico/.local/sync', '203.0.113.140', '/home/tecnico/.bash_history', 'NightTunnel'],
+  },
   op01: {
     cmds: [
       'ssh audit@market.lan',
@@ -93,9 +108,16 @@ describe('operazioni', () => {
         expect(errs, `${c}: ${text(r)}`).toEqual([]);
       }
       const found = new Set(play.reports.map((v) => matchFinding(op, v)?.id));
+      // gli indizi della scena che si trovano repertando un file (comando "prova") non passano da report
+      for (const f of op.findings) if (f.evidence) found.add(f.id);
       expect([...found].sort()).toEqual(op.findings.map((f) => f.id).sort());
       // anche gli indizi finali (l'ultimo suggerimento) devono funzionare
       for (const f of op.findings) {
+        if (f.evidence) {
+          const ev = sh.run(f.hints[f.hints.length - 1]).events.find((e) => e.type === 'evidence');
+          expect(ev && ev.type === 'evidence' && ev.path).toBe(`${sh.home}/${f.evidence}`);
+          continue;
+        }
         const last = f.hints[f.hints.length - 1];
         expect(last.startsWith('report ')).toBe(true);
         expect(matchFinding(op, last.slice(7))?.id).toBe(f.id);
@@ -105,7 +127,7 @@ describe('operazioni', () => {
 
   it('ssh: sessioni, permessi ed exit', () => {
     const sh = buildWorld('edge');
-    OPERATIONS[0].setup(sh);
+    OPERATIONS.find((o) => o.id === 'op01')!.setup(sh);
     expect(text(sh.run('ssh root@market.lan'))).toContain('Permission denied');
     sh.run('ssh audit@market.lan');
     expect(sh.promptText()).toBe('audit@market:~$');
@@ -113,6 +135,27 @@ describe('operazioni', () => {
     expect(text(sh.run('cat /home/vendor/x'))).toContain('Permission denied');
     sh.run('exit');
     expect(sh.promptText()).toBe('edge@deck:~$');
-    expect(matchFinding(OPERATIONS[0], 'boh')).toBeNull();
+    expect(matchFinding(OPERATIONS.find((o) => o.id === 'op01')!, 'boh')).toBeNull();
+  });
+});
+
+describe('scena del crimine', () => {
+  it('ogni indizio ha una missione di sblocco, e i suggerimenti usano solo comandi già insegnati a quel punto', async () => {
+    const { allMissions } = await import('../src/content');
+    const { introduced, skillsInLine } = await import('../src/game/skills');
+    const order = allMissions().map((m) => m.id);
+    const sc = OPERATIONS.find((o) => o.id === 'sc01')!;
+    for (const f of sc.findings) {
+      expect(order, f.id).toContain(f.after);
+      const taught = introduced(order.slice(0, order.indexOf(f.after!) + 1), {});
+      taught.add('report');
+      for (const h of f.hints) {
+        const code = [...h.matchAll(/(?:^|: )((?:ls|cat|grep|sha256sum|prova|report)\b[^,:?]*)/g)].map((m) => m[1]);
+        for (const line of code) for (const k of skillsInLine(line)) expect(taught.has(k), `${f.id}: ${line} usa ${k}`).toBe(true);
+      }
+    }
+    // la scena si apre presto: almeno due indizi subito, e una conclusione corretta per ogni livello
+    expect(sc.findings.filter((f) => f.after === sc.requires).length).toBeGreaterThanOrEqual(2);
+    expect(sc.scene!.conclusions.some((c) => c.after === sc.requires)).toBe(true);
   });
 });

@@ -95,6 +95,7 @@ function entryOf(sh: Shell, step: number, outcome: string | null, events: ShellE
 function kindOfContext(ctx: string): ActivityKind {
   if (ctx === 'esame') return 'esame';
   if (ctx.startsWith('op:')) return 'operazione';
+  if (ctx.startsWith('indagine:')) return 'indagine';
   if (ctx.startsWith('sim:')) return 'simulazione';
   if (ctx.startsWith('pal')) return 'palestra';
   return 'missione';
@@ -149,6 +150,12 @@ export class App {
     term: TerminalView;
     minimized: boolean;
     log: LogEntry[];
+    /** scena del crimine: fase, ipotesi iniziale, prove registrate, esiti finali */
+    stage?: 'hyp' | 'investigate' | 'conclude' | 'timeline';
+    hyp?: number;
+    evidence?: { path: string; hash: string }[];
+    concl?: { order: number[]; pick: number | null };
+    tl?: { order: string[]; picked: string[]; ok: boolean | null };
   } | null = null;
   private screen = 'title';
 
@@ -587,8 +594,8 @@ export class App {
         <button class="opcard ${state}" data-op="${op.id}" ${open ? '' : 'disabled'}>
           <span class="op-top">
             <span class="op-code">${op.code}</span>
-            <span class="op-kind ${op.kind}">${op.kind === 'audit' ? 'AUDIT' : 'INCIDENT RESPONSE'}</span>
-            <span class="op-xp">${done ? '✔ completata' : `${op.xp} XP`}</span>
+            <span class="op-kind ${op.kind}">${op.kind === 'audit' ? 'AUDIT' : op.kind === 'scena' ? 'SCENA DEL CRIMINE' : 'INCIDENT RESPONSE'}</span>
+            <span class="op-xp">${op.kind === 'scena' && open ? `${this.save.best[`scene:${op.id}`] ?? 0}/${op.findings.length} indizi · ${this.sceneOpen(op).length} aperti` : done ? '✔ completata' : `${op.xp} XP`}</span>
           </span>
           <span class="op-title">${op.title}</span>
           <span class="op-client">Cliente: ${op.client}</span>
@@ -600,7 +607,7 @@ export class App {
       'Operazioni',
       '// contratti sul campo',
       html`
-        <div class="prose"><p>Contratti veri, senza guida passo passo. Ti colleghi ai server del cliente con <code>ssh</code>, indaghi con i comandi che conosci e segnali ogni problema con <code>report</code>. Altri contratti si sbloccano man mano che completi i capitoli.</p></div>
+        <div class="prose"><p>Contratti veri, senza guida passo passo. Ti colleghi ai server del cliente con <code>ssh</code>, indaghi con i comandi che conosci e segnali ogni problema con <code>report</code>. Altri contratti si sbloccano man mano che completi i capitoli.</p><p>Le <b>scene del crimine</b> crescono con te: si aprono presto e, rigiocate dopo i capitoli successivi, rivelano indizi nuovi.</p></div>
         <div class="oplist">${cards}</div>`,
     );
     node.addEventListener('click', (e) => {
@@ -616,7 +623,7 @@ export class App {
     const shell = buildWorld(this.save.handle!, () => this.opHint(true));
     op.setup(shell);
     const term = new TerminalView(shell, (ev) => this.onOpEvents(ev));
-    this.op = { op, found: new Set(), hints: {}, term, minimized: false, log: [] };
+    this.op = { op, found: new Set(), hints: {}, term, minimized: false, log: [], ...(op.scene ? { stage: 'hyp' as const, evidence: [] } : {}) };
     term.system(`── ${op.code} · ${op.title.toUpperCase()} ──`, 'banner');
     term.system(`Cliente: ${op.client}. Ricorda: solo dentro lo scope.`, 'info');
     const node = el(html`
@@ -624,10 +631,10 @@ export class App {
         <header class="topbar">
           <button class="iconbtn" data-act="back" aria-label="Torna alle operazioni">◂</button>
           <div class="tb-title">
-            <div class="tb-kicker">${op.code} · ${op.kind === 'audit' ? 'AUDIT' : 'INCIDENT RESPONSE'}</div>
+            <div class="tb-kicker">${op.code} · ${op.kind === 'audit' ? 'AUDIT' : op.kind === 'scena' ? 'SCENA DEL CRIMINE' : 'INCIDENT RESPONSE'}</div>
             <div class="tb-name">${op.title}</div>
           </div>
-          <div class="tb-xp">${this.save.ops.includes(op.id) ? 'REPLAY' : `+${op.xp} XP`}</div>
+          <div class="tb-xp">${op.kind === 'scena' ? `${this.sceneOpen(op).length} indizi aperti` : this.save.ops.includes(op.id) ? 'REPLAY' : `+${op.xp} XP`}</div>
         </header>
         <div class="stepbar"><span></span></div>
         <section class="lesson"></section>
@@ -640,10 +647,16 @@ export class App {
     this.renderOp();
   }
 
+  /** Indizi della scena già raggiungibili con ciò che il corso ha spiegato. */
+  private sceneOpen(op: Operation): Operation['findings'] {
+    return op.findings.filter((f) => !f.after || this.save.completed.includes(f.after));
+  }
+
   private renderOp(scrollToEnd = false): void {
     const o = this.op;
     const screen = this.root.querySelector<HTMLElement>('.screen.operation');
     if (!o || !screen) return;
+    if (o.op.scene) return this.renderScene(scrollToEnd);
     const total = o.op.findings.length;
     screen.querySelector<HTMLElement>('.stepbar span')!.style.width = `${(o.found.size / total) * 100}%`;
     screen.classList.toggle('minimized', o.minimized);
@@ -700,11 +713,169 @@ export class App {
     if (scrollToEnd) panel.scrollTo({ top: panel.scrollHeight, behavior: 'smooth' });
   }
 
+  /** Pannello della scena del crimine: ipotesi, indizi, registro delle prove, conclusioni, timeline. */
+  private renderScene(scrollToEnd = false): void {
+    const o = this.op!;
+    const sc = o.op.scene!;
+    const screen = this.root.querySelector<HTMLElement>('.screen.operation')!;
+    const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+    const open = this.sceneOpen(o.op);
+    const locked = o.op.findings.filter((f) => !open.includes(f));
+    const found = open.filter((f) => o.found.has(f.id)).length;
+    screen.querySelector<HTMLElement>('.stepbar span')!.style.width = `${(found / Math.max(1, open.length)) * 100}%`;
+    screen.classList.toggle('minimized', o.minimized);
+    const panel = screen.querySelector<HTMLElement>('.lesson')!;
+    const head = html`
+      <div class="step-head">
+        <span class="step-kind k-task">INDAGINE</span>
+        <span class="step-num">${found}/${open.length} indizi</span>
+        <button class="iconbtn small" data-act="minimize" aria-label="Riduci pannello">${o.minimized ? '▾' : '▴'}</button>
+      </div>`;
+    const timed = o.op.findings.filter((f) => o.found.has(f.id) && f.time).sort((a, b) => a.time!.localeCompare(b.time!));
+    let body = '';
+    if (o.stage === 'hyp') {
+      body = html`
+        <div class="op-brief">${renderMarkup(o.op.brief)}</div>
+        <h3 class="op-h">Prima di guardare: cosa pensi che sia successo?</h3>
+        <p class="small">Scegli un'ipotesi. Non vale punti: alla fine la confronterai con quello che le prove dicono. Cambiare idea davanti alle prove è il mestiere.</p>
+        <div class="why-opts">${sc.hypotheses.map((h, i) => `<button class="opt" data-hyp="${i}">${esc(h)}</button>`).join('')}</div>`;
+    } else if (o.stage === 'investigate') {
+      const items = open
+        .map((f, i) => {
+          const ok = o.found.has(f.id);
+          const shown = f.hints.slice(0, o.hints[f.id] ?? 0);
+          return html`
+            <li class="finding ${ok ? 'ok' : ''}">
+              <span class="f-mark">${ok ? '✔' : i + 1}</span>
+              <div class="f-body">
+                <div class="f-title">${inline(f.title)}</div>
+                ${ok ? `<div class="f-explain">${renderMarkup(f.explain)}</div>` : ''}
+                ${!ok && shown.length ? `<ol class="hints">${shown.map((h) => `<li>${inline(h)}</li>`).join('')}</ol>` : ''}
+              </div>
+            </li>`;
+        })
+        .join('');
+      const byMission = new Map<string, number>();
+      for (const f of locked) byMission.set(f.after!, (byMission.get(f.after!) ?? 0) + 1);
+      const lockedHtml = [...byMission.entries()]
+        .map(([m, n]) => {
+          const fm = findMission(m);
+          return `<li>🔒 ${n === 1 ? '1 indizio' : `${n} indizi`} dopo la missione ${fm ? `${fm.chapter.code}.${fm.index + 1} "${esc(fm.mission.title)}"` : m}</li>`;
+        })
+        .join('');
+      body = html`
+        <div class="objective">
+          <span class="o-label">LA TUA IPOTESI INIZIALE</span>
+          <span class="o-text">${esc(sc.hypotheses[o.hyp ?? 0])}</span>
+        </div>
+        <div class="objective">
+          <span class="o-label">COPIA DEL DISCO</span>
+          ${o.op.scope.map((x) => `<span class="o-text">${inline(x)}</span>`).join('')}
+        </div>
+        <h3 class="op-h">Indizi da segnalare con <code>report</code></h3>
+        <ol class="findings">${items}</ol>
+        ${lockedHtml ? `<p class="small">Ancora chiusi, perché servono cose che il corso non ti ha ancora spiegato:</p><ul class="small">${lockedHtml}</ul>` : ''}
+        <h3 class="op-h">Registro delle prove</h3>
+        ${o.evidence!.length ? `<ul class="small evid">${o.evidence!.map((e) => `<li><code>${esc(e.path.replace(o.term.shell.home + '/', '~/'))}</code><br>sha256 <code>${e.hash.slice(0, 16)}…</code></li>`).join('')}</ul>` : '<p class="small">Vuoto. <code>prova FILE</code> registra un file con la sua impronta.</p>'}
+        ${timed.length ? html`<h3 class="op-h">Timeline finora</h3><ul class="small tl">${timed.map((f) => `<li><b>${f.time}</b> ${esc(f.event!)}</li>`).join('')}</ul>` : ''}
+        <div class="step-actions">
+          <button class="ghost" data-act="hint">Suggerimento</button>
+          <button class="ghost" data-act="terminal">Vai al terminale ⌨</button>
+        </div>`;
+    } else if (o.stage === 'conclude') {
+      o.concl ??= { order: sc.conclusions.map((_, i) => i).sort(() => Math.random() - 0.5), pick: null };
+      const right = this.bestConclusion();
+      const pick = o.concl.pick;
+      body = html`
+        <h3 class="op-h">Cosa puoi affermare, con le prove che hai?</h3>
+        <p class="small">Scegli la conclusione più completa che le tue prove <b>dimostrano</b>. Non di più: in un rapporto, affermare quello che non puoi provare è un errore grave quanto non vedere le cose.</p>
+        <div class="why-opts">${o.concl.order
+          .map((i) => `<button class="opt ${pick === null ? '' : i === right ? 'right' : i === pick ? 'wrong' : ''}" data-concl="${i}" ${pick === null ? '' : 'disabled'}>${esc(sc.conclusions[i].text)}</button>`)
+          .join('')}</div>
+        ${
+          pick === null
+            ? ''
+            : html`<div class="${pick === right ? 'success' : 'feedback wrong'}">
+                <p>${pick === right ? 'Esatto: è quello che le prove sostengono.' : sc.conclusions[pick].after === null ? 'Le prove dicono il contrario: il file è stato cambiato di notte, con il portatile acceso da remoto.' : this.save.completed.includes(sc.conclusions[pick].after!) ? 'Vero, ma le tue prove dicono di più: c\'è una conclusione più completa.' : 'Troppo: alcune parti non le hai ancora dimostrate con le prove raccolte.'}</p>
+                <p>La tua ipotesi iniziale era: <i>${esc(sc.hypotheses[o.hyp ?? 0])}</i>.</p>
+              </div>
+              <div class="step-actions"><button class="next" data-act="to-tl">${timed.length >= 3 ? 'Ricostruisci la timeline ▸' : 'Consegna il rapporto ▸'}</button></div>`
+        }`;
+    } else if (o.stage === 'timeline') {
+      o.tl ??= { order: timed.map((f) => f.id).sort(() => Math.random() - 0.5), picked: [], ok: null };
+      const ev = (id: string) => o.op.findings.find((f) => f.id === id)!;
+      body = html`
+        <h3 class="op-h">Rimetti in ordine gli eventi</h3>
+        <p class="small">Tocca gli eventi dal primo all'ultimo. Gli orari li hai scoperti tu: nei log, nelle date dei file, nella fotografia dei processi.</p>
+        <ol class="tl-picked">${o.tl.picked.map((id) => `<li>${esc(ev(id).event!)}</li>`).join('')}</ol>
+        ${
+          o.tl.ok === null
+            ? `<div class="why-opts">${o.tl.order.filter((id) => !o.tl!.picked.includes(id)).map((id) => `<button class="opt" data-tl="${id}">${esc(ev(id).event!)}</button>`).join('')}</div>`
+            : html`<div class="${o.tl.ok ? 'success' : 'feedback wrong'}"><p>${o.tl.ok ? 'Timeline corretta.' : 'Non è l\'ordine giusto. Eccolo, con gli orari:'}</p><ul class="tl">${timed.map((f) => `<li><b>${f.time}</b> ${esc(f.event!)}</li>`).join('')}</ul></div>
+              <div class="step-actions"><button class="next" data-act="finish">Consegna il rapporto ▸</button></div>`
+        }`;
+    }
+    panel.innerHTML = head + body;
+    panel.onclick = (e) => {
+      const t = e.target as HTMLElement;
+      const act = t.closest<HTMLElement>('[data-act]')?.dataset.act;
+      const hyp = t.closest<HTMLElement>('[data-hyp]')?.dataset.hyp;
+      const concl = t.closest<HTMLElement>('[data-concl]')?.dataset.concl;
+      const tl = t.closest<HTMLElement>('[data-tl]')?.dataset.tl;
+      if (hyp !== undefined) {
+        o.hyp = Number(hyp);
+        o.stage = 'investigate';
+        o.term.system(`Ipotesi annotata. La copia del disco è in ~/scena/sc01: comincia da lì (ls, cat, e "report" per ogni indizio).`, 'info');
+        this.renderOp();
+      } else if (concl !== undefined && o.concl && o.concl.pick === null) {
+        o.concl.pick = Number(concl);
+        const ok = o.concl.pick === this.bestConclusion();
+        this.learnFrom(['indagine'], ok, 'ragionamento', { error: ok ? undefined : 'risposta' });
+        this.renderOp();
+      } else if (act === 'to-tl') {
+        if (timed.length >= 3) {
+          o.stage = 'timeline';
+          this.renderOp();
+        } else this.finishOp();
+      } else if (tl && o.tl && o.tl.ok === null) {
+        o.tl.picked.push(tl);
+        if (o.tl.picked.length === timed.length) {
+          o.tl.ok = o.tl.picked.every((id, i) => id === timed[i].id);
+          this.learnFrom(['indagine'], o.tl.ok, 'ragionamento', { error: o.tl.ok ? undefined : 'risposta' });
+        }
+        this.renderOp();
+      } else if (act === 'finish') this.finishOp();
+      else if (act === 'hint') {
+        this.opHint(false);
+        o.log.push({ l: '', d: o.term.shell.cwd, s: o.found.size, k: 'h' });
+        this.renderOp(true);
+      } else if (act === 'terminal') {
+        o.minimized = true;
+        this.renderOp();
+        o.term.focus();
+      } else if (act === 'minimize') {
+        o.minimized = !o.minimized;
+        this.renderOp();
+      }
+    };
+    if (scrollToEnd) panel.scrollTo({ top: panel.scrollHeight, behavior: 'smooth' });
+  }
+
+  /** La conclusione più completa che le missioni completate permettono di dimostrare. */
+  private bestConclusion(): number {
+    const sc = this.op!.op.scene!;
+    let best = -1;
+    sc.conclusions.forEach((c, i) => {
+      if (c.after && this.save.completed.includes(c.after)) best = i;
+    });
+    return best;
+  }
+
   /** Il prossimo suggerimento per il primo problema non ancora trovato. */
   private opHint(fromShell: boolean): string | null {
     const o = this.op;
     if (!o) return null;
-    const f = o.op.findings.find((x) => !o.found.has(x.id));
+    const f = (o.op.scene ? this.sceneOpen(o.op) : o.op.findings).find((x) => !o.found.has(x.id));
     if (!f) return null;
     const lvl = o.hints[f.id] ?? 0;
     const h = f.hints[Math.min(lvl, f.hints.length - 1)];
@@ -726,32 +897,63 @@ export class App {
     if (entry) o.log.push(entry);
     for (const ev of events) {
       if (ev.type === 'answer') o.term.system('Nelle operazioni i problemi si segnalano con "report", non con "flag".', 'info');
+      if (ev.type === 'evidence' && o.evidence) {
+        if (!o.evidence.some((e) => e.path === ev.path)) o.evidence.push({ path: ev.path, hash: ev.hash });
+        const f = o.op.findings.find((x) => x.evidence && `${o.term.shell.home}/${x.evidence}` === ev.path);
+        if (f && !o.found.has(f.id)) this.foundClue(f, true);
+        else this.renderOp();
+        continue;
+      }
       if (ev.type !== 'report') continue;
       const f = matchFinding(o.op, ev.value);
       if (!f) {
         o.term.system('✘ Questo non risulta tra i problemi del contratto. Ricontrolla le prove, o sii più preciso (percorso completo, nome utente, IP).', 'err');
       } else if (o.found.has(f.id)) {
         o.term.system(`Già segnalato: ${f.title}.`, 'info');
-      } else {
-        o.found.add(f.id);
-        {
-          const lastP = o.log.slice(0, -1).map((e) => e.k).lastIndexOf('p');
-          const used = o.log.slice(lastP + 1).filter((e) => e.l && !e.e).flatMap((e) => skillsInLine(e.l));
-          this.credit(used, `op:${o.op.id}`, (o.hints[f.id] ?? 0) > 0);
-        }
-        o.term.system(`✔ PROBLEMA CONFERMATO (${o.found.size}/${o.op.findings.length}): ${f.title}`, 'ok');
-        o.minimized = false;
-        this.renderOp(true);
-        if (o.found.size === o.op.findings.length) setTimeout(() => this.finishOp(), 900);
-      }
+      } else this.foundClue(f, false);
+    }
+  }
+
+  /** Un problema (o un indizio della scena) è stato trovato. */
+  private foundClue(f: Operation['findings'][number], viaEvidence: boolean): void {
+    const o = this.op!;
+    o.found.add(f.id);
+    {
+      const lastP = o.log.slice(0, -1).map((e) => e.k).lastIndexOf('p');
+      const used = o.log.slice(lastP + 1).filter((e) => e.l && !e.e).flatMap((e) => skillsInLine(e.l));
+      this.credit(used, `${o.op.scene ? 'indagine' : 'op'}:${o.op.id}`, (o.hints[f.id] ?? 0) > 0);
+    }
+    const goal = o.op.scene ? this.sceneOpen(o.op).filter((x) => o.found.has(x.id)).length : o.found.size;
+    const total = o.op.scene ? this.sceneOpen(o.op).length : o.op.findings.length;
+    o.term.system(`✔ ${o.op.scene ? (viaEvidence ? 'PROVA ACQUISITA' : 'INDIZIO CONFERMATO') : 'PROBLEMA CONFERMATO'} (${goal}/${total}): ${f.title}`, 'ok');
+    o.minimized = false;
+    this.renderOp(true);
+    if (goal >= total) {
+      if (o.op.scene) {
+        o.stage = 'conclude';
+        o.term.system('Hai raccolto tutti gli indizi che puoi trovare per ora. Torna al pannello per le conclusioni.', 'info');
+        setTimeout(() => this.renderOp(), 600);
+      } else setTimeout(() => this.finishOp(), 900);
     }
   }
 
   private finishOp(): void {
     const o = this.op;
     if (!o) return;
-    const first = !this.save.ops.includes(o.op.id);
-    if (first) {
+    let first = !this.save.ops.includes(o.op.id);
+    let gained = o.op.xp;
+    if (o.op.scene) {
+      // la scena paga gli indizi nuovi rispetto alla volta migliore; è "completata" con tutti gli indizi
+      const key = `scene:${o.op.id}`;
+      const before = this.save.best[key] ?? 0;
+      const now = o.found.size;
+      gained = Math.max(0, now - before) * Math.round(o.op.xp / o.op.findings.length);
+      if (now > before) this.save.best[key] = now;
+      this.save.xp += gained;
+      if (now === o.op.findings.length && first) this.save.ops.push(o.op.id);
+      first = gained > 0;
+      this.persist();
+    } else if (first) {
       this.save.ops.push(o.op.id);
       this.save.xp += o.op.xp;
       this.persist();
@@ -763,7 +965,7 @@ export class App {
         <div class="panel">
           <div class="kicker">// ${o.op.code} · rapporto consegnato</div>
           <h2>${o.op.title}</h2>
-          ${first ? `<div class="xp-gain">+${o.op.xp} XP</div>` : '<div class="xp-gain replay">operazione ripetuta</div>'}
+          ${first ? `<div class="xp-gain">+${gained} XP</div>` : '<div class="xp-gain replay">operazione ripetuta</div>'}
           <div class="rank-now">Rango: <b>${rank.name}</b> · ${this.save.xp} XP</div>
           <div class="step-body">${renderMarkup(o.op.debrief)}</div>
           ${coach ? `<h3>Il parere di Rook sul tuo lavoro</h3>${this.statsHtml(coach)}<div class="coach">${this.coachHtml(coach, 4)}</div>` : ''}

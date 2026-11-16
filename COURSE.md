@@ -192,3 +192,12 @@ Il programma previsto in questo documento è completo. Prossimi passi possibili:
 - **Perché?** Dopo ogni scelta giusta, una domanda sul punto decisivo (quale indizio conta, cosa succede se..., qual è la difesa): conta nella misura del ragionamento.
 - **Feedback correttivo con un esercizio diverso**: dopo un errore arriva la spiegazione e poi un caso **diverso** dello stesso tipo (nei giochi), un'altra carta sullo stesso comando o un'altra domanda sulle stesse competenze (Memoria, verifiche di fine capitolo, ripasso lampo), un esercizio guidato diverso sullo stesso comando (Palestra, quando salti).
 - Tutti gli esiti arrivano al motore di apprendimento.
+
+## Aggiunto nella 1.22 (Scena del crimine digitale, fase E)
+
+- **SC-01 · Il portatile dell'ufficio** (in Operazioni, si apre dopo la missione 01.5): il pagamento a un fornitore di Mama è sparito perché qualcuno ha cambiato l'IBAN nel file dei fornitori. Si indaga su una **copia del disco** in sola lettura (`~/scena/sc01`): file, account, fotografia dei processi, log degli accessi, cronologia dei comandi.
+- **Cresce con il corso**: 9 indizi, ognuno si apre dopo la missione che spiega ciò che serve per trovarlo (file nascosti e date → 01; account → 03.1; permessi → 03.2; processi → 03.3; log → 04.2; prove e cronologia → 04.3; impronte e indicatori → 06.2). Gli indizi chiusi sono elencati con la missione che li apre; rigiocare la scena più avanti rivela di più (e dà punti solo per gli indizi nuovi).
+- **Ipotesi iniziale** prima di guardare, e alla fine **la conclusione**: la più completa che le prove dimostrano, non di più. La conclusione corretta dipende da quanto del corso hai fatto: chi gioca dopo il capitolo 01 deve dire "il file è stato cambiato, ma non posso ancora dire da chi".
+- **Registro delle prove**: il nuovo comando `prova FILE` calcola l'impronta SHA-256 del file e la annota (catena di custodia).
+- **Ricostruzione della timeline**: gli eventi scoperti (con gli orari trovati nei log, nelle date dei file e nei processi) vanno rimessi in ordine.
+- Ragionamento e indagine contano nel motore di apprendimento. `report` ora preferisce le corrispondenze esatte (un nome utente non "ruba" più un percorso che lo contiene).

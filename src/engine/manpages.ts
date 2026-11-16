@@ -531,6 +531,16 @@ export const MANPAGES: Record<string, ManPage> = {
     ],
     examples: [['ssh audit@market.lan', 'collegati a market.lan come utente audit']],
   },
+  prova: {
+    name: 'prova',
+    short: 'registra un file come prova, con la sua impronta (Scene del crimine)',
+    synopsis: 'prova FILE...',
+    description: [
+      'Comando del gioco: nelle Scene del crimine registra un file nel registro delle prove. Calcola la sua impronta SHA-256 e annota chi l\'ha raccolto e quando.',
+      'È la catena di custodia: se più tardi ricalcoli l\'impronta e la trovi uguale, dimostri che la prova non è stata modificata.',
+    ],
+    examples: [['prova scena/sc01/home/jackie/Documenti/fornitori.txt', 'reperta il file dei fornitori']],
+  },
   report: {
     name: 'report',
     short: 'segnala un problema trovato (Operazioni)',

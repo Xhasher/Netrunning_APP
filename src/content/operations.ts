@@ -8,6 +8,7 @@ import { sha256 } from '../engine/sha256';
 import { addDomain } from '../engine/osint';
 import { Vfs } from '../engine/vfs';
 import type { Markup } from '../game/types';
+import { SC01 } from './crimescene';
 
 export interface Finding {
   id: string;
@@ -18,6 +19,20 @@ export interface Finding {
   hints: string[];
   /** spiegazione mostrata quando viene trovato */
   explain: Markup;
+  /** scena del crimine: missione dopo la quale l'indizio entra in gioco (prima resta nascosto) */
+  after?: string;
+  /** scena del crimine: ora dell'evento ricostruito (HH:MM) e sua descrizione per la timeline */
+  time?: string;
+  event?: string;
+  /** scena del crimine: si trova repertando questo file (relativo alla home) con "prova" */
+  evidence?: string;
+}
+
+/** Una conclusione possibile della scena del crimine. */
+export interface Conclusion {
+  text: string;
+  /** è la conclusione più completa che le prove permettono dopo questa missione (null = mai corretta) */
+  after: string | null;
 }
 
 export interface Operation {
@@ -25,7 +40,7 @@ export interface Operation {
   code: string;
   title: string;
   client: string;
-  kind: 'audit' | 'incident';
+  kind: 'audit' | 'incident' | 'scena';
   /** missione da completare per sbloccare l'operazione */
   requires: string;
   xp: number;
@@ -34,6 +49,8 @@ export interface Operation {
   findings: Finding[];
   debrief: Markup;
   setup: (sh: Shell) => void;
+  /** scena del crimine: ipotesi da scegliere all'inizio e conclusioni possibili alla fine */
+  scene?: { hypotheses: string[]; conclusions: Conclusion[] };
 }
 
 // ---------------------------------------------------------------- strumenti
@@ -1155,7 +1172,7 @@ Hai completato tutte le Operazioni. Il deck resta tuo: rigioca quando vuoi, e po
   },
 };
 
-export const OPERATIONS: Operation[] = [OP01, OP02, OP03, OP04, OP05, OP06, OP07, OP08, OP09];
+export const OPERATIONS: Operation[] = [SC01, OP01, OP02, OP03, OP04, OP05, OP06, OP07, OP08, OP09];
 
 export function normalizeReport(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, ' ').replace(/\/+$/, '');
@@ -1164,11 +1181,17 @@ export function normalizeReport(s: string): string {
 /** Restituisce il finding che corrisponde alla segnalazione, se esiste. */
 export function matchFinding(op: Operation, value: string): Finding | null {
   const v = normalizeReport(value);
-  for (const f of op.findings) {
+  // prima le corrispondenze esatte o di fine percorso, poi quelle "contenute": così un nome
+  // utente (tecnico) non ruba un percorso che lo contiene (/home/tecnico/.bash_history)
+  for (const f of op.findings)
     for (const a of f.answers) {
       const n = normalizeReport(a);
-      if (v === n || v.endsWith('/' + n.replace(/^\//, '')) || (n.length >= 6 && v.includes(n))) return f;
+      if (v === n || v.endsWith('/' + n.replace(/^\//, ''))) return f;
     }
-  }
+  for (const f of op.findings)
+    for (const a of f.answers) {
+      const n = normalizeReport(a);
+      if (n.length >= 6 && v.includes(n)) return f;
+    }
   return null;
 }

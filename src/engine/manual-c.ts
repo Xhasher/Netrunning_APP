@@ -582,6 +582,7 @@ doc('jolly', {
 
 doc('flag', { cat: 'Gioco', description: ['Comando del gioco: nelle gare CTF ("Capture The Flag") si cercano codici segreti nel formato NC{...}. Con flag RISPOSTA invii la risposta a una domanda della missione.'], game: true });
 doc('hint', { cat: 'Gioco', description: ['Comando del gioco: mostra il suggerimento successivo per l\'obiettivo in corso (e nelle Simulazioni dimezza i punti).'], game: true });
+doc('prova', { cat: 'Gioco', description: ['Comando del gioco: nelle Scene del crimine registra un file come prova, con la sua impronta SHA-256 (catena di custodia).'], game: true });
 doc('report', { cat: 'Gioco', description: ['Comando del gioco: nelle Operazioni registra un problema trovato. Sii preciso: percorso completo, nome utente, indirizzo IP o impostazione.'], game: true });
 
 // ---------------------------------------------------------------- approfondimenti (schede di studio)

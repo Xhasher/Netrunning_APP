@@ -2394,6 +2394,27 @@ export const COMMANDS: Record<string, Command> = {
     return 0;
   },
 
+  /** Registra un file come prova: ne calcola l'impronta SHA-256 e la annota (catena di custodia). */
+  prova(c) {
+    if (!c.args.length) {
+      c.err('prova: indica il file da repertare, es: prova scena/sc01/home/jackie/Documenti/fornitori.txt');
+      return 1;
+    }
+    let ok = 0;
+    for (const f of c.args) {
+      const text = readText(c, [f], 'prova');
+      if (text === null) continue;
+      const path = c.sh.abs(f);
+      const hash = sha256(text);
+      c.out(`PROVA REGISTRATA  ${path}`, 'ok');
+      c.out(`  sha256 ${hash}`);
+      c.out(`  da ${c.sh.user} sul deck, ${new Date().toLocaleString('it-IT')}`, 'dim');
+      c.emit({ type: 'evidence', path, hash });
+      ok++;
+    }
+    return ok ? 0 : 1;
+  },
+
   report(c) {
     const value = c.args.join(' ').trim();
     if (!value) {
