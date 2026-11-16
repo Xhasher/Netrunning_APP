@@ -42,6 +42,7 @@ import { recordExam, renderExamsHome } from './exam';
 import { MODULES, STATES, backfill, introduced, isWhyQuestion, moduleSummary, nextStep, recordSuccess, recordUnderstood, skillsInLine, skillsInQuiz, stateOf, type SkillContext } from '../game/skills';
 import { DIFFICULTY_NAMES, DIMENSION_NAMES, ERROR_ADVICE, dueSkills, eligible, errorKind, isFragile, levelFor, overallDimensions, recordAttempt, recurringErrors, reviewWeight, snapshot, type ActivityKind, type Difficulty, type Dimensions } from '../game/engine';
 import { genRequires, palRequires } from '../game/prereq';
+import { INTEREST, TASTES, TRACKS, buildProfile, explainRow, type TrackId } from '../game/orientation';
 import { SyncError, describe as describeSave, deviceName, loadCloud, saveCloud, syncOnce, type CloudConfig } from '../game/sync';
 import { annotateGlossary, bindGlossarySearch, glossaryHtml, installGlossary } from './glossary';
 import { openManual } from './manual';
@@ -476,6 +477,7 @@ export class App {
           <button data-act="exams">Esami</button>
           <button data-act="skills">Competenze</button>
           <button data-act="codex">Codex</button>
+          <button data-act="orient">Orientamento</button>
           <button data-act="career">Carriera</button>
           <button data-act="settings">Opzioni</button>
         </nav>
@@ -568,6 +570,7 @@ export class App {
       else if (t.dataset.act === 'exams') this.showExams();
       else if (t.dataset.act === 'skills') this.showSkills();
       else if (t.dataset.act === 'career') this.showCareer();
+      else if (t.dataset.act === 'orient') this.showOrientation();
       else if (t.dataset.act === 'settings') this.showSettings();
       else if (t.dataset.act === 'title') this.showTitle();
       else if (t.dataset.act === 'tip') {
@@ -2690,6 +2693,185 @@ export class App {
       const t = (e.target as HTMLElement).closest<HTMLElement>('[data-tab]')?.dataset.tab as 'glossario' | 'riepiloghi' | undefined;
       if (t && t !== tab) this.showCodex(t);
     });
+  }
+
+  // ------------------------------------------------------------- orientamento
+
+  private showOrientation(): void {
+    const o = (this.save.orient ??= { answers: {}, tastes: {} });
+    const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+    const pct = (v: number | null) => (v === null ? '—' : `${Math.round(v * 100)}%`);
+    const answered = INTEREST.filter((q) => o.answers[q.id] !== undefined).length;
+    const tasted = TRACKS.filter((t) => o.tastes[t.id]).length;
+    // risultati delle attività che somigliano ai lavori
+    const scene = this.save.best['scene:sc01'];
+    const games = ['soc', 'phishing'].map((g) => this.save.best[g]).filter((x): x is number => x !== undefined);
+    const extras: Partial<Record<TrackId, number | null>> = {
+      dfir: scene !== undefined ? scene / Math.max(1, this.sceneOpen(OPERATIONS.find((x) => x.id === 'sc01')!).length) : null,
+      soc: games.length ? games.reduce((a, b) => a + b, 0) / (games.length * 8) : null,
+    };
+    const rows = buildProfile(o, this.save.learn, extras);
+    const ready = answered === INTEREST.length;
+    const done = new Set(this.save.completed);
+    const tasteRows = TRACKS.map((t) => {
+      const r = o.tastes[t.id];
+      return `<button class="opcard" data-taste="${t.id}"><span class="op-top"><span class="op-code">ASSAGGIO · ESPLORAZIONE</span><span class="op-xp">${r ? ['', 'non mi è piaciuto', 'così così', 'mi è piaciuto'][r[1]] : '3 domande'}</span></span><span class="op-title">${esc(t.name)}</span><span class="op-client">${esc(TASTES[t.id].title)}: ${esc(t.short)}</span></button>`;
+    }).join('');
+    const profile = !ready
+      ? '<p class="small">Il profilo compare dopo il test degli interessi.</p>'
+      : rows
+          .map((r, i) => {
+            const t = r.track;
+            const chosen = o.choice === t.id;
+            const practice = t.practice
+              .map((p) => (done.has(p.after) ? `<button class="chip" data-prac="${p.act}">${esc(p.label)} ▸</button>` : `<span class="chip off">🔒 ${esc(p.label)}: dopo ${esc(findMission(p.after)?.mission.title ?? p.after)}</span>`))
+              .join('');
+            return html`
+              <section class="dash track ${chosen ? 'chosen' : ''}">
+                <div class="dash-head"><span class="kicker">${i === 0 ? '// il più vicino a te' : i === 1 ? '// compatibile' : `// ${i + 1}°`}</span><b>${esc(t.name)}</b>${chosen ? '<span class="rec">la tua scelta</span>' : ''}</div>
+                <p class="small">${esc(t.short)}</p>
+                <ul class="dims">
+                  <li><span class="dim-name">Interesse</span><span class="dim-bar"><i style="width:${Math.round(r.interest * 100)}%"></i></span><span class="dim-val">${pct(r.interest)}</span></li>
+                  <li><span class="dim-name">Assaggio</span><span class="dim-bar"><i style="width:${r.liked === null ? 0 : Math.round(r.liked * 100)}%"></i></span><span class="dim-val">${pct(r.liked)}</span></li>
+                  <li><span class="dim-name">Capacità</span><span class="dim-bar"><i style="width:${r.ability.value === null ? 0 : Math.round(r.ability.value * 100)}%"></i></span><span class="dim-val">${pct(r.ability.value)}</span></li>
+                </ul>
+                <p class="small">${inline(explainRow(r))}</p>
+                ${r.ability.strong.length ? `<p class="small">Già solide: ${r.ability.strong.map((k) => `<code>${esc(k)}</code>`).join(', ')}.</p>` : ''}
+                ${r.ability.weak.length ? `<p class="small">Da migliorare: ${r.ability.weak.map((k) => `<code>${esc(k)}</code>`).join(', ')}.</p>` : ''}
+                <details><summary>Una giornata tipo, cosa piace, cosa pesa</summary><ul class="small">${t.day.map((d) => `<li>${esc(d)}</li>`).join('')}</ul><p class="small"><b>Piace a</b>: ${esc(t.likes)}</p><p class="small"><b>Può pesare</b>: ${esc(t.hard)}</p></details>
+                <div class="chips">${practice}</div>
+                <div class="step-actions"><button class="${chosen ? 'ghost' : 'next'}" data-choose="${t.id}">${chosen ? 'Scelto ✔' : 'Scelgo questo percorso'}</button></div>
+              </section>`;
+          })
+          .join('');
+    const liked = TRACKS.filter((t) => (o.tastes[t.id]?.[1] ?? 0) === 3).map((t) => TASTES[t.id].title);
+    const disliked = TRACKS.filter((t) => o.tastes[t.id]?.[1] === 1).map((t) => TASTES[t.id].title);
+    const content = html`
+      <div class="prose">${renderMarkup('Quale settore della sicurezza fa per te? Qui lo scopri mettendo insieme **tre cose diverse**, che restano separate: cosa ti **interessa**, cosa ti è **piaciuto** provare, e cosa hai **dimostrato** di saper fare nel corso.\n\n!! Non è un test psicologico né una prova scientifica di attitudine: è un aiuto a ragionare. L\'interesse non è capacità, e la capacità cresce con lo studio. **La scelta è tua**, e puoi cambiarla quando vuoi.')}</div>
+      <h3>1 · I tuoi interessi</h3>
+      <p class="small">${answered}/${INTEREST.length} risposte. Situazioni di tutti i giorni: non servono conoscenze tecniche e non ci sono risposte giuste.</p>
+      <div class="step-actions"><button class="${ready ? 'ghost' : 'next'}" data-int="1">${answered ? 'Rifai il test' : 'Inizia il test'} ▸</button></div>
+      <h3>2 · Prova i lavori</h3>
+      <p class="small">Cinque assaggi di tre domande, uno per lavoro. Sono un'<b>esplorazione</b>: parlano di cose che il corso spiega più avanti, e ognuna ha la sua spiegazione. ${tasted}/5 fatti.</p>
+      <div class="oplist">${tasteRows}</div>
+      ${liked.length || disliked.length ? `<p class="small">${liked.length ? `Ti sono piaciuti: ${liked.map(esc).join(', ')}. ` : ''}${disliked.length ? `Meno graditi: ${disliked.map(esc).join(', ')}.` : ''}</p>` : ''}
+      <h3>3 · Il tuo profilo</h3>
+      ${profile}
+      <p class="small">La capacità viene dal motore di apprendimento: precisione e autonomia sulle competenze tipiche di ogni lavoro, più i risultati della scena del crimine (DFIR) e dei giochi di triage (SOC). Diventa misurabile dopo qualche esercizio.</p>`;
+    const node = this.page('orient', 'Orientamento', '// quale lavoro fa per te', content);
+    node.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      const ch = t.closest<HTMLElement>('[data-choose]')?.dataset.choose as TrackId | undefined;
+      if (ch) {
+        o.choice = ch;
+        o.second = rows.find((r) => r.track.id !== ch)?.track.id;
+        this.persist();
+        this.toast(`Percorso scelto: ${TRACKS.find((x) => x.id === ch)!.name}. Puoi cambiarlo quando vuoi.`);
+        return this.showOrientation();
+      }
+      if (t.closest('[data-int]')) return this.runInterest();
+      const taste = t.closest<HTMLElement>('[data-taste]')?.dataset.taste as TrackId | undefined;
+      if (taste) return this.runTaste(taste);
+      const prac = t.closest<HTMLElement>('[data-prac]')?.dataset.prac;
+      if (prac === 'scene') return this.showOperation('sc01');
+      if (prac === 'ops') return this.showOps();
+      if (prac === 'game-soc') return this.showGame('soc');
+      if (prac === 'game-phishing') return this.showGame('phishing');
+      if (prac === 'sim') return this.showSimSetup();
+      if (prac === 'palestra') return this.showPalestra();
+    });
+  }
+
+  private runInterest(): void {
+    const o = this.save.orient;
+    let i = 0;
+    const node = this.page('orient-test', 'Interessi', '// nessuna risposta giusta', '<div class="train"></div>');
+    const box = node.querySelector<HTMLElement>('.train')!;
+    const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+    const render = () => {
+      if (i >= INTEREST.length) {
+        this.persist();
+        return this.showOrientation();
+      }
+      const q = INTEREST[i];
+      box.innerHTML = html`
+        <div class="train-head"><span>${i + 1}/${INTEREST.length}</span></div>
+        <h3>${esc(q.question)}</h3>
+        <div class="why-opts">${q.options.map((op, k) => `<button class="opt ${o.answers[q.id] === k ? 'picked' : ''}" data-a="${k}">${esc(op.text)}</button>`).join('')}</div>`;
+    };
+    box.addEventListener('click', (e) => {
+      const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
+      if (a === undefined) return;
+      o.answers[INTEREST[i].id] = Number(a);
+      i++;
+      render();
+      this.root.scrollTop = 0;
+    });
+    render();
+  }
+
+  private runTaste(id: TrackId): void {
+    const o = this.save.orient;
+    const taste = TASTES[id];
+    const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+    let i = -1;
+    let right = 0;
+    let order: number[] = [];
+    const node = this.page('orient-taste', taste.title, `// assaggio · ${TRACKS.find((t) => t.id === id)!.name}`, '<div class="train"></div>');
+    const box = node.querySelector<HTMLElement>('.train')!;
+    const render = () => {
+      if (i < 0) {
+        box.innerHTML = html`<div class="prose"><p>${esc(taste.intro)}</p><p class="small">È un'esplorazione: non serve sapere niente, e dopo ogni risposta trovi la spiegazione.</p></div><div class="step-actions"><button class="next" data-n="1">Inizia ▸</button></div>`;
+        return;
+      }
+      if (i >= taste.steps.length) {
+        box.innerHTML = html`
+          <p><b>${right}/${taste.steps.length}</b> scelte come le farebbe chi fa questo lavoro.</p>
+          <h3>Ti è piaciuto?</h3>
+          <div class="why-opts">
+            <button class="opt" data-like="3">Sì, ne vorrei fare di più</button>
+            <button class="opt" data-like="2">Così così</button>
+            <button class="opt" data-like="1">No, non fa per me</button>
+          </div>`;
+        return;
+      }
+      const st = taste.steps[i];
+      order = st.options.map((_, k) => k).sort(() => Math.random() - 0.5);
+      box.innerHTML = html`
+        <div class="train-head"><span>${i + 1}/${taste.steps.length}</span></div>
+        <h3>${esc(st.text)}</h3>
+        <div class="why-opts">${order.map((k) => `<button class="opt" data-o="${k}">${esc(st.options[k])}</button>`).join('')}</div>
+        <div class="train-explain"></div>`;
+    };
+    box.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      if (t.closest('[data-n]')) {
+        i++;
+        render();
+        this.root.scrollTop = 0;
+        return;
+      }
+      const like = t.closest<HTMLElement>('[data-like]')?.dataset.like;
+      if (like) {
+        o.tastes[id] = [right, Number(like)];
+        this.persist();
+        return this.showOrientation();
+      }
+      const b = t.closest<HTMLElement>('[data-o]');
+      if (!b || i < 0 || i >= taste.steps.length || box.querySelector('.train-explain')!.innerHTML) return;
+      const st = taste.steps[i];
+      const pick = Number(b.dataset.o);
+      const ok = pick === st.correct;
+      if (ok) right++;
+      box.querySelectorAll<HTMLButtonElement>('[data-o]').forEach((x) => {
+        const v = Number(x.dataset.o);
+        if (v === st.correct) x.classList.add('right');
+        else if (v === pick) x.classList.add('wrong');
+        x.disabled = true;
+      });
+      box.querySelector('.train-explain')!.innerHTML = html`<div class="${ok ? 'success' : 'feedback wrong'}"><p>${esc(st.explain)}</p></div><div class="step-actions"><button class="next" data-n="1">${i + 1 < taste.steps.length ? 'Avanti ▸' : 'Fine ▸'}</button></div>`;
+    });
+    render();
   }
 
   private showCareer(): void {

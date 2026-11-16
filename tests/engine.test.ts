@@ -180,3 +180,32 @@ describe('giochi collegati al corso', () => {
     expect(altQ?.quiz?.question).toBe(q2.question);
   });
 });
+
+describe('orientamento professionale', () => {
+  it('interessi, assaggi e capacità restano separati, e la capacità serve dati veri', async () => {
+    const { INTEREST, TASTES, TRACKS, abilityFor, buildProfile, interestScores } = await import('../src/game/orientation');
+    // tutte le risposte che puntano sul SOC
+    const answers: Record<string, number> = {};
+    for (const q of INTEREST) {
+      const best = q.options.map((o, i) => ({ i, w: o.w.soc ?? 0 })).sort((a, b) => b.w - a.w)[0];
+      answers[q.id] = best.i;
+    }
+    const sc = interestScores(answers);
+    expect(sc.soc).toBeGreaterThan(0.9);
+    expect(Math.max(sc.dfir, sc.pentest, sc.eng, sc.malware)).toBeLessThan(sc.soc);
+    // senza dati la capacità non si inventa
+    expect(abilityFor(TRACKS[0], {}).value).toBeNull();
+    const l: Learn = {};
+    for (let i = 0; i < 8; i++) recordAttempt(l, { skills: ['grep', 'cut'], ok: true, kind: 'palestra', day: 1 });
+    const soc = TRACKS.find((t) => t.id === 'soc')!;
+    expect(abilityFor(soc, l).value).toBeGreaterThan(0.9);
+    expect(abilityFor(soc, l).strong).toContain('grep');
+    // un assaggio non gradito abbassa il percorso, ma l'interesse resta quello dichiarato
+    const p = buildProfile({ answers, tastes: { soc: [3, 1] } }, l);
+    const row = p.find((r) => r.track.id === 'soc')!;
+    expect(row.interest).toBeCloseTo(sc.soc);
+    expect(row.liked).toBe(0);
+    // gli assaggi hanno risposte valide
+    for (const t of Object.values(TASTES)) for (const st of t.steps) expect(st.correct).toBeLessThan(st.options.length);
+  });
+});

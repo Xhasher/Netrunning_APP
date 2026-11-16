@@ -37,8 +37,8 @@ Audit (fase A) presentato il 16 novembre 2026.
 | B-C Motore unico, prerequisiti, livello adattivo, ripasso, cruscotto | fatto (1.20.0) |
 | D Giochi esistenti nel motore (Phishing/Triage legati al capitolo, feedback con esercizio diverso, domande sul perché) | fatto (1.21.0) |
 | E Digital Crime Scene (SC-01, cresce con il corso) | fatto (1.22.0) |
-| F Orientamento professionale | **prossima** |
-| G Percorsi specializzati e tutor a regole | da fare |
+| F Orientamento professionale | fatto (1.23.0) |
+| G Percorsi specializzati e tutor a regole | **prossima** |
 | H Collaudo | da fare |
 
 Decisioni: tutor a regole (niente IA: niente credenziali nel client); dati sul lavoro in Italia

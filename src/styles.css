@@ -3167,3 +3167,11 @@ pre.code.term .cl-note { color: #7d8399; font-family: var(--sans); font-style: i
   flex-direction: column;
   gap: 0.4rem;
 }
+
+.track.chosen {
+  border-color: var(--yellow);
+}
+
+.chip.off {
+  opacity: 0.6;
+}

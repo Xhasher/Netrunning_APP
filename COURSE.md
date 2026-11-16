@@ -201,3 +201,10 @@ Il programma previsto in questo documento è completo. Prossimi passi possibili:
 - **Registro delle prove**: il nuovo comando `prova FILE` calcola l'impronta SHA-256 del file e la annota (catena di custodia).
 - **Ricostruzione della timeline**: gli eventi scoperti (con gli orari trovati nei log, nelle date dei file e nei processi) vanno rimessi in ordine.
 - Ragionamento e indagine contano nel motore di apprendimento. `report` ora preferisce le corrispondenze esatte (un nome utente non "ruba" più un percorso che lo contiene).
+
+## Aggiunto nella 1.23 (orientamento professionale, fase F)
+
+- Nuova pagina **Orientamento** (dalla mappa): quale settore della sicurezza fa per te, tra cinque percorsi: Digital Forensics & Incident Response, Junior Penetration Tester, SOC Analyst / Blue Team, Security Engineer / System Administrator, Malware Analysis.
+- **Tre fonti tenute separate**: un test degli interessi con situazioni di tutti i giorni (nessuna conoscenza tecnica, nessuna risposta giusta); cinque **assaggi guidati** di tre domande, uno per lavoro, dichiarati come esplorazione e con la spiegazione dopo ogni risposta, seguiti da "ti è piaciuto?"; le **capacità dimostrate**, dai dati del motore sulle competenze tipiche di ogni lavoro e dai risultati della scena del crimine (DFIR) e dei giochi di triage (SOC). Senza abbastanza dati la capacità resta "non ancora misurabile".
+- **Profilo**: percorso più vicino e compatibile, con le tre misure, una spiegazione in parole semplici, competenze già solide e da migliorare, una giornata tipo, cosa piace e cosa pesa, e le attività del gioco che somigliano a quel lavoro (aperte o con la missione che le apre). Attività gradite e meno gradite.
+- **La scelta è di chi gioca**: si sceglie (e si cambia) il percorso con un pulsante; è salvata e sincronizzata. Non è un test psicologico né una prova validata di attitudine, e lo dice.

@@ -134,6 +134,12 @@ export function mergeSaves(localIn: SaveData, remoteIn: SaveData): SaveData {
     chTests,
     learn,
     history,
+    orient: {
+      answers: { ...(older.orient?.answers ?? {}), ...(newer.orient?.answers ?? {}) },
+      tastes: { ...(older.orient?.tastes ?? {}), ...(newer.orient?.tastes ?? {}) },
+      choice: newer.orient?.choice ?? older.orient?.choice,
+      second: newer.orient?.second ?? older.orient?.second,
+    },
     warmup: local.warmup,
     skillsBackfilled: !!(local.skillsBackfilled || remote.skillsBackfilled),
     handle: newer.handle ?? older.handle,
