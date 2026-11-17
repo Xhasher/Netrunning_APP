@@ -1,6 +1,6 @@
 import { CAREER, CHAPTERS, PLANNED, allMissions, findMission } from '../content';
 import { GAMES, generatePhishingCard, generateTriageCard } from '../content/games';
-import { GENERATORS, LEVELS, generateSession, makeRng, normalizeDrillAnswer, type Drill, type Level } from '../content/drills';
+import { GENERATORS, LEVELS, generateSession, makeRng, type Drill, type Level } from '../content/drills';
 import { SYS_ROOTS } from '../content/world-admin';
 import { expandLive } from '../content/live';
 import { CHAPTER_TEST, buildChapterTest, chapterComplete, practicalPlan, recordChapterTest, recordPractical, stars } from '../game/chaptertest';
@@ -13,7 +13,7 @@ import { buildWorld } from '../content/world';
 import type { Shell } from '../engine/shell';
 import type { Vfs } from '../engine/vfs';
 import type { ShellEvent } from '../engine/types';
-import { evaluate, stateOk } from '../game/logic';
+import { answerMatches, evaluate, stateOk } from '../game/logic';
 import {
   makeBackup,
   parseBackup,
@@ -1104,10 +1104,28 @@ export class App {
     // il diario dei comandi riparte quando la missione ricomincia da capo
     if (step === 0 || !this.save.logs[id]) this.save.logs[id] = [];
 
-    // ogni missione parte dalla home
-    shell.cwd = shell.home;
+    // ogni missione parte dalla home; una missione ripresa a metà riparte dalla cartella in cui si era
+    // lo stesso vale per i collegamenti remoti (ssh, pwsh) aperti nei passi precedenti: si riaprono
+    const at = (loadDeck() as { at?: { mission: string; cwd: string; sess?: string[] } } | null)?.at;
+    const mine = step > 0 && at?.mission === id ? at : null;
+    while (shell.remoteDepth > 0) shell.disconnect();
+    shell.ps = false;
+    const resumeDir = mine && mine.cwd && shell.fs.get(mine.cwd)?.type === 'dir' ? mine.cwd : null;
+    shell.cwd = resumeDir ?? shell.home;
+    this.sessCmds = [];
+    this.sessSig = [0, false];
+    const reopened: string[] = [];
+    for (const line of mine?.sess ?? []) {
+      shell.run(line);
+      const sig: [number, boolean] = [shell.remoteDepth, shell.ps];
+      if (sig[0] > this.sessSig[0] || (sig[1] && !this.sessSig[1])) reopened.push(line);
+      this.sessSig = sig;
+    }
+    this.sessCmds = reopened;
     term.updatePrompt();
     term.system(`── MISSIONE ${found.chapter.code}.${found.index + 1} · ${found.mission.title.toUpperCase()} ──`, 'banner');
+    if (reopened.length) term.system(`Riprendi da dove eri: ho riaperto il collegamento (${reopened.join(' → ')}).`, 'info');
+    else if (resumeDir) term.system(`Riprendi da dove eri: sei nella cartella ${shell.promptPath()}.`, 'info');
 
     const node = el(html`
       <div class="screen mission">
@@ -1448,7 +1466,7 @@ export class App {
     return this.pristine;
   }
 
-  private deckData(): { home: unknown; deleted: string[]; aliases: Record<string, string>; sys: Record<string, { tree: unknown; deleted: string[] }> } | null {
+  private deckData(): { home: unknown; deleted: string[]; aliases: Record<string, string>; sys: Record<string, { tree: unknown; deleted: string[] }>; at?: { mission: string; cwd: string; sess: string[] } } | null {
     const sh = this.shell;
     if (!sh) return null;
     const diff = sh.localFs.diffFrom(this.pristineHome(), `/home/${this.save.handle}`);
@@ -1457,7 +1475,13 @@ export class App {
       const d = sh.localFs.diffFrom(this.pristineHome(), root);
       if (d.tree || d.deleted.length) sys[root] = d;
     }
-    return { home: diff.tree, deleted: diff.deleted, aliases: sh.userAliases, sys };
+    // la cartella di lavoro della missione in corso: serve a riprenderla nello stesso punto
+    const remote = sh.remoteDepth > 0 || sh.ps;
+    const at =
+      this.run && (remote ? this.sessCmds.length > 0 : sh.cwd !== sh.home)
+        ? { mission: this.run.mission.id, cwd: remote ? '' : sh.cwd, sess: remote ? [...this.sessCmds] : [] }
+        : undefined;
+    return { home: diff.tree, deleted: diff.deleted, aliases: sh.userAliases, sys, at };
   }
 
   /** Aggiunge alla barra in alto il pulsante che apre il Manuale. */
@@ -1472,6 +1496,23 @@ export class App {
     bar.appendChild(b);
   }
 
+  /** i comandi che hanno aperto i collegamenti remoti ancora attivi nella missione in corso */
+  private sessCmds: string[] = [];
+  private sessSig: [number, boolean] = [0, false];
+
+  private trackSessions(): void {
+    const sh = this.shell;
+    if (!sh) return;
+    const sig: [number, boolean] = [sh.remoteDepth, sh.ps];
+    const [d0, p0] = this.sessSig;
+    if (sig[0] > d0 || (sig[1] && !p0)) {
+      const line = sh.history[sh.history.length - 1];
+      if (line) this.sessCmds.push(line);
+    } else if (sig[0] < d0 || (!sig[1] && p0)) this.sessCmds.pop();
+    if (sig[0] === 0 && !sig[1]) this.sessCmds = [];
+    this.sessSig = sig;
+  }
+
   private persistDeck(): void {
     const d = this.deckData();
     if (d) saveDeck(d);
@@ -1480,6 +1521,7 @@ export class App {
   private onShellEvents(events: ShellEvent[]): void {
     const r = this.run;
     const term = this.term!;
+    this.trackSessions();
     this.persistDeck();
     this.learnCommands(events);
     if (!r) {
@@ -2581,8 +2623,7 @@ export class App {
           s.term.system('Questa sfida non chiede una risposta: va fatto il lavoro richiesto.', 'info');
           continue;
         }
-        const v = normalizeDrillAnswer(ev.value);
-        if (d.answer.some((a) => normalizeDrillAnswer(a) === v)) solved = true;
+        if (answerMatches(ev.value, d.answer)) solved = true;
         else s.term.system('✘ Risposta non corretta, riprova.', 'err');
       } else if (d.check?.(ev, s.shell)) solved = true;
     }
@@ -3281,7 +3322,7 @@ export class App {
         box.select();
         let copied = false;
         try {
-          void navigator.clipboard?.writeText(code);
+          navigator.clipboard?.writeText(code)?.catch(() => {});
           copied = !!navigator.clipboard;
         } catch {
           copied = false;

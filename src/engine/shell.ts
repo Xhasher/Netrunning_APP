@@ -75,9 +75,46 @@ const WELL_KNOWN: Record<number, string> = {
 
 const NMAP_HEADER = 'Starting Nmap 7.95 ( https://nmap.org ) at 2077-11-11 21:04 CET';
 
+/** Comandi veri che qui non ci sono: meglio dirlo che proporre un nome simile a caso. */
+const REAL_BUT_ABSENT: Record<string, string> = {
+  top: 'mostra i processi in tempo reale; qui usa "ps aux"',
+  htop: 'mostra i processi in tempo reale; qui usa "ps aux"',
+  kill: 'ferma un processo',
+  killall: 'ferma i processi per nome',
+  su: 'cambia utente',
+  passwd: 'cambia la password',
+  wget: 'scarica un file; qui usa "curl"',
+  git: 'gestisce le versioni del codice',
+  pip: 'installa i pacchetti Python',
+  pip3: 'installa i pacchetti Python',
+  openssl: 'strumenti di crittografia; qui usa "sha256sum" e "base64"',
+  sleep: 'aspetta qualche secondo',
+  host: 'interroga il DNS; qui usa "nslookup" o "dig"',
+  telnet: 'vecchio accesso remoto in chiaro; qui usa "nc" o "ssh"',
+  ftp: 'trasferisce file in chiaro',
+  scp: 'copia file via SSH',
+  tar: 'crea e apre archivi',
+  zip: 'crea archivi compressi',
+  unzip: 'apre archivi compressi',
+  gzip: 'comprime file',
+  netstat: 'mostra le connessioni; qui usa "ss -tlnp"',
+  service: 'gestisce i servizi; qui usa "systemctl"',
+  reboot: 'riavvia la macchina',
+  shutdown: 'spegne la macchina',
+  mount: 'collega un disco',
+  crontab: 'gestisce i lavori programmati; qui leggi i file in /etc/cron.d',
+  useradd: 'crea un utente',
+  adduser: 'crea un utente',
+  'apt-get': 'gestisce i pacchetti; qui usa "apt list --upgradable"',
+  strings: 'estrae il testo leggibile da un file',
+  watch: 'ripete un comando a intervalli',
+  emacs: 'un editor di testo; qui usa "nano"',
+  code: 'un editor di testo; qui usa "nano"',
+};
+
 // ---------------------------------------------------------------- tokenizer
 
-type Op = '|' | '>' | '>>' | '2>';
+type Op = '|' | '>' | '>>' | '2>' | '2>&1' | '<';
 type Token = { t: string; op?: Op; glob?: boolean };
 
 /** Espansione delle variabili ($NOME, ${NOME}, $1, $?) e della sostituzione di comando $(...). */
@@ -173,6 +210,18 @@ function tokenize(line: string, ex?: Expander): Token[] | { error: string } {
     } else if (ch === '|') {
       push();
       tokens.push({ t: '|', op: '|' });
+    } else if (ch === '<') {
+      push();
+      tokens.push({ t: '<', op: '<' });
+    } else if (ch === '>' && line[i + 1] === '&' && (line[i + 2] === '1' || line[i + 2] === '2')) {
+      // 2>&1 unisce gli errori all'output; >&2 e 1>&2 qui non cambiano nulla
+      const fromErr = cur === '2' && has;
+      if ((cur === '2' || cur === '1') && has) {
+        cur = '';
+        has = false;
+      } else push();
+      if (fromErr && line[i + 2] === '1') tokens.push({ t: '2>&1', op: '2>&1' });
+      i += 2;
     } else if (ch === '>') {
       const append = line[i + 1] === '>';
       if (cur === '2' && has) {
@@ -473,7 +522,14 @@ export class Shell {
 
   run(input: string): RunResult {
     this.lastRun = null;
-    let line = input.trim();
+    // le tastiere dei telefoni trasformano "..." in “...”, '...' in ‘...’ e -- in —: qui tornano semplici
+    let line = input
+      .replace(/[“”„‟]/g, '"')
+      .replace(/[‘’‚‛]/g, "'")
+      .replace(/(^|\s)—(?=\S)/g, '$1--')
+      .replace(/(^|\s)–(?=\S)/g, '$1-')
+      .replace(/\u00a0/g, ' ')
+      .trim();
     const result: RunResult = { lines: [], events: [] };
     if (!line) return result;
     // !! ripete l'ultimo comando (anche dentro la riga: "sudo !!"), !N il comando numero N
@@ -659,10 +715,26 @@ export class Shell {
       const words: string[] = [];
       let outFile: { path: string; append: boolean } | null = null;
       let errFile: string | null = null;
+      let mergeErr = false;
       const seg = segments[idx];
       for (let j = 0; j < seg.length; j++) {
         const t = seg[j];
-        if (t.op === '>' || t.op === '>>' || t.op === '2>') {
+        if (t.op === '2>&1') {
+          mergeErr = true;
+        } else if (t.op === '<') {
+          const target = seg[j + 1];
+          if (!target || target.op) {
+            sink.lines.push({ text: "bash: syntax error near unexpected token `newline'", cls: 'err' });
+            return 2;
+          }
+          j++;
+          const src = this.fs.get(this.abs(target.t));
+          if (!src || src.type !== 'file') {
+            sink.lines.push({ text: `bash: ${target.t}: ${src ? 'Is a directory' : 'No such file or directory'}`, cls: 'err' });
+            return 1;
+          }
+          stdin = src.content;
+        } else if (t.op === '>' || t.op === '>>' || t.op === '2>') {
           const target = seg[j + 1];
           if (!target || target.op) {
             sink.lines.push({ text: "bash: syntax error near unexpected token `newline'", cls: 'err' });
@@ -680,6 +752,7 @@ export class Shell {
 
       const produced: OutLine[] = [];
       code = this.runCommand(words, stdin, produced, sink, depth);
+      if (mergeErr) for (const l of produced) if (l.stream === 'err' && l.cls !== 'info') l.stream = 'out';
 
       const outLines = produced.filter((l) => l.stream === 'out');
       const errLines = produced.filter((l) => l.stream === 'err');
@@ -712,6 +785,8 @@ export class Shell {
       const expanded = tokenize(ua);
       if (!('error' in expanded)) words = [...expanded.map((t) => t.t), ...words.slice(1)];
     }
+    // "type ls" in bash dice cos'è un comando; "type file" resta il cat di Windows
+    if (words[0] === 'type' && words.length === 2 && !this.fs.get(this.abs(words[1])) && (COMMANDS[words[1]] || ALIASES[words[1]])) words = ['which', words[1]];
     const typed = words[0];
     const args = words.slice(1);
 
@@ -753,6 +828,8 @@ export class Shell {
           cls: 'info',
           stream: 'err',
         });
+      } else if (REAL_BUT_ABSENT[lower]) {
+        produced.push({ text: `💡 "${lower}" esiste su un Linux vero (${REAL_BUT_ABSENT[lower]}), ma in questo deck non c'è. Scrivi "help" per vedere cosa puoi usare.`, cls: 'info', stream: 'err' });
       } else {
         const near = this.commandNames()
           .map((c) => [c, levenshtein(lower, c)] as const)
@@ -1932,7 +2009,8 @@ export const COMMANDS: Record<string, Command> = {
       return 1;
     }
     c.out(`; <<>> DiG 9.18.28 <<>> ${d} ${type}`, 'dim');
-    const zone = DNS[d];
+    const lan = lookup(c.sh.net, d);
+    const zone = DNS[d] ?? (lan?.host ? { A: [lan.ip] } : undefined);
     if (!zone) {
       c.out(';; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN', 'dim');
       c.info('💡 NXDOMAIN: il nome non esiste nel DNS.');

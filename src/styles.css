@@ -364,6 +364,8 @@ strong {
 
 .recap dd {
   margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 0.92rem;
   color: #d3d7e6;
 }
@@ -760,7 +762,7 @@ strong {
 }
 
 .minimized .step-title,
-.minimized .step-body > :not(.objective):not(.hints) {
+.minimized .step-body > :not(.objective):not(.hints):not(.hint-gate) {
   display: none;
 }
 

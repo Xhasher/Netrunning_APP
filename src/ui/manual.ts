@@ -88,7 +88,7 @@ export function openManual(start?: string): void {
     if (copy) {
       const text = copy.dataset.copy!;
       try {
-        void navigator.clipboard?.writeText(text);
+        navigator.clipboard?.writeText(text)?.catch(() => {});
       } catch {
         /* ignora */
       }

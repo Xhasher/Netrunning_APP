@@ -275,3 +275,16 @@ Il programma previsto in questo documento è completo. Prossimi passi possibili:
 - **Nuovi esercizi** dove mancavano: le fasi della Kill Chain sul caso della clinica (8.2, `siem/catena.txt`); la bozza della rete del bar, con la cassa nel segmento sbagliato (9.2, `rete/piano-bar.txt`); dare un nome agli errori dopo l'ingresso, tra cui una regola sudo troppo larga (11.1, `audit/dopo-ingresso.txt`); il piano del laboratorio di Luca, con la macchina vulnerabile in bridge (13.3, `carriera/laboratorio.txt`).
 - Linguaggio neutro: tolti "ragazzo" (PT), "Benvenuto nel turno" (SO), "Benvenuto nel giro" e "quando ti senti pronto" (13). Il phishing di PC-AMM-07 ora rimanda correttamente al turno al SOC di Arasaka.
 
+## Corretto nella 1.32.1 (prove di gioco)
+
+Prove fatte: un bot gioca tutte le 85 missioni dall'interfaccia su schermo da telefono (lezioni, comandi nel terminale, editor, quiz); un secondo bot riprende ogni missione dopo averla interrotta a metà; un terzo gioca a caso in giochi, esami, scene e pagine; in più una raffica di comandi sbagliati o insoliti nel terminale.
+
+- **Missione ripresa a metà**: si ripartiva sempre dalla home, e i comandi dei passi successivi non trovavano più i file (`bash ciao.sh`, `mv bozza.txt idee.txt`). Ora si riparte dalla cartella in cui si era, con un avviso. Lo stesso per i collegamenti remoti: nella 12.5 si perdeva la sessione PowerShell sul PC dell'amministrazione, ora viene riaperta.
+- **Risposte scritte in modo naturale**: `flag la cassa`, `flag 3.`, `flag evento 3`, `flag tre`, `flag "Metasploitable"` venivano rifiutate. Ora valgono, nelle missioni e nelle simulazioni; una risposta sbagliata resta sbagliata.
+- **Tastiera del telefono**: virgolette “tipografiche” e trattini lunghi (— al posto di --) rompevano i comandi (`grep ‘Failed password’ ...`). Ora valgono come quelli semplici.
+- **Terminale**: `2>&1` creava un file chiamato `&1`; la redirezione in ingresso `<` non esisteva (`wc -l < file`); `type ls` cercava un file; `dig` non conosceva i nomi della rete locale che `nslookup` risolve. Per i comandi veri che nel deck non ci sono (`top`, `kill`, `su`, `wget`, `git`...) ora si dice che esistono e cosa usare al loro posto, invece di proporre un nome simile a caso.
+- **Suggerimento a pannello ridotto**: toccando "Suggerimento" quando serviva una conferma non compariva nessun messaggio. Ora l'avviso si vede.
+- **Riepilogo di fine missione**: una voce lunga senza spazi usciva dallo schermo (7.1). Ora va a capo.
+- Copia negli appunti negata dal sistema: non genera più un errore.
+- I file dei nuovi esercizi (9.2, 13.3) sono impaginati per stare nella larghezza di un telefono; l'intestazione di `siem/catena.txt` parla di Kill Chain, come la domanda.
+

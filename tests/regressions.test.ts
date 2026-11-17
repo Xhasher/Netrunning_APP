@@ -101,3 +101,50 @@ describe('regressioni', () => {
     expect(d.deleted).toEqual([]);
   });
 });
+
+import { answerMatches } from '../src/game/logic';
+describe('risposte: forme equivalenti accettate', () => {
+  it('articoli, punteggiatura, virgolette, parole di contorno e numeri a parole', () => {
+    expect(answerMatches('la cassa', ['cassa'])).toBe(true);
+    expect(answerMatches('3.', ['3'])).toBe(true);
+    expect(answerMatches('evento 3', ['3'])).toBe(true);
+    expect(answerMatches('tre', ['3'])).toBe(true);
+    expect(answerMatches('"Metasploitable"', ['metasploitable'])).toBe(true);
+    expect(answerMatches('il L2', ['L2', 'il L2'])).toBe(true);
+    expect(answerMatches('config.bak', ['config.bak'])).toBe(true);
+  });
+  it('una risposta sbagliata resta sbagliata', () => {
+    expect(answerMatches('4', ['3'])).toBe(false);
+    expect(answerMatches('la cassaforte', ['cassa'])).toBe(false);
+    expect(answerMatches('', ['3'])).toBe(false);
+    expect(answerMatches('192.168.1.5', ['192.168.1.50'])).toBe(false);
+  });
+});
+
+describe('terminale: abitudini reali e tastiere dei telefoni', () => {
+  const run = (sh: ReturnType<typeof buildWorld>, c: string) => sh.run(c).lines.map((l) => l.text);
+  it('virgolette e trattini tipografici valgono come quelli semplici', () => {
+    const sh = buildWorld('edge');
+    expect(run(sh, 'grep ‘Failed password’ caso/auth.log | wc -l')).toEqual(['40']);
+    expect(run(sh, 'echo “Ciao Night City”')).toEqual(['Ciao Night City']);
+    expect(run(sh, 'ls –a missioni').join(' ')).toContain('.nota_segreta');
+    expect(run(sh, 'echo —all')).toEqual(['--all']);
+  });
+  it('2>&1 non crea un file e unisce gli errori all\'output', () => {
+    const sh = buildWorld('edge');
+    expect(run(sh, 'cat nonesiste.txt 2>&1 | wc -l')).toEqual(['1']);
+    expect(sh.fs.get(sh.home + '/&1')).toBeFalsy();
+    expect(run(sh, 'echo ciao >&2')).toEqual(['ciao']);
+  });
+  it('la redirezione in ingresso < passa il file al comando', () => {
+    const sh = buildWorld('edge');
+    expect(run(sh, 'wc -l < caso/auth.log')[0].trim()).toMatch(/^46/);
+    expect(run(sh, 'grep -c Failed < caso/auth.log')).toEqual(['40']);
+    expect(run(sh, 'wc -l < nonesiste')[0]).toContain('No such file');
+  });
+  it('type e dig si comportano come ci si aspetta', () => {
+    const sh = buildWorld('edge');
+    expect(run(sh, 'type ls')).toEqual(['/usr/bin/ls']);
+    expect(run(sh, 'dig jukebox.lan').join(' ')).toContain('192.168.1.20');
+  });
+});
